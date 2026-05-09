@@ -29,7 +29,7 @@ The application provides:
 - Turborepo
 
 ### 2.2 Frontend
-- Next.js
+- Vite
 - React
 - Ant Design
 - TanStack Query
@@ -70,7 +70,7 @@ The application provides:
 
 ```mermaid
 flowchart LR
-    U[User Browser] --> W[Next.js Web App]
+    U[User Browser] --> W[Vite Web App]
     W --> A[NestJS API]
     A --> DB[(PostgreSQL)]
     A --> FS[(File Storage)]
@@ -84,7 +84,7 @@ flowchart LR
 ```
 
 ### 3.1 Responsibilities
-- **Next.js Web App**: UI rendering, user interaction, authenticated API calls
+- **Vite Web App**: UI rendering, user interaction, authenticated API calls
 - **NestJS API**: business logic, auth, file handling, text extraction, AI orchestration, persistence
 - **PostgreSQL**: structured data and history
 - **File Storage**: uploaded original files
@@ -98,7 +98,7 @@ flowchart LR
 ```text
 repo/
   apps/
-    web/                       # Next.js frontend
+    web/                       # Vite frontend
     api/                       # NestJS backend
   packages/
     shared-types/              # shared DTO/types/interfaces
@@ -421,7 +421,7 @@ At runtime, both prompt and field configuration must be snapshotted into the ana
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant W as Next.js Web
+    participant W as Vite Web
     participant A as NestJS API
     participant P as Parser
     participant DB as PostgreSQL
@@ -460,7 +460,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant W as Next.js Web
+    participant W as Vite Web
     participant A as NestJS API
     participant P as Parser
     participant D as Diff Service
@@ -491,7 +491,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant W as Next.js Web
+    participant W as Vite Web
     participant A as NestJS API
     participant E as Entra ID
     participant DB as PostgreSQL
@@ -878,9 +878,10 @@ Recommended metrics:
 ## 18. Deployment Considerations
 
 ### 18.1 Runtime
-- Frontend: Node.js runtime for Next.js
+- Frontend: static assets built by Vite and served by a lightweight web server container
 - Backend: Node.js runtime for NestJS
 - DB: PostgreSQL managed service or containerized instance
+- Reverse proxy: TLS termination + request routing at the edge
 
 ### 18.2 Environments
 - local
@@ -889,7 +890,15 @@ Recommended metrics:
 - staging
 - production
 
-### 18.3 CI/CD
+### 18.3 Recommended MVP Deployment Topology
+- Single-host Docker Compose deployment
+- Reverse proxy with TLS termination in front of web/api
+- Private internal network for API and PostgreSQL
+- Mounted persistent volume for uploaded files
+- Mounted persistent volume for PostgreSQL data
+- Environment-driven configuration for all secrets and external integrations
+
+### 18.4 CI/CD
 Suggested pipeline:
 1. install dependencies
 2. lint
@@ -898,6 +907,12 @@ Suggested pipeline:
 5. build api
 6. run migrations
 7. deploy
+
+### 18.5 Operational Requirements
+- API should expose a health endpoint for container readiness/liveness
+- DB startup should be health-checked before API start
+- Migrations should run as an explicit deployment step, not a silent side effect of API boot
+- Only the reverse proxy should expose public ports in production
 
 ---
 

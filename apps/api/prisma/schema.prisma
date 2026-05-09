@@ -1,0 +1,198 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  admin
+  user
+}
+
+enum AuthProvider {
+  local
+  entra
+}
+
+enum UserStatus {
+  active
+  disabled
+}
+
+enum TextExtractionStatus {
+  pending
+  success
+  failed
+}
+
+enum JobStatus {
+  pending
+  running
+  success
+  failed
+}
+
+enum DiffMode {
+  unified
+  side_by_side
+}
+
+enum TemplateType {
+  risk_analysis
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String
+  passwordHash String?    @map("password_hash")
+  authProvider AuthProvider @default(local) @map("auth_provider")
+  entraOid     String?    @unique @map("entra_oid")
+  role         Role       @default(user)
+  status       UserStatus @default(active)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  documents       Document[]
+  analysisJobs    AnalysisJob[]
+  compareJobs     CompareJob[]
+  fieldTemplates  FieldTemplate[]
+  promptTemplates PromptTemplate[]
+
+  @@map("users")
+}
+
+model FieldTemplate {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  name      String
+  isDefault Boolean  @default(false) @map("is_default")
+  isSystem  Boolean  @default(false) @map("is_system")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user         User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items        FieldTemplateItem[]
+  analysisJobs AnalysisJob[]
+
+  @@map("field_templates")
+}
+
+model FieldTemplateItem {
+  id               String   @id @default(cuid())
+  templateId       String   @map("template_id")
+  fieldName        String   @map("field_name")
+  fieldDescription String   @map("field_description")
+  sortOrder        Int      @default(0) @map("sort_order")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  template FieldTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@map("field_template_items")
+}
+
+model PromptTemplate {
+  id           String       @id @default(cuid())
+  userId       String?      @map("user_id")
+  name         String
+  templateType TemplateType @map("template_type")
+  content      String
+  isDefault    Boolean      @default(false) @map("is_default")
+  isSystem     Boolean      @default(false) @map("is_system")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analysisJobs AnalysisJob[]
+
+  @@map("prompt_templates")
+}
+
+model Document {
+  id                    String               @id @default(cuid())
+  userId                String               @map("user_id")
+  fileName              String               @map("file_name")
+  fileType              String               @map("file_type")
+  fileSize              Int                  @map("file_size")
+  storagePath           String               @map("storage_path")
+  extractedText         String?              @map("extracted_text")
+  textExtractionStatus  TextExtractionStatus @default(pending) @map("text_extraction_status")
+  createdAt             DateTime             @default(now()) @map("created_at")
+  updatedAt             DateTime             @updatedAt @map("updated_at")
+
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analysisJobs    AnalysisJob[]
+  oldCompareJobs  CompareJob[]  @relation("OldDocument")
+  newCompareJobs  CompareJob[]  @relation("NewDocument")
+
+  @@map("documents")
+}
+
+model AnalysisJob {
+  id                        String     @id @default(cuid())
+  userId                    String     @map("user_id")
+  documentId                String     @map("document_id")
+  modelName                 String     @map("model_name")
+  fieldTemplateId           String?    @map("field_template_id")
+  promptTemplateId          String?    @map("prompt_template_id")
+  fieldTemplateSnapshotJson Json?      @map("field_template_snapshot_json")
+  promptSnapshotText        String?    @map("prompt_snapshot_text")
+  status                    JobStatus  @default(pending)
+  errorMessage              String?    @map("error_message")
+  createdAt                 DateTime   @default(now()) @map("created_at")
+  updatedAt                 DateTime   @updatedAt @map("updated_at")
+
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document              Document               @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  fieldTemplate         FieldTemplate?         @relation(fields: [fieldTemplateId], references: [id], onDelete: SetNull)
+  promptTemplate        PromptTemplate?        @relation(fields: [promptTemplateId], references: [id], onDelete: SetNull)
+  fieldExtractionResult FieldExtractionResult?
+  riskAnalysisResult    RiskAnalysisResult?
+
+  @@map("analysis_jobs")
+}
+
+model FieldExtractionResult {
+  id            String   @id @default(cuid())
+  analysisJobId String   @unique @map("analysis_job_id")
+  resultJson    Json     @map("result_json")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  analysisJob AnalysisJob @relation(fields: [analysisJobId], references: [id], onDelete: Cascade)
+
+  @@map("field_extraction_results")
+}
+
+model RiskAnalysisResult {
+  id            String   @id @default(cuid())
+  analysisJobId String   @unique @map("analysis_job_id")
+  resultText    String   @map("result_text")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  analysisJob AnalysisJob @relation(fields: [analysisJobId], references: [id], onDelete: Cascade)
+
+  @@map("risk_analysis_results")
+}
+
+model CompareJob {
+  id             String    @id @default(cuid())
+  userId         String    @map("user_id")
+  oldDocumentId  String    @map("old_document_id")
+  newDocumentId  String    @map("new_document_id")
+  diffMode       DiffMode  @default(side_by_side) @map("diff_mode")
+  status         JobStatus @default(pending)
+  diffResultJson Json?     @map("diff_result_json")
+  errorMessage   String?   @map("error_message")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  oldDocument Document @relation("OldDocument", fields: [oldDocumentId], references: [id], onDelete: Cascade)
+  newDocument Document @relation("NewDocument", fields: [newDocumentId], references: [id], onDelete: Cascade)
+
+  @@map("compare_jobs")
+}

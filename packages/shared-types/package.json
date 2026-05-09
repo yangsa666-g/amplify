@@ -1,0 +1,10 @@
+{
+  "name": "@repo/shared-types",
+  "version": "0.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "files": ["src"],
+  "devDependencies": {
+    "@repo/tsconfig": "workspace:*"
+  }
+}

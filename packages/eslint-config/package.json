@@ -1,0 +1,11 @@
+{
+  "name": "@repo/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "main": "base.js",
+  "files": ["base.js"],
+  "peerDependencies": {
+    "eslint": ">=8.0.0",
+    "typescript-eslint": ">=7.0.0"
+  }
+}

@@ -1,0 +1,159 @@
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { AiFoundryService } from './ai-foundry.service';
+import { FieldTemplatesService } from '../field-templates/field-templates.service';
+import { PromptTemplatesService } from '../prompt-templates/prompt-templates.service';
+import { DocumentsService } from '../documents/documents.service';
+
+const FIELD_EXTRACTION_PROMPT_TEMPLATE = `You are a professional contract information extraction assistant.
+
+Your task is to extract specific fields from the contract text strictly based on the content explicitly stated in the contract.
+
+Do not fabricate, infer, guess, or supplement information that is not expressly written in the contract.
+If a field cannot be found, return null for extracted_value and explain briefly in comments.
+
+## Extraction Requirements
+For each field below, return:
+- field
+- field_description
+- extracted_value
+- evidence
+- confidence
+- comments
+
+## Output Rules
+1. Output must be valid JSON only, as a JSON array.
+2. Use the exact field names provided.
+3. "evidence" should quote or faithfully extract the relevant contract text.
+4. "confidence" should be one of: high, medium, low.
+5. If not found, set extracted_value: null, evidence: null, confidence: "low", comments: "Not explicitly found in the contract."
+6. Do not include any explanation outside JSON.
+
+## Fields to Extract
+{fields_json}
+
+## Contract Text
+{contract_text}`;
+
+@Injectable()
+export class AnalysisService {
+  constructor(
+    private prisma: PrismaService,
+    private ai: AiFoundryService,
+    private fieldTemplates: FieldTemplatesService,
+    private promptTemplates: PromptTemplatesService,
+    private documents: DocumentsService,
+  ) {}
+
+  async run(userId: string, documentId: string, model: string) {
+    // 1. Load document text
+    const contractText = await this.documents.getExtractedText(documentId, userId);
+    if (!contractText) throw new BadRequestException('Contract text is empty');
+
+    // 2. Load templates
+    const fieldTemplate = await this.fieldTemplates.getCurrentForUser(userId);
+    const promptTemplate = await this.promptTemplates.getCurrentForUser(userId, 'risk_analysis');
+
+    // 3. Build field extraction prompt
+    const fieldsJson = JSON.stringify(
+      fieldTemplate.items.map((item: any) => ({
+        field: item.fieldName,
+        field_description: item.fieldDescription,
+      })),
+      null,
+      2,
+    );
+
+    if (fieldTemplate.items.length === 0) {
+      throw new BadRequestException('Field template has no fields');
+    }
+
+    const fieldPrompt = FIELD_EXTRACTION_PROMPT_TEMPLATE
+      .replace('{fields_json}', fieldsJson)
+      .replace('{contract_text}', contractText);
+
+    // 4. Build risk analysis prompt
+    const riskPrompt = promptTemplate.content.replace('{contract_text}', contractText);
+
+    // 5. Create analysis job
+    const job = await this.prisma.analysisJob.create({
+      data: {
+        userId,
+        documentId,
+        modelName: model,
+        fieldTemplateId: fieldTemplate.id,
+        promptTemplateId: promptTemplate.id,
+        fieldTemplateSnapshotJson: fieldTemplate.items,
+        promptSnapshotText: promptTemplate.content,
+        status: 'running',
+      },
+    });
+
+    try {
+      // 6. Field extraction
+      const rawFieldResult = await this.ai.chat(model, fieldPrompt);
+      let fieldExtractionResult: any;
+      try {
+        const jsonMatch = rawFieldResult.match(/\[[\s\S]*\]/);
+        fieldExtractionResult = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(rawFieldResult);
+      } catch {
+        throw new BadRequestException('AI returned invalid JSON for field extraction');
+      }
+
+      // 7. Risk analysis
+      const riskResult = await this.ai.chat(model, riskPrompt);
+
+      // 8. Save results
+      await this.prisma.fieldExtractionResult.create({
+        data: { analysisJobId: job.id, resultJson: fieldExtractionResult },
+      });
+      await this.prisma.riskAnalysisResult.create({
+        data: { analysisJobId: job.id, resultText: riskResult },
+      });
+
+      await this.prisma.analysisJob.update({
+        where: { id: job.id },
+        data: { status: 'success' },
+      });
+
+      return {
+        analysisJobId: job.id,
+        status: 'success',
+        fieldExtractionResult,
+        riskAnalysisResult: riskResult,
+      };
+    } catch (err: any) {
+      await this.prisma.analysisJob.update({
+        where: { id: job.id },
+        data: { status: 'failed', errorMessage: err.message },
+      });
+      throw err;
+    }
+  }
+
+  async findOne(id: string, userId: string) {
+    const job = await this.prisma.analysisJob.findFirst({
+      where: { id, userId },
+      include: {
+        document: { select: { fileName: true } },
+        fieldExtractionResult: true,
+        riskAnalysisResult: true,
+      },
+    });
+    if (!job) throw new NotFoundException('Analysis job not found');
+    return job;
+  }
+
+  async findRecent(userId: string) {
+    return this.prisma.analysisJob.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      include: {
+        document: { select: { fileName: true } },
+        fieldExtractionResult: { select: { id: true } },
+        riskAnalysisResult: { select: { id: true } },
+      },
+    });
+  }
+}
