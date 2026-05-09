@@ -21,28 +21,8 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     restart: unless-stopped
-    environment:
-      NODE_ENV: development
-      PORT: 3001
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-contract_ai}
-      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-in-prod}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
-      REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET:-dev-refresh-secret-change-in-prod}
-      REFRESH_TOKEN_EXPIRES_IN: ${REFRESH_TOKEN_EXPIRES_IN:-7d}
-      AI_FOUNDRY_API_URL: ${AI_FOUNDRY_API_URL:-}
-      AI_FOUNDRY_API_KEY: ${AI_FOUNDRY_API_KEY:-}
-      AI_FOUNDRY_MODELS: ${AI_FOUNDRY_MODELS:-gpt-5.4,gpt-5.4-mini}
-      AI_FOUNDRY_TIMEOUT_MS: ${AI_FOUNDRY_TIMEOUT_MS:-120000}
-      FILE_UPLOAD_DIR: /app/uploads
-      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-20}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
-      ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID:-}
-      ENTRA_CLIENT_SECRET: ${ENTRA_CLIENT_SECRET:-}
-      ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:-}
-      ENTRA_REDIRECT_URI: ${ENTRA_REDIRECT_URI:-}
-      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
-      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
-      SEED_ADMIN_NAME: ${SEED_ADMIN_NAME:-Admin}
+    env_file:
+      - .env
     volumes:
       - uploads_data:/app/uploads
     depends_on:

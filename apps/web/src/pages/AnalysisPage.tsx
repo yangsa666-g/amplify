@@ -1,25 +1,52 @@
-import React, { useState } from 'react';
-import { Upload, Select, Button, Card, Table, Typography, Alert, Tabs, Spin, Tag, Space, message } from 'antd';
-import { InboxOutlined } from '@ant-design/icons';
+import React, { useEffect } from 'react';
+import { Upload, Select, Button, Card, Table, Typography, Alert, Tabs, Spin, Tag, Space, message, Collapse } from 'antd';
+import { InboxOutlined, FileTextOutlined, UnorderedListOutlined, EditOutlined } from '@ant-design/icons';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { uploadDocument } from '../api/documents';
+import { useNavigate } from 'react-router-dom';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { uploadDocument, getDocumentText } from '../api/documents';
 import { runAnalysis, getRecentAnalysis } from '../api/analysis';
 import { getModels } from '../api/models';
+import {
+  getCurrentFieldTemplate,
+  saveFieldTemplate,
+  resetFieldTemplate,
+} from '../api/fieldTemplates';
+import {
+  getCurrentPromptTemplate,
+  savePromptTemplate,
+  resetPromptTemplate,
+} from '../api/promptTemplates';
+import FieldTemplateEditor from '../components/FieldTemplateEditor';
+import PromptEditor from '../components/PromptEditor';
+import { useAnalysisStore } from '../stores/analysisStore';
 import type { Document, AnalysisResult, AnalysisJob } from '../types';
 
 const { Dragger } = Upload;
 
 export default function AnalysisPage() {
-  const [uploadedDoc, setUploadedDoc] = useState<Document | null>(null);
-  const [selectedModel, setSelectedModel] = useState<string>('');
-  const [result, setResult] = useState<AnalysisResult | null>(null);
+  const navigate = useNavigate();
+  const { uploadedDoc, selectedModel, result, ocrPreviewOpen, setUploadedDoc, setSelectedModel, setResult, setOcrPreviewOpen } = useAnalysisStore();
 
   const { data: models = [] } = useQuery({ queryKey: ['models'], queryFn: () => getModels().then((r) => r.data) });
+
+  useEffect(() => {
+    if (models.length > 0 && !selectedModel) {
+      setSelectedModel(models[0].name);
+    }
+  }, [models, selectedModel, setSelectedModel]);
   const { data: recent = [], refetch: refetchRecent } = useQuery({ queryKey: ['analysis-recent'], queryFn: () => getRecentAnalysis().then((r) => r.data) });
+
+  const { data: ocrText, isFetching: ocrLoading } = useQuery({
+    queryKey: ['document-text', uploadedDoc?.id],
+    queryFn: () => getDocumentText(uploadedDoc!.id).then((r) => r.data.text),
+    enabled: !!uploadedDoc && uploadedDoc.textExtractionStatus === 'success' && ocrPreviewOpen,
+  });
 
   const uploadMutation = useMutation({
     mutationFn: (file: File) => uploadDocument(file).then((r) => r.data),
-    onSuccess: (doc) => { setUploadedDoc(doc); message.success('File uploaded and text extracted'); },
+    onSuccess: (doc) => { setUploadedDoc(doc); setOcrPreviewOpen(false); message.success('File uploaded and text extracted'); },
     onError: (e: any) => message.error(e.response?.data?.message || 'Upload failed'),
   });
 
@@ -38,7 +65,16 @@ export default function AnalysisPage() {
 
   const fieldColumns = [
     { title: 'Field', dataIndex: 'field', key: 'field', width: 160 },
-    { title: 'Value', dataIndex: 'extracted_value', key: 'value', render: (v: any) => v ?? <Typography.Text type="secondary">Not found</Typography.Text> },
+    {
+      title: 'Value',
+      dataIndex: 'extracted_value',
+      key: 'value',
+      render: (v: any) => {
+        if (v === null || v === undefined) return <Typography.Text type="secondary">Not found</Typography.Text>;
+        if (typeof v === 'object') return <Typography.Text code>{JSON.stringify(v, null, 2)}</Typography.Text>;
+        return String(v);
+      },
+    },
     { title: 'Confidence', dataIndex: 'confidence', key: 'conf', width: 100 },
   ];
 
@@ -57,10 +93,103 @@ export default function AnalysisPage() {
           <p>Click or drag file here to upload (PDF, DOCX, TXT)</p>
         </Dragger>
         {uploadMutation.isPending && <Spin style={{ marginTop: 8 }} />}
-        {uploadedDoc && <Alert type="success" message={`Uploaded: ${uploadedDoc.fileName} | Extraction: ${uploadedDoc.textExtractionStatus}`} style={{ marginTop: 8 }} />}
+        {uploadedDoc && uploadedDoc.textExtractionStatus === 'success' && (
+          <Alert
+            type="success"
+            message={`Uploaded: ${uploadedDoc.fileName} | Extraction: ${uploadedDoc.textExtractionStatus}`}
+            style={{ marginTop: 8 }}
+          />
+        )}
+        {uploadedDoc && uploadedDoc.textExtractionStatus === 'failed' && (
+          <Alert
+            type="error"
+            message={`Extraction failed for: ${uploadedDoc.fileName}`}
+            description={uploadedDoc.extractionError ?? 'Unknown error — check server logs for details.'}
+            style={{ marginTop: 8 }}
+            showIcon
+          />
+        )}
       </Card>
 
-      <Card title="2. Select Model & Run">
+      {uploadedDoc && uploadedDoc.textExtractionStatus === 'success' && (
+        <Collapse
+          onChange={(keys) => setOcrPreviewOpen(Array.isArray(keys) ? keys.includes('ocr') : keys === 'ocr')}
+          items={[{
+            key: 'ocr',
+            label: (
+              <Space>
+                <FileTextOutlined />
+                OCR Preview — verify the extracted content before running analysis
+              </Space>
+            ),
+            children: ocrLoading ? (
+              <Spin />
+            ) : (
+              <div
+                style={{
+                  maxHeight: 480,
+                  overflowY: 'auto',
+                  padding: '0 4px',
+                  fontSize: 13,
+                  lineHeight: 1.7,
+                }}
+              >
+                {ocrText ? (
+                  <Markdown remarkPlugins={[remarkGfm]}>{ocrText}</Markdown>
+                ) : (
+                  <Typography.Text type="secondary">No content available.</Typography.Text>
+                )}
+              </div>
+            ),
+          }]}
+        />
+      )}
+
+      <Collapse
+        items={[
+          {
+            key: 'fields',
+            label: (
+              <Space>
+                <UnorderedListOutlined />
+                2. Extraction Fields — configure which fields to extract from the contract
+              </Space>
+            ),
+            children: (
+              <FieldTemplateEditor
+                queryKey={['field-template']}
+                fetchFn={getCurrentFieldTemplate}
+                saveFn={saveFieldTemplate}
+                resetFn={resetFieldTemplate}
+              />
+            ),
+          },
+        ]}
+      />
+
+      <Collapse
+        items={[
+          {
+            key: 'prompt',
+            label: (
+              <Space>
+                <EditOutlined />
+                3. Risk Analysis Prompt — configure the prompt used for risk analysis
+              </Space>
+            ),
+            children: (
+              <PromptEditor
+                queryKey={['prompt-template']}
+                fetchFn={getCurrentPromptTemplate}
+                saveFn={savePromptTemplate}
+                resetFn={resetPromptTemplate}
+              />
+            ),
+          },
+        ]}
+      />
+
+      <Card title="4. Select Model & Run">
         <Space>
           <Select
             placeholder="Select AI model"
@@ -84,28 +213,53 @@ export default function AnalysisPage() {
       </Card>
 
       {result && (
-        <Card title="3. Results">
+        <Card title="5. Results">
           <Tabs items={[
             {
               key: 'fields',
               label: 'Field Extraction',
-              children: (
+              children: Array.isArray(result.fieldExtractionResult) ? (
                 <Table
                   dataSource={result.fieldExtractionResult}
                   columns={fieldColumns}
-                  rowKey="field"
+                  rowKey={(row, idx) => row.field ?? String(idx)}
                   pagination={false}
                   size="small"
                 />
+              ) : (
+                <Alert type="warning" message="Field extraction result is not available or has an unexpected format." />
               ),
             },
             {
               key: 'risk',
               label: 'Risk Analysis',
               children: (
-                <Typography.Paragraph style={{ whiteSpace: 'pre-wrap' }}>
-                  {result.riskAnalysisResult}
-                </Typography.Paragraph>
+                <div style={{ maxHeight: 500, overflowY: 'auto', padding: '0 4px' }}>
+                  {result.riskAnalysisResult.originalContractDescription && (
+                    <>
+                      <Typography.Title level={5} style={{ marginTop: 0 }}>
+                        Original Contract Description
+                      </Typography.Title>
+                      <Markdown remarkPlugins={[remarkGfm]}>
+                        {result.riskAnalysisResult.originalContractDescription}
+                      </Markdown>
+                      <hr style={{ margin: '16px 0', borderColor: '#f0f0f0' }} />
+                    </>
+                  )}
+                  {result.riskAnalysisResult.riskAnalysis && (
+                    <>
+                      <Typography.Title level={5} style={{ marginTop: 0 }}>
+                        Risk Analysis
+                      </Typography.Title>
+                      <Markdown remarkPlugins={[remarkGfm]}>
+                        {result.riskAnalysisResult.riskAnalysis}
+                      </Markdown>
+                    </>
+                  )}
+                  {!result.riskAnalysisResult.originalContractDescription && !result.riskAnalysisResult.riskAnalysis && (
+                    <Alert type="info" message="No risk analysis results available." />
+                  )}
+                </div>
               ),
             },
           ]} />
@@ -113,7 +267,17 @@ export default function AnalysisPage() {
       )}
 
       <Card title="Recent History">
-        <Table dataSource={recent} columns={recentColumns} rowKey="id" pagination={false} size="small" />
+        <Table
+          dataSource={recent}
+          columns={recentColumns}
+          rowKey="id"
+          pagination={false}
+          size="small"
+          onRow={(record) => ({
+            onClick: () => navigate(`/history?jobId=${record.id}`),
+            style: { cursor: 'pointer' },
+          })}
+        />
       </Card>
     </Space>
   );

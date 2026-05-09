@@ -5,6 +5,49 @@ import { FieldTemplatesService } from '../field-templates/field-templates.servic
 import { PromptTemplatesService } from '../prompt-templates/prompt-templates.service';
 import { DocumentsService } from '../documents/documents.service';
 
+function parseRiskAnalysis(text: string): { originalContractDescription: string; riskAnalysis: string } {
+  // Match section headers like [Original Contract Description] or ## [Original Contract Description]
+  const origPattern = /(?:#+\s*)?\[Original Contract Description\]/i;
+  const riskPattern = /(?:#+\s*)?\[Risk Analysis\]/i;
+
+  const origMatch = origPattern.exec(text);
+  const riskMatch = riskPattern.exec(text);
+
+  if (origMatch && riskMatch) {
+    const origContentStart = origMatch.index + origMatch[0].length;
+    const riskContentStart = riskMatch.index + riskMatch[0].length;
+
+    if (origMatch.index < riskMatch.index) {
+      return {
+        originalContractDescription: text.slice(origContentStart, riskMatch.index).trim(),
+        riskAnalysis: text.slice(riskContentStart).trim(),
+      };
+    } else {
+      return {
+        originalContractDescription: text.slice(origContentStart).trim(),
+        riskAnalysis: text.slice(riskContentStart, origMatch.index).trim(),
+      };
+    }
+  }
+
+  if (riskMatch) {
+    return {
+      originalContractDescription: text.slice(0, riskMatch.index).trim(),
+      riskAnalysis: text.slice(riskMatch.index + riskMatch[0].length).trim(),
+    };
+  }
+
+  if (origMatch) {
+    return {
+      originalContractDescription: text.slice(origMatch.index + origMatch[0].length).trim(),
+      riskAnalysis: '',
+    };
+  }
+
+  // No section headers found — treat the entire text as the risk analysis
+  return { originalContractDescription: '', riskAnalysis: text };
+}
+
 const FIELD_EXTRACTION_PROMPT_TEMPLATE = `You are a professional contract information extraction assistant.
 
 Your task is to extract specific fields from the contract text strictly based on the content explicitly stated in the contract.
@@ -120,7 +163,7 @@ export class AnalysisService {
         analysisJobId: job.id,
         status: 'success',
         fieldExtractionResult,
-        riskAnalysisResult: riskResult,
+        riskAnalysisResult: parseRiskAnalysis(riskResult),
       };
     } catch (err: any) {
       await this.prisma.analysisJob.update({
@@ -141,6 +184,11 @@ export class AnalysisService {
       },
     });
     if (!job) throw new NotFoundException('Analysis job not found');
+
+    if (job.riskAnalysisResult?.resultText) {
+      (job.riskAnalysisResult as any).resultJson = parseRiskAnalysis(job.riskAnalysisResult.resultText);
+    }
+
     return job;
   }
 

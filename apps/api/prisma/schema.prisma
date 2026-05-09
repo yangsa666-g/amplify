@@ -121,6 +121,7 @@ model Document {
   storagePath           String               @map("storage_path")
   extractedText         String?              @map("extracted_text")
   textExtractionStatus  TextExtractionStatus @default(pending) @map("text_extraction_status")
+  extractionError       String?              @map("extraction_error")
   createdAt             DateTime             @default(now()) @map("created_at")
   updatedAt             DateTime             @updatedAt @map("updated_at")
 

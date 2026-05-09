@@ -2,6 +2,9 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+# Enable corepack with a pinned pnpm version to get a stable, cacheable layer
+RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+
 # Copy workspace root files needed for pnpm
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml turbo.json ./
 COPY packages/ ./packages/
@@ -9,11 +12,9 @@ COPY packages/ ./packages/
 # Copy web app
 COPY apps/web/package.json ./apps/web/package.json
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
-# Install deps
-RUN pnpm install --frozen-lockfile
+# Mount pnpm store as a build cache so unchanged packages are never re-downloaded
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
 
 # Copy web source
 COPY apps/web/ ./apps/web/

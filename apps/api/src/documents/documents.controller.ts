@@ -5,6 +5,7 @@ import {
   Param,
   UseGuards,
   Request,
+  Res,
   UseInterceptors,
   UploadedFile,
   BadRequestException,
@@ -38,6 +39,18 @@ export class DocumentsController {
   async upload(@UploadedFile() file: Express.Multer.File, @Request() req: any) {
     if (!file) throw new BadRequestException('No file uploaded');
     return this.documentsService.upload(req.user.userId, file);
+  }
+
+  @Get(':id/text')
+  async getText(@Param('id') id: string, @Request() req: any) {
+    const text = await this.documentsService.getExtractedText(id, req.user.userId);
+    return { text };
+  }
+
+  @Get(':id/download')
+  async download(@Param('id') id: string, @Request() req: any, @Res() res: any) {
+    const doc = await this.documentsService.findOne(id, req.user.userId);
+    res.download((doc as any).storagePath, doc.fileName);
   }
 
   @Get(':id')

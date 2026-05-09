@@ -37,16 +37,22 @@ export interface Document {
   fileName: string;
   fileSize: number;
   textExtractionStatus: 'pending' | 'success' | 'failed';
+  extractionError?: string | null;
 }
 
 export interface AnalysisJob {
   id: string;
+  documentId: string;
   status: 'pending' | 'running' | 'success' | 'failed';
   modelName: string;
   createdAt: string;
   document: { fileName: string };
-  fieldExtractionResult?: { id: string } | null;
-  riskAnalysisResult?: { id: string } | null;
+  fieldExtractionResult?: { id: string; resultJson?: any[] } | null;
+  riskAnalysisResult?: {
+    id: string;
+    resultText?: string;
+    resultJson?: { originalContractDescription: string; riskAnalysis: string };
+  } | null;
   errorMessage?: string | null;
 }
 
@@ -54,7 +60,7 @@ export interface AnalysisResult {
   analysisJobId: string;
   status: string;
   fieldExtractionResult: any[];
-  riskAnalysisResult: string;
+  riskAnalysisResult: { originalContractDescription: string; riskAnalysis: string };
 }
 
 export interface CompareJob {
