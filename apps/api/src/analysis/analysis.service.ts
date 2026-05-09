@@ -133,8 +133,12 @@ export class AnalysisService {
     });
 
     try {
-      // 6. Field extraction
-      const rawFieldResult = await this.ai.chat(model, fieldPrompt);
+      // 6. Field extraction + risk analysis in parallel
+      const [rawFieldResult, riskResult] = await Promise.all([
+        this.ai.chat(model, fieldPrompt),
+        this.ai.chat(model, riskPrompt),
+      ]);
+
       let fieldExtractionResult: any;
       try {
         const jsonMatch = rawFieldResult.match(/\[[\s\S]*\]/);
@@ -143,10 +147,7 @@ export class AnalysisService {
         throw new BadRequestException('AI returned invalid JSON for field extraction');
       }
 
-      // 7. Risk analysis
-      const riskResult = await this.ai.chat(model, riskPrompt);
-
-      // 8. Save results
+      // 7. Save results
       await this.prisma.fieldExtractionResult.create({
         data: { analysisJobId: job.id, resultJson: fieldExtractionResult },
       });
