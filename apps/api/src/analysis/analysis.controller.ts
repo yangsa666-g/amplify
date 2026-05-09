@@ -21,4 +21,18 @@ export class AnalysisController {
   findOne(@Param('id') id: string, @Request() req: any) {
     return this.analysisService.findOne(id, req.user.userId);
   }
+
+  @Post(':id/feedback')
+  submitFeedback(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Body() body: { rating: number; comment?: string },
+  ) {
+    return this.analysisService.submitFeedback(id, req.user.userId, body.rating, body.comment);
+  }
+
+  @Get(':id/feedback')
+  getFeedback(@Param('id') id: string, @Request() req: any) {
+    return this.analysisService.getFeedback(id, req.user.userId);
+  }
 }

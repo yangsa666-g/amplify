@@ -61,6 +61,7 @@ model User {
   compareJobs     CompareJob[]
   fieldTemplates  FieldTemplate[]
   promptTemplates PromptTemplate[]
+  feedbacks       AnalysisJobFeedback[]
 
   @@map("users")
 }
@@ -153,6 +154,7 @@ model AnalysisJob {
   promptTemplate        PromptTemplate?        @relation(fields: [promptTemplateId], references: [id], onDelete: SetNull)
   fieldExtractionResult FieldExtractionResult?
   riskAnalysisResult    RiskAnalysisResult?
+  feedbacks             AnalysisJobFeedback[]
 
   @@map("analysis_jobs")
 }
@@ -196,4 +198,20 @@ model CompareJob {
   newDocument Document @relation("NewDocument", fields: [newDocumentId], references: [id], onDelete: Cascade)
 
   @@map("compare_jobs")
+}
+
+model AnalysisJobFeedback {
+  id            String   @id @default(cuid())
+  analysisJobId String   @map("analysis_job_id")
+  userId        String   @map("user_id")
+  rating        Int      // 1 = thumbs up, -1 = thumbs down
+  comment       String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  analysisJob AnalysisJob @relation(fields: [analysisJobId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([analysisJobId, userId])
+  @@map("analysis_job_feedbacks")
 }

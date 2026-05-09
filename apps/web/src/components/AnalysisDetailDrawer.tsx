@@ -9,14 +9,20 @@ import {
   Spin,
   Alert,
   Tag,
+  Rate,
+  Input,
+  List,
+  Avatar,
+  message,
 } from 'antd';
-import { DownloadOutlined, FileTextOutlined } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
+import { DownloadOutlined, FileTextOutlined, LikeOutlined, DislikeOutlined, LikeFilled, DislikeFilled } from '@ant-design/icons';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { getAnalysisJob } from '../api/analysis';
+import { getAnalysisJob, getFeedback, submitFeedback } from '../api/analysis';
 import { getDocumentText, downloadDocument, downloadTextAsMarkdown } from '../api/documents';
-import type { AnalysisJob } from '../types';
+import { useAuthStore } from '../stores/authStore';
+import type { AnalysisJob, AnalysisJobFeedback } from '../types';
 
 interface Props {
   job: AnalysisJob | null;
@@ -60,6 +66,131 @@ const fieldColumns = [
   },
 ];
 
+function FeedbackTab({ job }: { job: AnalysisJob }) {
+  const { user } = useAuthStore();
+  const queryClient = useQueryClient();
+  const [comment, setComment] = useState('');
+
+  const { data: feedbacks = [], isLoading: feedbackLoading } = useQuery({
+    queryKey: ['feedback', job.id],
+    queryFn: () => getFeedback(job.id).then((r) => r.data),
+  });
+
+  const myFeedback = feedbacks.find((f) => f.userId === user?.id);
+
+  const mutation = useMutation({
+    mutationFn: ({ rating, comment }: { rating: number; comment?: string }) =>
+      submitFeedback(job.id, rating, comment),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['feedback', job.id] });
+      message.success('Feedback submitted');
+    },
+    onError: () => message.error('Failed to submit feedback'),
+  });
+
+  const handleRate = (rating: number) => {
+    mutation.mutate({ rating, comment: (myFeedback?.comment ?? comment) || undefined });
+  };
+
+  const handleSubmitComment = () => {
+    mutation.mutate({
+      rating: myFeedback?.rating ?? 1,
+      comment: comment.trim() || undefined,
+    });
+    setComment('');
+  };
+
+  if (feedbackLoading) return <Spin style={{ display: 'block', marginTop: 40 }} />;
+
+  return (
+    <Space direction="vertical" size={20} style={{ width: '100%' }}>
+      {/* Rating */}
+      <div>
+        <Typography.Text strong>Rate this analysis</Typography.Text>
+        <div style={{ marginTop: 8 }}>
+          <Space size={12}>
+            <Button
+              type={myFeedback?.rating === 1 ? 'primary' : 'default'}
+              icon={myFeedback?.rating === 1 ? <LikeFilled /> : <LikeOutlined />}
+              loading={mutation.isPending}
+              onClick={() => handleRate(1)}
+            >
+              Helpful
+            </Button>
+            <Button
+              danger={myFeedback?.rating === -1}
+              type={myFeedback?.rating === -1 ? 'primary' : 'default'}
+              icon={myFeedback?.rating === -1 ? <DislikeFilled /> : <DislikeOutlined />}
+              loading={mutation.isPending}
+              onClick={() => handleRate(-1)}
+            >
+              Not Helpful
+            </Button>
+          </Space>
+        </div>
+      </div>
+
+      {/* Comment input */}
+      <div>
+        <Typography.Text strong>Leave a comment</Typography.Text>
+        <Space.Compact style={{ width: '100%', marginTop: 8 }}>
+          <Input.TextArea
+            rows={3}
+            placeholder="Add your comment…"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            style={{ resize: 'none' }}
+          />
+        </Space.Compact>
+        <Button
+          type="primary"
+          size="small"
+          style={{ marginTop: 8 }}
+          loading={mutation.isPending}
+          disabled={!comment.trim()}
+          onClick={handleSubmitComment}
+        >
+          Submit Comment
+        </Button>
+      </div>
+
+      {/* Existing feedback list */}
+      {feedbacks.length > 0 && (
+        <div>
+          <Typography.Text strong>All Feedback ({feedbacks.length})</Typography.Text>
+          <List
+            style={{ marginTop: 8 }}
+            dataSource={feedbacks}
+            renderItem={(fb: AnalysisJobFeedback) => (
+              <List.Item>
+                <List.Item.Meta
+                  avatar={
+                    <Avatar style={{ backgroundColor: fb.rating === 1 ? '#52c41a' : '#ff4d4f' }}>
+                      {fb.rating === 1 ? '👍' : '👎'}
+                    </Avatar>
+                  }
+                  title={
+                    <Space>
+                      <Typography.Text strong>{fb.user.name}</Typography.Text>
+                      <Tag color={fb.rating === 1 ? 'green' : 'red'}>
+                        {fb.rating === 1 ? 'Helpful' : 'Not Helpful'}
+                      </Tag>
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        {new Date(fb.createdAt).toLocaleString()}
+                      </Typography.Text>
+                    </Space>
+                  }
+                  description={fb.comment || <Typography.Text type="secondary">No comment</Typography.Text>}
+                />
+              </List.Item>
+            )}
+          />
+        </div>
+      )}
+    </Space>
+  );
+}
+
 export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
   const [ocrTabActive, setOcrTabActive] = useState(false);
 
@@ -78,7 +209,7 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
   const fieldResults: any[] = Array.isArray(detail?.fieldExtractionResult?.resultJson)
     ? detail.fieldExtractionResult.resultJson
     : [];
-  const riskJson = detail?.riskAnalysisResult?.resultJson ?? null;
+  const riskText: string = detail?.riskAnalysisResult?.resultText ?? '';
 
   const handleTabChange = (key: string) => {
     if (key === 'ocr') setOcrTabActive(true);
@@ -114,6 +245,9 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
             <Typography.Text type="secondary">
               {new Date(job.createdAt).toLocaleString()}
             </Typography.Text>
+            {job.user && (
+              <Typography.Text type="secondary">By: {job.user.name}</Typography.Text>
+            )}
             <Button
               icon={<DownloadOutlined />}
               size="small"
@@ -147,31 +281,14 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
               {
                 key: 'risk',
                 label: 'Risk Analysis',
-                children: riskJson ? (
-                  <div style={{ maxHeight: 600, overflowY: 'auto', padding: '0 4px' }}>
-                    {riskJson.originalContractDescription && (
-                      <>
-                        <Typography.Title level={5} style={{ marginTop: 0 }}>
-                          Original Contract Description
-                        </Typography.Title>
-                        <Markdown remarkPlugins={[remarkGfm]}>
-                          {riskJson.originalContractDescription}
-                        </Markdown>
-                        <hr style={{ margin: '16px 0', borderColor: '#f0f0f0' }} />
-                      </>
-                    )}
-                    {riskJson.riskAnalysis && (
-                      <>
-                        <Typography.Title level={5} style={{ marginTop: 0 }}>
-                          Risk Analysis
-                        </Typography.Title>
-                        <Markdown remarkPlugins={[remarkGfm]}>{riskJson.riskAnalysis}</Markdown>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <Alert type="info" message="No risk analysis results available." />
-                ),
+                children:
+                  riskText ? (
+                    <div style={{ maxHeight: 600, overflowY: 'auto', padding: '0 4px' }}>
+                      <Markdown remarkPlugins={[remarkGfm]}>{riskText}</Markdown>
+                    </div>
+                  ) : (
+                    <Alert type="info" message="No risk analysis results available." />
+                  ),
               },
               {
                 key: 'ocr',
@@ -212,6 +329,11 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
                   <Alert type="info" message="OCR text not available for this document." />
                 ),
               },
+              {
+                key: 'feedback',
+                label: '💬 Feedback',
+                children: <FeedbackTab job={job} />,
+              },
             ]}
           />
         </>
@@ -219,3 +341,4 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
     </Drawer>
   );
 }
+

@@ -9,6 +9,6 @@ export class HistoryController {
 
   @Get()
   getRecent(@Request() req: any) {
-    return this.historyService.getRecent(req.user.userId);
+    return this.historyService.getRecent(req.user.userId, req.user.role);
   }
 }

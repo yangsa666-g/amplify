@@ -204,4 +204,27 @@ export class AnalysisService {
       },
     });
   }
+
+  async submitFeedback(jobId: string, userId: string, rating: number, comment?: string) {
+    const job = await this.prisma.analysisJob.findFirst({ where: { id: jobId, userId } });
+    if (!job) throw new NotFoundException('Analysis job not found');
+
+    return this.prisma.analysisJobFeedback.upsert({
+      where: { analysisJobId_userId: { analysisJobId: jobId, userId } },
+      create: { analysisJobId: jobId, userId, rating, comment },
+      update: { rating, comment },
+      include: { user: { select: { id: true, name: true } } },
+    });
+  }
+
+  async getFeedback(jobId: string, userId: string) {
+    const job = await this.prisma.analysisJob.findFirst({ where: { id: jobId, userId } });
+    if (!job) throw new NotFoundException('Analysis job not found');
+
+    return this.prisma.analysisJobFeedback.findMany({
+      where: { analysisJobId: jobId },
+      include: { user: { select: { id: true, name: true } } },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
 }

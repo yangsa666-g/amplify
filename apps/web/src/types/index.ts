@@ -43,10 +43,13 @@ export interface Document {
 export interface AnalysisJob {
   id: string;
   documentId: string;
+  userId?: string;
   status: 'pending' | 'running' | 'success' | 'failed';
   modelName: string;
   createdAt: string;
   document: { fileName: string };
+  user?: { id: string; name: string; email: string };
+  feedbacks?: Array<{ userId: string; rating: number; comment?: string | null }>;
   fieldExtractionResult?: { id: string; resultJson?: any[] } | null;
   riskAnalysisResult?: {
     id: string;
@@ -54,6 +57,16 @@ export interface AnalysisJob {
     resultJson?: { originalContractDescription: string; riskAnalysis: string };
   } | null;
   errorMessage?: string | null;
+}
+
+export interface AnalysisJobFeedback {
+  id: string;
+  analysisJobId: string;
+  userId: string;
+  rating: number;
+  comment?: string | null;
+  createdAt: string;
+  user: { id: string; name: string };
 }
 
 export interface AnalysisResult {

@@ -1,10 +1,57 @@
-import React, { useState, useEffect } from 'react';
-import { Tabs, Table, Tag, Typography } from 'antd';
+import React, { useState, useEffect, useRef } from 'react';
+import { Tabs, Table, Tag, Typography, Input, Button, Space } from 'antd';
+import { SearchOutlined } from '@ant-design/icons';
+import type { FilterDropdownProps } from 'antd/es/table/interface';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getHistory } from '../api/history';
+import { useAuthStore } from '../stores/authStore';
 import type { AnalysisJob } from '../types';
 import AnalysisDetailDrawer from '../components/AnalysisDetailDrawer';
+
+function useTextFilter(dataIndex: string | string[]) {
+  const searchInput = useRef<any>(null);
+  return {
+    filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }: FilterDropdownProps) => (
+      <div style={{ padding: 8 }} onKeyDown={(e) => e.stopPropagation()}>
+        <Input
+          ref={searchInput}
+          placeholder="Search…"
+          value={selectedKeys[0]}
+          onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+          onPressEnter={() => confirm()}
+          style={{ marginBottom: 8, display: 'block' }}
+        />
+        <Space>
+          <Button type="primary" onClick={() => confirm()} icon={<SearchOutlined />} size="small" style={{ width: 90 }}>
+            Search
+          </Button>
+          <Button onClick={() => { clearFilters?.(); confirm(); }} size="small" style={{ width: 90 }}>
+            Reset
+          </Button>
+        </Space>
+      </div>
+    ),
+    filterIcon: (filtered: boolean) => <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />,
+    onFilter: (value: any, record: any) => {
+      const keys = Array.isArray(dataIndex) ? dataIndex : [dataIndex];
+      const val = keys.reduce((obj: any, k) => obj?.[k], record);
+      return String(val ?? '').toLowerCase().includes(String(value).toLowerCase());
+    },
+    onFilterDropdownOpenChange: (open: boolean) => {
+      if (open) setTimeout(() => searchInput.current?.select(), 100);
+    },
+  };
+}
+
+function getFeedbackSummary(feedbacks?: AnalysisJob['feedbacks']) {
+  if (!feedbacks || feedbacks.length === 0) return null;
+  // Prefer entries with a rating
+  const withRating = feedbacks.find((f) => f.rating !== undefined && f.rating !== null);
+  if (withRating) return withRating;
+  // Fallback: entry with comment only
+  return feedbacks.find((f) => f.comment) ?? null;
+}
 
 export default function HistoryPage() {
   const { data, isLoading } = useQuery({ queryKey: ['history'], queryFn: () => getHistory().then((r) => r.data) });
@@ -12,6 +59,8 @@ export default function HistoryPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     const jobId = searchParams.get('jobId');
@@ -28,24 +77,155 @@ export default function HistoryPage() {
     navigate('/history', { replace: true });
   };
 
-  const analysisColumns = [
-    { title: 'File', dataIndex: ['document', 'fileName'], key: 'file' },
-    { title: 'Model', dataIndex: 'modelName', key: 'model' },
-    { title: 'Status', dataIndex: 'status', key: 'status', render: (s: string) => <Tag color={s === 'success' ? 'green' : s === 'failed' ? 'red' : 'blue'}>{s}</Tag> },
-    { title: 'Date', dataIndex: 'createdAt', key: 'date', render: (d: string) => new Date(d).toLocaleString() },
+  // Derive unique model names for filter options
+  const modelOptions = Array.from(new Set((data?.analysisJobs ?? []).map((j) => j.modelName)))
+    .filter(Boolean)
+    .map((m) => ({ text: m, value: m }));
+
+  const userFilter = useTextFilter(['user', 'name']);
+  const fileFilter = useTextFilter(['document', 'fileName']);
+
+  const analysisColumns: any[] = [
+    ...(isAdmin
+      ? [{
+          title: 'User',
+          dataIndex: ['user', 'name'],
+          key: 'user',
+          render: (name: string, record: any) => name || record.userId,
+          ...userFilter,
+        }]
+      : []),
+    {
+      title: 'File',
+      dataIndex: ['document', 'fileName'],
+      key: 'file',
+      ...fileFilter,
+    },
+    {
+      title: 'Model',
+      dataIndex: 'modelName',
+      key: 'model',
+      filters: modelOptions,
+      onFilter: (value: any, record: any) => record.modelName === value,
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (s: string) => (
+        <Tag color={s === 'success' ? 'green' : s === 'failed' ? 'red' : 'blue'}>{s}</Tag>
+      ),
+      filters: [
+        { text: 'Success', value: 'success' },
+        { text: 'Failed', value: 'failed' },
+        { text: 'Running', value: 'running' },
+        { text: 'Pending', value: 'pending' },
+      ],
+      onFilter: (value: any, record: any) => record.status === value,
+    },
+    {
+      title: 'Feedback',
+      key: 'feedback',
+      filters: [
+        { text: '👍 Helpful', value: 'helpful' },
+        { text: '👎 Not Helpful', value: 'not_helpful' },
+        { text: '💬 Comment only', value: 'comment' },
+        { text: 'No Feedback', value: 'none' },
+      ],
+      onFilter: (value: any, record: any) => {
+        const fb = getFeedbackSummary(record.feedbacks);
+        if (value === 'none') return !fb;
+        if (value === 'helpful') return fb?.rating === 1;
+        if (value === 'not_helpful') return fb?.rating === -1;
+        if (value === 'comment') return !!fb && (fb.rating === undefined || fb.rating === null) && !!fb.comment;
+        return true;
+      },
+      render: (_: any, record: AnalysisJob) => {
+        const fb = getFeedbackSummary(record.feedbacks);
+        if (!fb) return null;
+        if (fb.rating === 1) return <Tag color="green">👍 Helpful</Tag>;
+        if (fb.rating === -1) return <Tag color="red">👎 Not Helpful</Tag>;
+        if (fb.comment) return (
+          <Typography.Text type="secondary" ellipsis style={{ maxWidth: 160, display: 'inline-block' }}>
+            💬 {fb.comment}
+          </Typography.Text>
+        );
+        return null;
+      },
+    },
+    {
+      title: 'Date',
+      dataIndex: 'createdAt',
+      key: 'date',
+      render: (d: string) => new Date(d).toLocaleString(),
+      sorter: (a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      defaultSortOrder: 'descend' as const,
+    },
   ];
 
-  const compareColumns = [
-    { title: 'Old File', dataIndex: ['oldDocument', 'fileName'], key: 'old' },
-    { title: 'New File', dataIndex: ['newDocument', 'fileName'], key: 'new' },
-    { title: 'Mode', dataIndex: 'diffMode', key: 'mode' },
-    { title: 'Status', dataIndex: 'status', key: 'status', render: (s: string) => <Tag color={s === 'success' ? 'green' : 'red'}>{s}</Tag> },
-    { title: 'Date', dataIndex: 'createdAt', key: 'date', render: (d: string) => new Date(d).toLocaleString() },
+  const oldFileFilter = useTextFilter(['oldDocument', 'fileName']);
+  const newFileFilter = useTextFilter(['newDocument', 'fileName']);
+
+  const compareColumns: any[] = [
+    ...(isAdmin
+      ? [{
+          title: 'User',
+          dataIndex: ['user', 'name'],
+          key: 'user',
+          render: (name: string, record: any) => name || record.userId,
+          ...userFilter,
+        }]
+      : []),
+    {
+      title: 'Old File',
+      dataIndex: ['oldDocument', 'fileName'],
+      key: 'old',
+      ...oldFileFilter,
+    },
+    {
+      title: 'New File',
+      dataIndex: ['newDocument', 'fileName'],
+      key: 'new',
+      ...newFileFilter,
+    },
+    {
+      title: 'Mode',
+      dataIndex: 'diffMode',
+      key: 'mode',
+      filters: [
+        { text: 'Unified', value: 'unified' },
+        { text: 'Side by Side', value: 'side_by_side' },
+      ],
+      onFilter: (value: any, record: any) => record.diffMode === value,
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (s: string) => <Tag color={s === 'success' ? 'green' : 'red'}>{s}</Tag>,
+      filters: [
+        { text: 'Success', value: 'success' },
+        { text: 'Failed', value: 'failed' },
+        { text: 'Running', value: 'running' },
+        { text: 'Pending', value: 'pending' },
+      ],
+      onFilter: (value: any, record: any) => record.status === value,
+    },
+    {
+      title: 'Date',
+      dataIndex: 'createdAt',
+      key: 'date',
+      render: (d: string) => new Date(d).toLocaleString(),
+      sorter: (a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      defaultSortOrder: 'descend' as const,
+    },
   ];
 
   return (
     <>
-      <Typography.Title level={4}>History</Typography.Title>
+      <Typography.Title level={4}>
+        History {isAdmin && <Tag color="purple" style={{ verticalAlign: 'middle', fontSize: 12 }}>Admin — All Users</Tag>}
+      </Typography.Title>
       <Tabs items={[
         {
           key: 'analysis',
@@ -87,3 +267,4 @@ export default function HistoryPage() {
     </>
   );
 }
+
