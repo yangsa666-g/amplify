@@ -1,8 +1,9 @@
-import React from 'react';
-import { Layout, Menu, Avatar, Dropdown, Typography } from 'antd';
+import React, { useState } from 'react';
+import { Layout, Menu, Avatar, Dropdown, Typography, Divider } from 'antd';
 import {
   FileTextOutlined, DiffOutlined, HistoryOutlined,
   SettingOutlined, UserOutlined, LogoutOutlined,
+  DashboardOutlined, TeamOutlined, UnorderedListOutlined, ToolOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
@@ -14,6 +15,8 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, clearAuth } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
+  const [collapsed, setCollapsed] = useState(false);
 
   const handleLogout = async () => {
     try { await logout(); } catch {}
@@ -21,12 +24,21 @@ export default function AppLayout() {
     navigate('/login');
   };
 
-  const menuItems = [
+  const userMenuItems = [
     { key: '/analysis', icon: <FileTextOutlined />, label: 'Contract Analysis' },
     { key: '/compare', icon: <DiffOutlined />, label: 'Contract Compare' },
-    { key: '/history', icon: <HistoryOutlined />, label: 'History' },
+    { key: '/history', icon: <HistoryOutlined />, label: 'My History' },
     { key: '/settings', icon: <SettingOutlined />, label: 'Settings' },
   ];
+
+  const adminMenuItems = isAdmin
+    ? [
+        { key: '/admin/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
+        { key: '/admin/users', icon: <TeamOutlined />, label: 'User Management' },
+        { key: '/admin/history', icon: <UnorderedListOutlined />, label: 'All History' },
+        { key: '/admin/settings', icon: <ToolOutlined />, label: 'System Settings' },
+      ]
+    : [];
 
   const userMenu = {
     items: [
@@ -37,17 +49,32 @@ export default function AppLayout() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider theme="dark" width={220}>
-        <div style={{ padding: '20px 16px', color: '#fff', fontWeight: 700, fontSize: 15 }}>
-          Contract AI Review
+      <Sider theme="dark" width={220} collapsible collapsed={collapsed} onCollapse={setCollapsed}>
+        <div style={{ padding: '20px 16px', color: '#fff', fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>
+          {collapsed ? 'A' : 'Amplify'}
         </div>
         <Menu
           theme="dark"
           mode="inline"
           selectedKeys={[location.pathname]}
-          items={menuItems}
+          items={userMenuItems}
           onClick={({ key }) => navigate(key)}
         />
+        {isAdmin && (
+          <>
+            <Divider style={{ borderColor: 'rgba(255,255,255,0.15)', margin: '8px 0' }} />
+            <div style={{ padding: '4px 16px 8px', color: 'rgba(255,255,255,0.45)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 }}>
+              Admin
+            </div>
+            <Menu
+              theme="dark"
+              mode="inline"
+              selectedKeys={[location.pathname]}
+              items={adminMenuItems}
+              onClick={({ key }) => navigate(key)}
+            />
+          </>
+        )}
       </Sider>
       <Layout>
         <Header style={{ background: '#fff', padding: '0 24px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>

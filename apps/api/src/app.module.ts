@@ -11,6 +11,7 @@ import { PromptTemplatesModule } from './prompt-templates/prompt-templates.modul
 import { AnalysisModule } from './analysis/analysis.module';
 import { CompareModule } from './compare/compare.module';
 import { HistoryModule } from './history/history.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { HistoryModule } from './history/history.module';
     AnalysisModule,
     CompareModule,
     HistoryModule,
+    AdminModule,
   ],
   controllers: [AppController],
 })

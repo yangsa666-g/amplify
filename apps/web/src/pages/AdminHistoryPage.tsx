@@ -50,8 +50,11 @@ function getFeedbackSummary(feedbacks?: AnalysisJob['feedbacks']) {
   return feedbacks.find((f) => f.comment) ?? null;
 }
 
-export default function HistoryPage() {
-  const { data, isLoading } = useQuery({ queryKey: ['history'], queryFn: () => getHistory().then((r) => r.data) });
+export default function AdminHistoryPage() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin-history'],
+    queryFn: () => getHistory().then((r) => r.data),
+  });
   const [selectedJob, setSelectedJob] = useState<AnalysisJob | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchParams] = useSearchParams();
@@ -69,18 +72,26 @@ export default function HistoryPage() {
 
   const handleClose = () => {
     setDrawerOpen(false);
-    navigate('/history', { replace: true });
+    navigate('/admin/history', { replace: true });
   };
 
   const modelOptions = Array.from(new Set((data?.analysisJobs ?? []).map((j) => j.modelName)))
     .filter(Boolean)
     .map((m) => ({ text: m, value: m }));
 
+  const userFilter = useTextFilter(['user', 'name']);
   const fileFilter = useTextFilter(['document', 'fileName']);
   const oldFileFilter = useTextFilter(['oldDocument', 'fileName']);
   const newFileFilter = useTextFilter(['newDocument', 'fileName']);
 
   const analysisColumns: any[] = [
+    {
+      title: 'User',
+      dataIndex: ['user', 'name'],
+      key: 'user',
+      render: (name: string, record: any) => name || record.userId,
+      ...userFilter,
+    },
     {
       title: 'File',
       dataIndex: ['document', 'fileName'],
@@ -151,6 +162,13 @@ export default function HistoryPage() {
 
   const compareColumns: any[] = [
     {
+      title: 'User',
+      dataIndex: ['user', 'name'],
+      key: 'user',
+      render: (name: string, record: any) => name || record.userId,
+      ...userFilter,
+    },
+    {
       title: 'Old File',
       dataIndex: ['oldDocument', 'fileName'],
       key: 'old',
@@ -197,7 +215,9 @@ export default function HistoryPage() {
 
   return (
     <>
-      <Typography.Title level={4}>My History</Typography.Title>
+      <Typography.Title level={4}>
+        All Users History
+      </Typography.Title>
       <Tabs items={[
         {
           key: 'analysis',
@@ -209,6 +229,7 @@ export default function HistoryPage() {
               columns={analysisColumns}
               rowKey="id"
               size="small"
+              pagination={{ pageSize: 20, showSizeChanger: true }}
               onRow={(record) => ({
                 onClick: () => { setSelectedJob(record as AnalysisJob); setDrawerOpen(true); },
                 style: { cursor: 'pointer' },
@@ -226,6 +247,7 @@ export default function HistoryPage() {
               columns={compareColumns}
               rowKey="id"
               size="small"
+              pagination={{ pageSize: 20, showSizeChanger: true }}
             />
           ),
         },

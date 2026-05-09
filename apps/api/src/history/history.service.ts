@@ -11,7 +11,7 @@ export class HistoryService {
       this.prisma.analysisJob.findMany({
         where: isAdmin ? undefined : { userId },
         orderBy: { createdAt: 'desc' },
-        take: isAdmin ? 50 : 10,
+        take: isAdmin ? undefined : 10,
         include: {
           document: { select: { fileName: true } },
           feedbacks: {
@@ -24,7 +24,7 @@ export class HistoryService {
       this.prisma.compareJob.findMany({
         where: isAdmin ? undefined : { userId },
         orderBy: { createdAt: 'desc' },
-        take: isAdmin ? 50 : 10,
+        take: isAdmin ? undefined : 10,
         include: {
           oldDocument: { select: { fileName: true } },
           newDocument: { select: { fileName: true } },
