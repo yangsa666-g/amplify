@@ -1,8 +1,7 @@
-version: '3.9'
-
 services:
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-contract_ai}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -10,36 +9,65 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-contract_ai}"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+    networks:
+      - internal
 
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    ports:
-      - "3001:3001"
+    restart: unless-stopped
     environment:
+      NODE_ENV: development
       PORT: 3001
-      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:changeme@postgres:5432/contract_ai}
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-contract_ai}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-in-prod}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
-      REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET:-change-me-in-production}
+      REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET:-dev-refresh-secret-change-in-prod}
       REFRESH_TOKEN_EXPIRES_IN: ${REFRESH_TOKEN_EXPIRES_IN:-7d}
+      AI_FOUNDRY_API_URL: ${AI_FOUNDRY_API_URL:-}
+      AI_FOUNDRY_API_KEY: ${AI_FOUNDRY_API_KEY:-}
+      AI_FOUNDRY_MODELS: ${AI_FOUNDRY_MODELS:-gpt-5.4,gpt-5.4-mini}
+      AI_FOUNDRY_TIMEOUT_MS: ${AI_FOUNDRY_TIMEOUT_MS:-120000}
+      FILE_UPLOAD_DIR: /app/uploads
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-20}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID:-}
+      ENTRA_CLIENT_SECRET: ${ENTRA_CLIENT_SECRET:-}
+      ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:-}
+      ENTRA_REDIRECT_URI: ${ENTRA_REDIRECT_URI:-}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_ADMIN_NAME: ${SEED_ADMIN_NAME:-Admin}
+    volumes:
+      - uploads_data:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
+    ports:
+      - "3001:3001"
+    networks:
+      - internal
 
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    ports:
-      - "3000:80"
+    restart: unless-stopped
     depends_on:
       - api
+    ports:
+      - "3000:80"
+    networks:
+      - internal
 
 volumes:
   postgres_data:
+  uploads_data:
+
+networks:
+  internal:

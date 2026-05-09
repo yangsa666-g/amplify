@@ -1,7 +1,11 @@
-import { PrismaClient, TemplateType } from '../generated/prisma';
+import { PrismaClient, TemplateType } from '../generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 import * as bcrypt from 'bcrypt';
 
-const prisma = new PrismaClient();
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   // System default field template
@@ -75,22 +79,30 @@ Provide a structured risk analysis report in markdown format with clear sections
     console.log('ℹ️  Default risk prompt already exists, skipping');
   }
 
-  // Default admin user (only in development)
-  if (process.env.NODE_ENV !== 'production') {
-    const existingAdmin = await prisma.user.findUnique({ where: { email: 'admin@example.com' } });
+  // Default admin user — seeded when SEED_ADMIN_EMAIL is set
+  const adminEmail = process.env.SEED_ADMIN_EMAIL;
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+  const adminName = process.env.SEED_ADMIN_NAME || 'Admin';
+
+  if (adminEmail && adminPassword) {
+    const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
     if (!existingAdmin) {
-      const hash = await bcrypt.hash('Admin@123456', 12);
+      const hash = await bcrypt.hash(adminPassword, 12);
       await prisma.user.create({
         data: {
-          email: 'admin@example.com',
-          name: 'Admin',
+          email: adminEmail,
+          name: adminName,
           passwordHash: hash,
           role: 'admin',
           authProvider: 'local',
         },
       });
-      console.log('✅ Default admin user created (admin@example.com / Admin@123456)');
+      console.log(`✅ Admin user created (${adminEmail})`);
+    } else {
+      console.log(`ℹ️  Admin user already exists (${adminEmail}), skipping`);
     }
+  } else {
+    console.log('ℹ️  SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD not set, skipping admin seed');
   }
 }
 
