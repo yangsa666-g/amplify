@@ -48,7 +48,7 @@ class RunAnalysisBody {
   documentId!: string;
 
   @IsString()
-  @ApiProperty({ example: 'gpt-4o', description: 'Model name to use for analysis' })
+  @ApiProperty({ example: 'gpt-5.4', description: 'Model name to use for analysis' })
   model!: string;
 
   @IsOptional()
