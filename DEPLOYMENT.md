@@ -107,7 +107,6 @@ If the repository later chooses a flatter layout, keep the same asset separation
 | `DATABASE_URL` | Prisma PostgreSQL connection string |
 | `JWT_SECRET` | Access token secret |
 | `JWT_EXPIRES_IN` | Access token lifetime |
-| `REFRESH_TOKEN_SECRET` | Refresh token secret |
 | `REFRESH_TOKEN_EXPIRES_IN` | Refresh token lifetime |
 | `AI_FOUNDRY_API_URL` | AI Foundry endpoint |
 | `AI_FOUNDRY_API_KEY` | AI Foundry credential |

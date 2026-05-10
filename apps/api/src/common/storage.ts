@@ -1,4 +1,3 @@
-import * as path from 'path';
 import * as fs from 'fs';
 
 export function getUploadDir(): string {
@@ -9,6 +8,3 @@ export function getUploadDir(): string {
   return dir;
 }
 
-export function resolveUploadPath(filename: string): string {
-  return path.join(getUploadDir(), filename);
-}
