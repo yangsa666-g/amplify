@@ -1,54 +1,68 @@
 import { Injectable, BadGatewayException, RequestTimeoutException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import axios from 'axios';
+import { AzureOpenAI, APIConnectionTimeoutError, APIError } from 'openai';
 
 export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'xhigh';
 
 const DEFAULT_REASONING_EFFORT: ReasoningEffort = 'medium';
+const DEFAULT_API_VERSION = '2025-03-01-preview';
 
 @Injectable()
 export class AiFoundryService {
   constructor(private config: ConfigService) {}
 
-  private get baseUrl() {
-    return this.config.get<string>('AI_FOUNDRY_API_URL', '');
+  private get endpoint() {
+    return this.config.get<string>('AZURE_OPENAI_ENDPOINT', '');
   }
 
   private get apiKey() {
-    return this.config.get<string>('AI_FOUNDRY_API_KEY', '');
+    return this.config.get<string>('AZURE_OPENAI_API_KEY', '');
   }
 
   private get timeoutMs() {
-    return parseInt(this.config.get<string>('AI_FOUNDRY_TIMEOUT_MS', '120000'), 10);
+    return parseInt(this.config.get<string>('AZURE_OPENAI_TIMEOUT_MS', '120000'), 10);
+  }
+
+  private get apiVersion() {
+    return this.config.get<string>('AZURE_OPENAI_API_VERSION', DEFAULT_API_VERSION);
+  }
+
+  private createClient(): AzureOpenAI {
+    return new AzureOpenAI({
+      endpoint: this.endpoint,
+      apiKey: this.apiKey,
+      apiVersion: this.apiVersion,
+      timeout: this.timeoutMs,
+    });
+  }
+
+  private mapReasoningEffort(effort: ReasoningEffort): 'low' | 'medium' | 'high' | null {
+    if (effort === 'none') return null;
+    if (effort === 'xhigh') return 'high';
+    return effort;
   }
 
   async chat(model: string, prompt: string, reasoningEffort: ReasoningEffort = DEFAULT_REASONING_EFFORT): Promise<string> {
-    if (!this.baseUrl || !this.apiKey) {
-      throw new BadGatewayException('AI Foundry is not configured');
+    if (!this.endpoint || !this.apiKey) {
+      throw new BadGatewayException('Azure OpenAI is not configured');
     }
     try {
-      const response = await axios.post(
-        `${this.baseUrl}/openai/deployments/${model}/chat/completions?api-version=2024-02-01`,
-        {
-          messages: [{ role: 'system', content: prompt }],
-          reasoning_effort: reasoningEffort,
-        },
-        {
-          headers: {
-            'api-key': this.apiKey,
-            'Content-Type': 'application/json',
-          },
-          timeout: this.timeoutMs,
-        },
-      );
-      return response.data?.choices?.[0]?.message?.content ?? '';
-    } catch (err: any) {
-      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
-        throw new RequestTimeoutException('AI Foundry request timed out');
+      const client = this.createClient();
+      const mappedEffort = this.mapReasoningEffort(reasoningEffort);
+      const response = await client.responses.create({
+        model,
+        input: prompt,
+        ...(mappedEffort ? { reasoning: { effort: mappedEffort } } : {}),
+      });
+      return response.output_text ?? '';
+    } catch (err: unknown) {
+      if (err instanceof APIConnectionTimeoutError) {
+        throw new RequestTimeoutException('Azure OpenAI request timed out');
       }
-      const status = err.response?.status;
-      const message = err.response?.data?.error?.message || err.message;
-      throw new BadGatewayException(`AI Foundry error (${status}): ${message}`);
+      if (err instanceof APIError) {
+        throw new BadGatewayException(`Azure OpenAI error (${err.status}): ${err.message}`);
+      }
+      throw new BadGatewayException('Azure OpenAI unexpected error');
     }
   }
 }

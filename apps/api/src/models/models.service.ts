@@ -6,7 +6,7 @@ export class ModelsService {
   constructor(private config: ConfigService) {}
 
   getModels() {
-    const raw = this.config.get<string>('AI_FOUNDRY_MODELS', 'gpt-5.4,gpt-5.4-mini');
+    const raw = this.config.get<string>('AZURE_OPENAI_MODELS', 'gpt-5.4,gpt-5.4-mini');
     return raw.split(',').map((m) => ({ name: m.trim(), label: m.trim() }));
   }
 }

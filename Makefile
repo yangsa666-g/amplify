@@ -50,7 +50,7 @@ setup: ## First-time setup: copy .env, install deps, run DB migrations
 	@echo "$(GREEN)✔ Dependencies installed$(RESET)"
 	@echo ""
 	@echo "$(BOLD)Next steps:$(RESET)"
-	@echo "  1. Edit $(BOLD).env$(RESET) and set AI_FOUNDRY_API_URL / AI_FOUNDRY_API_KEY / SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD"
+	@echo "  1. Edit $(BOLD).env$(RESET) and set AZURE_OPENAI_ENDPOINT / AZURE_OPENAI_API_KEY / SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD"
 	@echo "  2. Run $(BOLD)make up$(RESET) to start all services"
 	@echo "  3. Run $(BOLD)make migrate$(RESET) to apply DB schema"
 	@echo "  4. Run $(BOLD)make seed$(RESET) to seed default data"
