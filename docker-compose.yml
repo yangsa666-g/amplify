@@ -28,8 +28,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    ports:
-      - "3001:3001"
     networks:
       - internal
 
