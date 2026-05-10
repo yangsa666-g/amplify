@@ -4,7 +4,6 @@ import {
   Get,
   Param,
   UseGuards,
-  Request,
   Res,
   UseInterceptors,
   UploadedFile,
@@ -15,6 +14,7 @@ import { diskStorage } from 'multer';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser, AuthUser } from '../auth/decorators/current-user.decorator';
 import { DocumentsService } from './documents.service';
 import { getUploadDir } from '../common/storage';
 
@@ -36,25 +36,25 @@ export class DocumentsController {
       limits: { fileSize: 50 * 1024 * 1024 }, // hard cap 50MB; service enforces configured limit
     }),
   )
-  async upload(@UploadedFile() file: Express.Multer.File, @Request() req: any) {
+  async upload(@UploadedFile() file: Express.Multer.File, @CurrentUser() user: AuthUser) {
     if (!file) throw new BadRequestException('No file uploaded');
-    return this.documentsService.upload(req.user.userId, file);
+    return this.documentsService.upload(user.userId, file);
   }
 
   @Get(':id/text')
-  async getText(@Param('id') id: string, @Request() req: any) {
-    const text = await this.documentsService.getExtractedText(id, req.user.userId);
+  async getText(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    const text = await this.documentsService.getExtractedText(id, user.userId);
     return { text };
   }
 
   @Get(':id/download')
-  async download(@Param('id') id: string, @Request() req: any, @Res() res: any) {
-    const doc = await this.documentsService.findOne(id, req.user.userId);
+  async download(@Param('id') id: string, @CurrentUser() user: AuthUser, @Res() res: any) {
+    const doc = await this.documentsService.findOne(id, user.userId);
     res.download((doc as any).storagePath, doc.fileName);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @Request() req: any) {
-    return this.documentsService.findOne(id, req.user.userId);
+  findOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.documentsService.findOne(id, user.userId);
   }
 }

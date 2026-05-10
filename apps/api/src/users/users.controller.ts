@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Request, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, BadRequestException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser, AuthUser } from '../auth/decorators/current-user.decorator';
 import { UsersService } from './users.service';
 
 @Controller('admin/users')
@@ -29,32 +30,32 @@ export class UsersController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: { name?: string; email?: string }, @Request() req: any) {
-    if (id === req.user.userId) {
+  update(@Param('id') id: string, @Body() body: { name?: string; email?: string }, @CurrentUser() user: AuthUser) {
+    if (id === user.userId) {
       throw new BadRequestException('Use the profile page to update your own account');
     }
     return this.usersService.updateUser(id, body);
   }
 
   @Patch(':id/status')
-  updateStatus(@Param('id') id: string, @Body() body: { status: 'active' | 'disabled' }, @Request() req: any) {
-    if (id === req.user.userId) {
+  updateStatus(@Param('id') id: string, @Body() body: { status: 'active' | 'disabled' }, @CurrentUser() user: AuthUser) {
+    if (id === user.userId) {
       throw new BadRequestException('Cannot change your own status');
     }
     return this.usersService.updateStatus(id, body.status);
   }
 
   @Patch(':id/role')
-  updateRole(@Param('id') id: string, @Body() body: { role: 'admin' | 'user' }, @Request() req: any) {
-    if (id === req.user.userId) {
+  updateRole(@Param('id') id: string, @Body() body: { role: 'admin' | 'user' }, @CurrentUser() user: AuthUser) {
+    if (id === user.userId) {
       throw new BadRequestException('Cannot change your own role');
     }
     return this.usersService.updateRole(id, body.role);
   }
 
   @Delete(':id')
-  delete(@Param('id') id: string, @Request() req: any) {
-    if (id === req.user.userId) {
+  delete(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    if (id === user.userId) {
       throw new BadRequestException('Cannot delete your own account');
     }
     return this.usersService.deleteUser(id);

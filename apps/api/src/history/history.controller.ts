@@ -1,5 +1,6 @@
-import { Controller, Get, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser, AuthUser } from '../auth/decorators/current-user.decorator';
 import { HistoryService } from './history.service';
 
 @Controller('history')
@@ -8,7 +9,7 @@ export class HistoryController {
   constructor(private historyService: HistoryService) {}
 
   @Get()
-  getRecent(@Request() req: any) {
-    return this.historyService.getRecent(req.user.userId, req.user.role);
+  getRecent(@CurrentUser() user: AuthUser) {
+    return this.historyService.getRecent(user.userId, user.role);
   }
 }

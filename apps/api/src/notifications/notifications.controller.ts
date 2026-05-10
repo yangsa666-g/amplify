@@ -1,5 +1,6 @@
-import { Controller, Get, Put, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Put, Param, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser, AuthUser } from '../auth/decorators/current-user.decorator';
 import { NotificationsService } from './notifications.service';
 
 @Controller('notifications')
@@ -8,22 +9,22 @@ export class NotificationsController {
   constructor(private svc: NotificationsService) {}
 
   @Get()
-  getAll(@Request() req: any) {
-    return this.svc.getForUser(req.user.userId);
+  getAll(@CurrentUser() user: AuthUser) {
+    return this.svc.getForUser(user.userId);
   }
 
   @Get('unread-count')
-  getUnreadCount(@Request() req: any) {
-    return this.svc.getUnreadCount(req.user.userId);
+  getUnreadCount(@CurrentUser() user: AuthUser) {
+    return this.svc.getUnreadCount(user.userId);
   }
 
   @Put(':id/read')
-  markRead(@Request() req: any, @Param('id') id: string) {
-    return this.svc.markRead(req.user.userId, id);
+  markRead(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.svc.markRead(user.userId, id);
   }
 
   @Put('read-all')
-  markAllRead(@Request() req: any) {
-    return this.svc.markAllRead(req.user.userId);
+  markAllRead(@CurrentUser() user: AuthUser) {
+    return this.svc.markAllRead(user.userId);
   }
 }

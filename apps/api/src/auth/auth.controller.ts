@@ -2,11 +2,13 @@ import { Controller, Post, Body, UseGuards, Request, Get, HttpCode, HttpStatus, 
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { CurrentUser, AuthUser } from './decorators/current-user.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  // login uses LocalStrategy's req.user (full DB user shape, not JWT payload)
   @UseGuards(AuthGuard('local'))
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -32,18 +34,18 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  me(@Request() req: any) {
-    return req.user;
+  me(@CurrentUser() user: AuthUser) {
+    return user;
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
   async changePassword(
-    @Request() req: any,
+    @CurrentUser() user: AuthUser,
     @Body() body: { oldPassword: string; newPassword: string },
   ) {
-    await this.authService.changePassword(req.user.userId, body.oldPassword, body.newPassword);
+    await this.authService.changePassword(user.userId, body.oldPassword, body.newPassword);
     return { message: 'Password changed successfully' };
   }
 }

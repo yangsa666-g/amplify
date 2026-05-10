@@ -1,5 +1,6 @@
-import { Controller, Post, Get, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser, AuthUser } from '../auth/decorators/current-user.decorator';
 import { CompareService } from './compare.service';
 
 @Controller('compare')
@@ -9,19 +10,19 @@ export class CompareController {
 
   @Post('run')
   run(
-    @Request() req: any,
+    @CurrentUser() user: AuthUser,
     @Body() body: { oldDocumentId: string; newDocumentId: string; diffMode?: 'unified' | 'side_by_side' },
   ) {
-    return this.compareService.run(req.user.userId, body.oldDocumentId, body.newDocumentId, body.diffMode);
+    return this.compareService.run(user.userId, body.oldDocumentId, body.newDocumentId, body.diffMode);
   }
 
   @Get('recent')
-  findRecent(@Request() req: any) {
-    return this.compareService.findRecent(req.user.userId);
+  findRecent(@CurrentUser() user: AuthUser) {
+    return this.compareService.findRecent(user.userId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @Request() req: any) {
-    return this.compareService.findOne(id, req.user.userId);
+  findOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.compareService.findOne(id, user.userId);
   }
 }

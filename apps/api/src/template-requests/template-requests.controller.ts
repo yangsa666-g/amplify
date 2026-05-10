@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Put, Param, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser, AuthUser } from '../auth/decorators/current-user.decorator';
 import { TemplateRequestsService } from './template-requests.service';
 
 @Controller()
@@ -12,13 +13,13 @@ export class TemplateRequestsController {
   // ─── User endpoints ───────────────────────────────────────────────────────────
 
   @Get('template-requests')
-  listMine(@Request() req: any) {
-    return this.svc.listForUser(req.user.userId);
+  listMine(@CurrentUser() user: AuthUser) {
+    return this.svc.listForUser(user.userId);
   }
 
   @Post('template-requests')
-  submit(@Request() req: any, @Body() body: { templateKind: 'field' | 'prompt'; templateId: string }) {
-    return this.svc.submit(req.user.userId, body);
+  submit(@CurrentUser() user: AuthUser, @Body() body: { templateKind: 'field' | 'prompt'; templateId: string }) {
+    return this.svc.submit(user.userId, body);
   }
 
   // ─── Admin endpoints ──────────────────────────────────────────────────────────
@@ -33,14 +34,14 @@ export class TemplateRequestsController {
   @Put('admin/template-requests/:id/approve')
   @UseGuards(RolesGuard)
   @Roles('admin')
-  approve(@Request() req: any, @Param('id') id: string) {
-    return this.svc.approve(req.user.userId, id);
+  approve(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.svc.approve(user.userId, id);
   }
 
   @Put('admin/template-requests/:id/reject')
   @UseGuards(RolesGuard)
   @Roles('admin')
-  reject(@Request() req: any, @Param('id') id: string, @Body() body: { adminNote?: string }) {
-    return this.svc.reject(req.user.userId, id, body.adminNote);
+  reject(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: { adminNote?: string }) {
+    return this.svc.reject(user.userId, id, body.adminNote);
   }
 }

@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser, AuthUser } from '../auth/decorators/current-user.decorator';
 import { PromptTemplatesService } from './prompt-templates.service';
 
 // ─── User Routes ─────────────────────────────────────────────────────────────
@@ -12,33 +13,33 @@ export class PromptTemplatesController {
   constructor(private service: PromptTemplatesService) {}
 
   @Get()
-  list(@Request() req: any, @Query('type') type = 'risk_analysis') {
-    return this.service.listForUser(req.user.userId, type);
+  list(@CurrentUser() user: AuthUser, @Query('type') type = 'risk_analysis') {
+    return this.service.listForUser(user.userId, type);
   }
 
   @Get(':id')
-  getOne(@Param('id') id: string, @Request() req: any) {
-    return this.service.getById(id, req.user.userId);
+  getOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.getById(id, user.userId);
   }
 
   @Post()
-  create(@Request() req: any, @Query('type') type = 'risk_analysis', @Body() body: { name: string; content: string }) {
-    return this.service.createUserTemplate(req.user.userId, body, type);
+  create(@CurrentUser() user: AuthUser, @Query('type') type = 'risk_analysis', @Body() body: { name: string; content: string }) {
+    return this.service.createUserTemplate(user.userId, body, type);
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Request() req: any, @Body() body: { name: string; content: string }) {
-    return this.service.updateUserTemplate(req.user.userId, id, body);
+  update(@Param('id') id: string, @CurrentUser() user: AuthUser, @Body() body: { name: string; content: string }) {
+    return this.service.updateUserTemplate(user.userId, id, body);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string, @Request() req: any) {
-    return this.service.deleteUserTemplate(req.user.userId, id);
+  remove(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.deleteUserTemplate(user.userId, id);
   }
 
   @Post(':id/duplicate')
-  duplicate(@Param('id') systemId: string, @Request() req: any) {
-    return this.service.duplicateSystemTemplate(req.user.userId, systemId);
+  duplicate(@Param('id') systemId: string, @CurrentUser() user: AuthUser) {
+    return this.service.duplicateSystemTemplate(user.userId, systemId);
   }
 }
 
