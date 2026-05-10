@@ -275,6 +275,11 @@ function FieldTemplatesTab() {
           const req = getRequestStatus(tmpl.id);
           const isPending = req?.status === 'pending';
           const isApproved = req?.status === 'approved';
+          const tooltipTitle = isPending
+            ? 'Request already pending review'
+            : isApproved
+              ? 'Re-submit (e.g. after editing, or if the system copy was removed)'
+              : 'Request to add to system templates';
           return (
             <Card
               key={tmpl.id}
@@ -290,11 +295,11 @@ function FieldTemplatesTab() {
                   <Button icon={<EditOutlined />} size="small" onClick={() => { setEditingTemplate(tmpl); setEditorOpen(true); }}>
                     Edit
                   </Button>
-                  <Tooltip title={isPending ? 'Request already pending' : isApproved ? 'Already approved as system template' : 'Request to add to system templates'}>
+                  <Tooltip title={tooltipTitle}>
                     <Button
                       icon={<SendOutlined />}
                       size="small"
-                      disabled={isPending || isApproved}
+                      disabled={isPending}
                       onClick={() => requestMutation.mutate(tmpl.id)}
                       loading={requestMutation.isPending}
                     >
@@ -429,6 +434,11 @@ function PromptTemplatesTab() {
           const req = getRequestStatus(tmpl.id);
           const isPending = req?.status === 'pending';
           const isApproved = req?.status === 'approved';
+          const tooltipTitle = isPending
+            ? 'Request already pending review'
+            : isApproved
+              ? 'Re-submit (e.g. after editing, or if the system copy was removed)'
+              : 'Request to add to system templates';
           return (
             <Card
               key={tmpl.id}
@@ -444,11 +454,11 @@ function PromptTemplatesTab() {
                   <Button icon={<EditOutlined />} size="small" onClick={() => { setEditingTemplate(tmpl); setEditorOpen(true); }}>
                     Edit
                   </Button>
-                  <Tooltip title={isPending ? 'Request already pending' : isApproved ? 'Already approved as system template' : 'Request to add to system templates'}>
+                  <Tooltip title={tooltipTitle}>
                     <Button
                       icon={<SendOutlined />}
                       size="small"
-                      disabled={isPending || isApproved}
+                      disabled={isPending}
                       onClick={() => requestMutation.mutate(tmpl.id)}
                       loading={requestMutation.isPending}
                     >
