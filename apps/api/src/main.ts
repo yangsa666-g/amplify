@@ -25,6 +25,7 @@ async function bootstrap() {
       `3. Retrieve results (\`GET /v1/analysis/{id}\` or \`GET /v1/compare/{id}\`)`,
     )
     .setVersion('1.0')
+    .addTag('External API')
     .addApiKey({ type: 'apiKey', name: 'X-API-Key', in: 'header' }, 'X-API-Key')
     .build();
 
