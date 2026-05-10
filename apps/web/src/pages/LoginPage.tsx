@@ -23,7 +23,7 @@ export default function LoginPage() {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f2f5' }}>
       <Card style={{ width: 380 }}>
         <Typography.Title level={3} style={{ textAlign: 'center', marginBottom: 24 }}>
-          Contract AI Review
+          Amplify - Document Intelligent Platform
         </Typography.Title>
         {mutation.isError && (
           <Alert message={(mutation.error as any)?.response?.data?.message || 'Login failed'} type="error" style={{ marginBottom: 16 }} />
