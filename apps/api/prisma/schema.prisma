@@ -163,6 +163,7 @@ model AnalysisJob {
   userId                    String     @map("user_id")
   documentId                String     @map("document_id")
   modelName                 String     @map("model_name")
+  reasoningEffort           String     @default("medium") @map("reasoning_effort")
   fieldTemplateId           String?    @map("field_template_id")
   promptTemplateId          String?    @map("prompt_template_id")
   fieldTemplateSnapshotJson Json?      @map("field_template_snapshot_json")

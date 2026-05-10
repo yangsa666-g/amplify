@@ -42,7 +42,18 @@ function buildTemplateOptions(templates: (FieldTemplate | PromptTemplate)[]) {
 
 export default function AnalysisPage() {
   const navigate = useNavigate();
-  const { uploadedDoc, selectedModel, result, ocrPreviewOpen, setUploadedDoc, setSelectedModel, setResult, setOcrPreviewOpen } = useAnalysisStore();
+  const {
+    uploadedDoc,
+    selectedModel,
+    selectedReasoningEffort,
+    result,
+    ocrPreviewOpen,
+    setUploadedDoc,
+    setSelectedModel,
+    setSelectedReasoningEffort,
+    setResult,
+    setOcrPreviewOpen,
+  } = useAnalysisStore();
 
   const [selectedFieldTemplateId, setSelectedFieldTemplateId] = useState<string | undefined>(
     () => localStorage.getItem(LAST_FIELD_TEMPLATE_KEY) ?? undefined,
@@ -103,7 +114,14 @@ export default function AnalysisPage() {
   });
 
   const analysisMutation = useMutation({
-    mutationFn: () => runAnalysis(uploadedDoc!.id, selectedModel, selectedFieldTemplateId, selectedPromptTemplateId).then((r) => r.data),
+    mutationFn: () =>
+      runAnalysis(
+        uploadedDoc!.id,
+        selectedModel,
+        selectedFieldTemplateId,
+        selectedPromptTemplateId,
+        selectedReasoningEffort,
+      ).then((r) => r.data),
     onSuccess: (data) => {
       setResult(data);
       refetchRecent();
@@ -118,6 +136,7 @@ export default function AnalysisPage() {
   const recentColumns = [
     { title: 'File', dataIndex: ['document', 'fileName'], key: 'fileName' },
     { title: 'Model', dataIndex: 'modelName', key: 'model' },
+    { title: 'Reasoning Effort', dataIndex: 'reasoningEffort', key: 'reasoningEffort' },
     { title: 'Status', dataIndex: 'status', key: 'status', render: (s: string) => <Tag color={s === 'success' ? 'green' : s === 'failed' ? 'red' : 'blue'}>{s}</Tag> },
     { title: 'Created', dataIndex: 'createdAt', key: 'createdAt', render: (d: string) => new Date(d).toLocaleString() },
   ];
@@ -253,6 +272,19 @@ export default function AnalysisPage() {
             value={selectedModel || undefined}
             onChange={setSelectedModel}
             options={models.map((m) => ({ label: m.label, value: m.name }))}
+          />
+          <Select
+            placeholder="Reasoning effort"
+            style={{ width: 180 }}
+            value={selectedReasoningEffort}
+            onChange={setSelectedReasoningEffort}
+            options={[
+              { label: 'None', value: 'none' },
+              { label: 'Low', value: 'low' },
+              { label: 'Medium', value: 'medium' },
+              { label: 'High', value: 'high' },
+              { label: 'XHigh', value: 'xhigh' },
+            ]}
           />
           <Button
             type="primary"

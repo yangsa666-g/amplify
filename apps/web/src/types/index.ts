@@ -13,6 +13,8 @@ export interface Model {
   label: string;
 }
 
+export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'xhigh';
+
 export interface FieldTemplateItem {
   id?: string;
   fieldName: string;
@@ -59,6 +61,7 @@ export interface AnalysisJob {
   userId?: string;
   status: 'pending' | 'running' | 'success' | 'failed';
   modelName: string;
+  reasoningEffort: ReasoningEffort;
   fieldTemplateId?: string | null;
   promptTemplateId?: string | null;
   createdAt: string;

@@ -1,8 +1,21 @@
 import client from './client';
 import { AnalysisResult, AnalysisJob, AnalysisJobFeedback } from '../types';
+import type { ReasoningEffort } from '../types';
 
-export const runAnalysis = (documentId: string, model: string, fieldTemplateId?: string, promptTemplateId?: string) =>
-  client.post<AnalysisResult>('/analysis/run', { documentId, model, fieldTemplateId, promptTemplateId });
+export const runAnalysis = (
+  documentId: string,
+  model: string,
+  fieldTemplateId?: string,
+  promptTemplateId?: string,
+  reasoningEffort: ReasoningEffort = 'medium',
+) =>
+  client.post<AnalysisResult>('/analysis/run', {
+    documentId,
+    model,
+    fieldTemplateId,
+    promptTemplateId,
+    reasoningEffort,
+  });
 
 export const getAnalysisJob = (id: string) => client.get<AnalysisJob>(`/analysis/${id}`);
 

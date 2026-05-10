@@ -2,6 +2,7 @@ import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, AuthUser } from '../auth/decorators/current-user.decorator';
 import { AnalysisService } from './analysis.service';
+import type { ReasoningEffort } from './ai-foundry.service';
 
 @Controller('analysis')
 @UseGuards(JwtAuthGuard)
@@ -11,9 +12,23 @@ export class AnalysisController {
   @Post('run')
   run(
     @CurrentUser() user: AuthUser,
-    @Body() body: { documentId: string; model: string; fieldTemplateId?: string; promptTemplateId?: string },
+    @Body()
+    body: {
+      documentId: string;
+      model: string;
+      fieldTemplateId?: string;
+      promptTemplateId?: string;
+      reasoningEffort?: ReasoningEffort;
+    },
   ) {
-    return this.analysisService.run(user.userId, body.documentId, body.model, body.fieldTemplateId, body.promptTemplateId);
+    return this.analysisService.run(
+      user.userId,
+      body.documentId,
+      body.model,
+      body.fieldTemplateId,
+      body.promptTemplateId,
+      body.reasoningEffort,
+    );
   }
 
   @Get('recent')

@@ -2,6 +2,10 @@ import { Injectable, BadGatewayException, RequestTimeoutException } from '@nestj
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 
+export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'xhigh';
+
+const DEFAULT_REASONING_EFFORT: ReasoningEffort = 'medium';
+
 @Injectable()
 export class AiFoundryService {
   constructor(private config: ConfigService) {}
@@ -18,7 +22,7 @@ export class AiFoundryService {
     return parseInt(this.config.get<string>('AI_FOUNDRY_TIMEOUT_MS', '120000'), 10);
   }
 
-  async chat(model: string, prompt: string): Promise<string> {
+  async chat(model: string, prompt: string, reasoningEffort: ReasoningEffort = DEFAULT_REASONING_EFFORT): Promise<string> {
     if (!this.baseUrl || !this.apiKey) {
       throw new BadGatewayException('AI Foundry is not configured');
     }
@@ -26,7 +30,8 @@ export class AiFoundryService {
       const response = await axios.post(
         `${this.baseUrl}/openai/deployments/${model}/chat/completions?api-version=2024-02-01`,
         {
-          messages: [{ role: 'user', content: prompt }],
+          messages: [{ role: 'system', content: prompt }],
+          reasoning_effort: reasoningEffort,
         },
         {
           headers: {

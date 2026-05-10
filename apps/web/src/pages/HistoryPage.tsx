@@ -95,6 +95,19 @@ export default function HistoryPage() {
       onFilter: (value: any, record: any) => record.modelName === value,
     },
     {
+      title: 'Reasoning Effort',
+      dataIndex: 'reasoningEffort',
+      key: 'reasoningEffort',
+      filters: [
+        { text: 'None', value: 'none' },
+        { text: 'Low', value: 'low' },
+        { text: 'Medium', value: 'medium' },
+        { text: 'High', value: 'high' },
+        { text: 'XHigh', value: 'xhigh' },
+      ],
+      onFilter: (value: any, record: any) => record.reasoningEffort === value,
+    },
+    {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',

@@ -60,6 +60,15 @@ class RunAnalysisBody {
   @IsString()
   @ApiPropertyOptional({ example: 'clprompt789', description: 'Prompt template ID (uses system default if omitted)' })
   promptTemplateId?: string;
+
+  @IsOptional()
+  @IsIn(['none', 'low', 'medium', 'high', 'xhigh'])
+  @ApiPropertyOptional({
+    enum: ['none', 'low', 'medium', 'high', 'xhigh'],
+    default: 'medium',
+    description: 'Reasoning effort level for supported AI Foundry models',
+  })
+  reasoningEffort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh';
 }
 
 class FieldExtractionItem {
@@ -241,7 +250,14 @@ export class ExternalApiController {
     @CurrentUser() user: AuthUser,
     @Body() body: RunAnalysisBody,
   ) {
-    return this.analysisService.run(user.userId, body.documentId, body.model, body.fieldTemplateId, body.promptTemplateId);
+    return this.analysisService.run(
+      user.userId,
+      body.documentId,
+      body.model,
+      body.fieldTemplateId,
+      body.promptTemplateId,
+      body.reasoningEffort,
+    );
   }
 
   @Get('analysis/:id')

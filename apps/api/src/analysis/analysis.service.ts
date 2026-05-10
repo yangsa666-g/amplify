@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { AiFoundryService } from './ai-foundry.service';
+import { AiFoundryService, type ReasoningEffort } from './ai-foundry.service';
 import { FieldTemplatesService } from '../field-templates/field-templates.service';
 import { PromptTemplatesService } from '../prompt-templates/prompt-templates.service';
 import { DocumentsService } from '../documents/documents.service';
@@ -88,7 +88,14 @@ export class AnalysisService {
     private documents: DocumentsService,
   ) {}
 
-  async run(userId: string, documentId: string, model: string, fieldTemplateId?: string, promptTemplateId?: string) {
+  async run(
+    userId: string,
+    documentId: string,
+    model: string,
+    fieldTemplateId?: string,
+    promptTemplateId?: string,
+    reasoningEffort: ReasoningEffort = 'medium',
+  ) {
     // 1. Load document text
     const contractText = await this.documents.getExtractedText(documentId, userId);
     if (!contractText) throw new BadRequestException('Contract text is empty');
@@ -128,6 +135,7 @@ export class AnalysisService {
         userId,
         documentId,
         modelName: model,
+        reasoningEffort,
         fieldTemplateId: fieldTemplate.id,
         promptTemplateId: promptTemplate.id,
         fieldTemplateSnapshotJson: fieldTemplate.items,
@@ -139,8 +147,8 @@ export class AnalysisService {
     try {
       // 6. Field extraction + risk analysis in parallel
       const [rawFieldResult, riskResult] = await Promise.all([
-        this.ai.chat(model, fieldPrompt),
-        this.ai.chat(model, riskPrompt),
+        this.ai.chat(model, fieldPrompt, reasoningEffort),
+        this.ai.chat(model, riskPrompt, reasoningEffort),
       ]);
 
       let fieldExtractionResult: any;
