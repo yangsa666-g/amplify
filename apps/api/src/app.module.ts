@@ -12,6 +12,8 @@ import { AnalysisModule } from './analysis/analysis.module';
 import { CompareModule } from './compare/compare.module';
 import { HistoryModule } from './history/history.module';
 import { AdminModule } from './admin/admin.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { TemplateRequestsModule } from './template-requests/template-requests.module';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { AdminModule } from './admin/admin.module';
     CompareModule,
     HistoryModule,
     AdminModule,
+    NotificationsModule,
+    TemplateRequestsModule,
   ],
   controllers: [AppController],
 })

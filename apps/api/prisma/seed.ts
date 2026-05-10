@@ -8,9 +8,25 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
+  const defaultItems = [
+    { fieldName: 'Contract Title', fieldDescription: 'The official title or name of the contract', sortOrder: 1 },
+    { fieldName: 'Parties', fieldDescription: 'All parties involved in the contract, including full legal names', sortOrder: 2 },
+    { fieldName: 'Effective Date', fieldDescription: 'The date on which the contract becomes effective', sortOrder: 3 },
+    { fieldName: 'Expiry Date', fieldDescription: 'The date on which the contract expires or terminates', sortOrder: 4 },
+    { fieldName: 'Contract Value', fieldDescription: 'Total monetary value or consideration of the contract', sortOrder: 5 },
+    { fieldName: 'Payment Terms', fieldDescription: 'Terms and schedule for payments described in the contract', sortOrder: 6 },
+    { fieldName: 'Governing Law', fieldDescription: 'The jurisdiction and law that governs the contract', sortOrder: 7 },
+    { fieldName: 'Dispute Resolution', fieldDescription: 'Method for resolving disputes (e.g., arbitration, litigation)', sortOrder: 8 },
+    { fieldName: 'Termination Conditions', fieldDescription: 'Conditions under which the contract may be terminated', sortOrder: 9 },
+    { fieldName: 'Liability Limitation', fieldDescription: 'Clauses that limit or cap liability of either party', sortOrder: 10 },
+    { fieldName: 'Confidentiality Clause', fieldDescription: 'Non-disclosure or confidentiality obligations', sortOrder: 11 },
+    { fieldName: 'Intellectual Property', fieldDescription: 'Ownership or licensing of intellectual property', sortOrder: 12 },
+  ];
+
   // System default field template
   const existingTemplate = await prisma.fieldTemplate.findFirst({
     where: { isSystem: true, isDefault: true },
+    include: { items: true },
   });
 
   if (!existingTemplate) {
@@ -19,25 +35,15 @@ async function main() {
         name: 'Default Contract Fields',
         isDefault: true,
         isSystem: true,
-        items: {
-          create: [
-            { fieldName: 'Contract Title', fieldDescription: 'The official title or name of the contract', sortOrder: 1 },
-            { fieldName: 'Parties', fieldDescription: 'All parties involved in the contract, including full legal names', sortOrder: 2 },
-            { fieldName: 'Effective Date', fieldDescription: 'The date on which the contract becomes effective', sortOrder: 3 },
-            { fieldName: 'Expiry Date', fieldDescription: 'The date on which the contract expires or terminates', sortOrder: 4 },
-            { fieldName: 'Contract Value', fieldDescription: 'Total monetary value or consideration of the contract', sortOrder: 5 },
-            { fieldName: 'Payment Terms', fieldDescription: 'Terms and schedule for payments described in the contract', sortOrder: 6 },
-            { fieldName: 'Governing Law', fieldDescription: 'The jurisdiction and law that governs the contract', sortOrder: 7 },
-            { fieldName: 'Dispute Resolution', fieldDescription: 'Method for resolving disputes (e.g., arbitration, litigation)', sortOrder: 8 },
-            { fieldName: 'Termination Conditions', fieldDescription: 'Conditions under which the contract may be terminated', sortOrder: 9 },
-            { fieldName: 'Liability Limitation', fieldDescription: 'Clauses that limit or cap liability of either party', sortOrder: 10 },
-            { fieldName: 'Confidentiality Clause', fieldDescription: 'Non-disclosure or confidentiality obligations', sortOrder: 11 },
-            { fieldName: 'Intellectual Property', fieldDescription: 'Ownership or licensing of intellectual property', sortOrder: 12 },
-          ],
-        },
+        items: { create: defaultItems },
       },
     });
     console.log('✅ Default field template created');
+  } else if (existingTemplate.items.length === 0) {
+    await prisma.fieldTemplateItem.createMany({
+      data: defaultItems.map((item) => ({ ...item, templateId: existingTemplate.id })),
+    });
+    console.log('✅ Default field template items restored');
   } else {
     console.log('ℹ️  Default field template already exists, skipping');
   }

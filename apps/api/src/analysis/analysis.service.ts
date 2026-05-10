@@ -88,14 +88,18 @@ export class AnalysisService {
     private documents: DocumentsService,
   ) {}
 
-  async run(userId: string, documentId: string, model: string) {
+  async run(userId: string, documentId: string, model: string, fieldTemplateId?: string, promptTemplateId?: string) {
     // 1. Load document text
     const contractText = await this.documents.getExtractedText(documentId, userId);
     if (!contractText) throw new BadRequestException('Contract text is empty');
 
-    // 2. Load templates
-    const fieldTemplate = await this.fieldTemplates.getCurrentForUser(userId);
-    const promptTemplate = await this.promptTemplates.getCurrentForUser(userId, 'risk_analysis');
+    // 2. Load templates (by ID if provided, otherwise system default)
+    const fieldTemplate = fieldTemplateId
+      ? await this.fieldTemplates.getById(fieldTemplateId, userId)
+      : await this.fieldTemplates.getSystemDefault();
+    const promptTemplate = promptTemplateId
+      ? await this.promptTemplates.getById(promptTemplateId, userId)
+      : await this.promptTemplates.getSystemDefault('risk_analysis');
 
     // 3. Build field extraction prompt
     const fieldsJson = JSON.stringify(

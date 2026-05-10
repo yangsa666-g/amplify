@@ -1,15 +1,116 @@
 import React, { useState } from 'react';
-import { Layout, Menu, Avatar, Dropdown, Typography, Divider } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, Typography, Divider, Badge, List, Popover, Button, Spin } from 'antd';
 import {
   FileTextOutlined, DiffOutlined, HistoryOutlined,
   SettingOutlined, UserOutlined, LogoutOutlined,
   DashboardOutlined, TeamOutlined, UnorderedListOutlined, ToolOutlined,
+  BellOutlined, CheckOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../stores/authStore';
 import { logout } from '../api/auth';
+import { getNotifications, getUnreadCount, markRead, markAllRead } from '../api/notifications';
+import type { Notification } from '../types';
 
 const { Sider, Content, Header } = Layout;
+
+function NotificationBell() {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+
+  const { data: countData } = useQuery({
+    queryKey: ['notifications-count'],
+    queryFn: getUnreadCount,
+    refetchInterval: 30_000,
+  });
+
+  const { data: notifications = [], isLoading } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: getNotifications,
+    enabled: open,
+  });
+
+  const markReadMutation = useMutation({
+    mutationFn: markRead,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+      qc.invalidateQueries({ queryKey: ['notifications-count'] });
+    },
+  });
+
+  const markAllMutation = useMutation({
+    mutationFn: markAllRead,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+      qc.invalidateQueries({ queryKey: ['notifications-count'] });
+    },
+  });
+
+  const typeIcon = (type: Notification['type']) => {
+    if (type === 'template_request_approved') return '✅';
+    if (type === 'template_request_rejected') return '❌';
+    return '📋';
+  };
+
+  const content = (
+    <div style={{ width: 360 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <Typography.Text strong>Notifications</Typography.Text>
+        {(countData?.count ?? 0) > 0 && (
+          <Button size="small" type="link" onClick={() => markAllMutation.mutate()} loading={markAllMutation.isPending}>
+            Mark all read
+          </Button>
+        )}
+      </div>
+      {isLoading ? (
+        <div style={{ textAlign: 'center', padding: 20 }}><Spin /></div>
+      ) : notifications.length === 0 ? (
+        <Typography.Text type="secondary" style={{ display: 'block', textAlign: 'center', padding: '16px 0' }}>No notifications</Typography.Text>
+      ) : (
+        <List
+          dataSource={notifications}
+          renderItem={(n) => (
+            <List.Item
+              style={{ padding: '8px 4px', background: n.isRead ? undefined : '#f6ffed', borderRadius: 4 }}
+              extra={
+                !n.isRead && (
+                  <Button
+                    size="small"
+                    type="text"
+                    icon={<CheckOutlined />}
+                    onClick={() => markReadMutation.mutate(n.id)}
+                  />
+                )
+              }
+            >
+              <List.Item.Meta
+                avatar={<span style={{ fontSize: 18 }}>{typeIcon(n.type)}</span>}
+                title={<Typography.Text strong={!n.isRead}>{n.title}</Typography.Text>}
+                description={<Typography.Text type="secondary" style={{ fontSize: 12 }}>{n.body}</Typography.Text>}
+              />
+            </List.Item>
+          )}
+          style={{ maxHeight: 400, overflowY: 'auto' }}
+        />
+      )}
+    </div>
+  );
+
+  return (
+    <Popover
+      content={content}
+      trigger="click"
+      open={open}
+      onOpenChange={(v) => { setOpen(v); if (v) qc.invalidateQueries({ queryKey: ['notifications'] }); }}
+      placement="bottomRight"
+    >
+      <Badge count={countData?.count ?? 0} size="small" style={{ cursor: 'pointer' }}>
+        <BellOutlined style={{ fontSize: 18, cursor: 'pointer' }} />
+      </Badge>
+    </Popover>
+  );
+}
 
 export default function AppLayout() {
   const navigate = useNavigate();
@@ -77,7 +178,8 @@ export default function AppLayout() {
         )}
       </Sider>
       <Layout>
-        <Header style={{ background: '#fff', padding: '0 24px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+        <Header style={{ background: '#fff', padding: '0 24px', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 20 }}>
+          <NotificationBell />
           <Dropdown menu={userMenu} placement="bottomRight">
             <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
               <Avatar icon={<UserOutlined />} />

@@ -1,29 +1,50 @@
-import { Controller, Get, Put, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { FieldTemplatesService } from './field-templates.service';
+
+type ItemInput = { fieldName: string; fieldDescription: string; sortOrder: number };
+
+// ─── User Routes ─────────────────────────────────────────────────────────────
 
 @Controller('field-templates')
 @UseGuards(JwtAuthGuard)
 export class FieldTemplatesController {
   constructor(private service: FieldTemplatesService) {}
 
-  @Get('current')
-  getCurrent(@Request() req: any) {
-    return this.service.getCurrentForUser(req.user.userId);
+  @Get()
+  list(@Request() req: any) {
+    return this.service.listForUser(req.user.userId);
   }
 
-  @Put('current')
-  saveCurrent(@Request() req: any, @Body() body: { name: string; items: { fieldName: string; fieldDescription: string; sortOrder: number }[] }) {
-    return this.service.saveForUser(req.user.userId, body);
+  @Get(':id')
+  getOne(@Param('id') id: string, @Request() req: any) {
+    return this.service.getById(id, req.user.userId);
   }
 
-  @Post('current/reset')
-  reset(@Request() req: any) {
-    return this.service.resetForUser(req.user.userId);
+  @Post()
+  create(@Request() req: any, @Body() body: { name: string; items: ItemInput[] }) {
+    return this.service.createUserTemplate(req.user.userId, body);
+  }
+
+  @Put(':id')
+  update(@Param('id') id: string, @Request() req: any, @Body() body: { name: string; items: ItemInput[] }) {
+    return this.service.updateUserTemplate(req.user.userId, id, body);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string, @Request() req: any) {
+    return this.service.deleteUserTemplate(req.user.userId, id);
+  }
+
+  @Post(':id/duplicate')
+  duplicate(@Param('id') systemId: string, @Request() req: any) {
+    return this.service.duplicateSystemTemplate(req.user.userId, systemId);
   }
 }
+
+// ─── Admin Routes ─────────────────────────────────────────────────────────────
 
 @Controller('admin/field-templates')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -31,13 +52,28 @@ export class FieldTemplatesController {
 export class AdminFieldTemplatesController {
   constructor(private service: FieldTemplatesService) {}
 
-  @Get('default')
-  getDefault() {
-    return this.service.getSystemDefault();
+  @Get()
+  list() {
+    return this.service.listSystemTemplates();
   }
 
-  @Put('default')
-  updateDefault(@Body() body: { name: string; items: { fieldName: string; fieldDescription: string; sortOrder: number }[] }) {
-    return this.service.updateSystemDefault(body);
+  @Post()
+  create(@Body() body: { name: string; items: ItemInput[] }) {
+    return this.service.createSystemTemplate(body);
+  }
+
+  @Put(':id')
+  update(@Param('id') id: string, @Body() body: { name: string; items: ItemInput[] }) {
+    return this.service.updateSystemTemplate(id, body);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.service.deleteSystemTemplate(id);
+  }
+
+  @Post(':id/set-default')
+  setDefault(@Param('id') id: string) {
+    return this.service.setSystemDefault(id);
   }
 }

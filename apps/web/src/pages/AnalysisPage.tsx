@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Upload, Select, Button, Card, Table, Typography, Alert, Tabs, Spin, Tag, Space, message, Collapse } from 'antd';
 import { InboxOutlined, FileTextOutlined, UnorderedListOutlined, EditOutlined } from '@ant-design/icons';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -8,34 +8,86 @@ import remarkGfm from 'remark-gfm';
 import { uploadDocument, getDocumentText } from '../api/documents';
 import { runAnalysis, getRecentAnalysis } from '../api/analysis';
 import { getModels } from '../api/models';
-import {
-  getCurrentFieldTemplate,
-  saveFieldTemplate,
-  resetFieldTemplate,
-} from '../api/fieldTemplates';
-import {
-  getCurrentPromptTemplate,
-  savePromptTemplate,
-  resetPromptTemplate,
-} from '../api/promptTemplates';
-import FieldTemplateEditor from '../components/FieldTemplateEditor';
-import PromptEditor from '../components/PromptEditor';
+import { listFieldTemplates } from '../api/fieldTemplates';
+import { listPromptTemplates } from '../api/promptTemplates';
 import { useAnalysisStore } from '../stores/analysisStore';
-import type { Document, AnalysisResult, AnalysisJob } from '../types';
+import type { Document, AnalysisResult, AnalysisJob, FieldTemplate, PromptTemplate } from '../types';
 
 const { Dragger } = Upload;
+
+const LAST_FIELD_TEMPLATE_KEY = 'lastFieldTemplateId';
+const LAST_PROMPT_TEMPLATE_KEY = 'lastPromptTemplateId';
+
+function buildTemplateOptions(templates: (FieldTemplate | PromptTemplate)[]) {
+  const system = templates.filter((t) => t.scope === 'system');
+  const personal = templates.filter((t) => t.scope === 'personal');
+  const opts = [];
+  if (system.length > 0) {
+    opts.push({
+      label: 'System Templates',
+      options: system.map((t) => ({
+        label: (t as FieldTemplate).isDefault ? `${t.name} (Default)` : t.name,
+        value: t.id,
+      })),
+    });
+  }
+  if (personal.length > 0) {
+    opts.push({
+      label: 'My Templates',
+      options: personal.map((t) => ({ label: t.name, value: t.id })),
+    });
+  }
+  return opts;
+}
 
 export default function AnalysisPage() {
   const navigate = useNavigate();
   const { uploadedDoc, selectedModel, result, ocrPreviewOpen, setUploadedDoc, setSelectedModel, setResult, setOcrPreviewOpen } = useAnalysisStore();
 
+  const [selectedFieldTemplateId, setSelectedFieldTemplateId] = useState<string | undefined>(
+    () => localStorage.getItem(LAST_FIELD_TEMPLATE_KEY) ?? undefined,
+  );
+  const [selectedPromptTemplateId, setSelectedPromptTemplateId] = useState<string | undefined>(
+    () => localStorage.getItem(LAST_PROMPT_TEMPLATE_KEY) ?? undefined,
+  );
+
   const { data: models = [] } = useQuery({ queryKey: ['models'], queryFn: () => getModels().then((r) => r.data) });
+  const { data: fieldTemplates = [] } = useQuery({ queryKey: ['field-templates'], queryFn: () => listFieldTemplates().then((r) => r.data) });
+  const { data: promptTemplates = [] } = useQuery({ queryKey: ['prompt-templates'], queryFn: () => listPromptTemplates().then((r) => r.data) });
 
   useEffect(() => {
     if (models.length > 0 && !selectedModel) {
       setSelectedModel(models[0].name);
     }
   }, [models, selectedModel, setSelectedModel]);
+
+  // Auto-select system default if last-used is no longer available
+  useEffect(() => {
+    if (fieldTemplates.length > 0 && selectedFieldTemplateId) {
+      const exists = fieldTemplates.find((t) => t.id === selectedFieldTemplateId);
+      if (!exists) {
+        const defaultTemplate = fieldTemplates.find((t) => t.scope === 'system' && t.isDefault);
+        setSelectedFieldTemplateId(defaultTemplate?.id);
+      }
+    } else if (fieldTemplates.length > 0 && !selectedFieldTemplateId) {
+      const defaultTemplate = fieldTemplates.find((t) => t.scope === 'system' && t.isDefault);
+      setSelectedFieldTemplateId(defaultTemplate?.id);
+    }
+  }, [fieldTemplates]);
+
+  useEffect(() => {
+    if (promptTemplates.length > 0 && selectedPromptTemplateId) {
+      const exists = promptTemplates.find((t) => t.id === selectedPromptTemplateId);
+      if (!exists) {
+        const defaultTemplate = promptTemplates.find((t) => t.scope === 'system' && t.isDefault);
+        setSelectedPromptTemplateId(defaultTemplate?.id);
+      }
+    } else if (promptTemplates.length > 0 && !selectedPromptTemplateId) {
+      const defaultTemplate = promptTemplates.find((t) => t.scope === 'system' && t.isDefault);
+      setSelectedPromptTemplateId(defaultTemplate?.id);
+    }
+  }, [promptTemplates]);
+
   const { data: recent = [], refetch: refetchRecent } = useQuery({ queryKey: ['analysis-recent'], queryFn: () => getRecentAnalysis().then((r) => r.data) });
 
   const { data: ocrText, isFetching: ocrLoading } = useQuery({
@@ -51,8 +103,15 @@ export default function AnalysisPage() {
   });
 
   const analysisMutation = useMutation({
-    mutationFn: () => runAnalysis(uploadedDoc!.id, selectedModel).then((r) => r.data),
-    onSuccess: (data) => { setResult(data); refetchRecent(); message.success('Analysis complete'); },
+    mutationFn: () => runAnalysis(uploadedDoc!.id, selectedModel, selectedFieldTemplateId, selectedPromptTemplateId).then((r) => r.data),
+    onSuccess: (data) => {
+      setResult(data);
+      refetchRecent();
+      // Remember last-used template IDs
+      if (selectedFieldTemplateId) localStorage.setItem(LAST_FIELD_TEMPLATE_KEY, selectedFieldTemplateId);
+      if (selectedPromptTemplateId) localStorage.setItem(LAST_PROMPT_TEMPLATE_KEY, selectedPromptTemplateId);
+      message.success('Analysis complete');
+    },
     onError: (e: any) => message.error(e.response?.data?.message || 'Analysis failed'),
   });
 
@@ -77,6 +136,9 @@ export default function AnalysisPage() {
     },
     { title: 'Confidence', dataIndex: 'confidence', key: 'conf', width: 100 },
   ];
+
+  const fieldTemplateOptions = buildTemplateOptions(fieldTemplates);
+  const promptTemplateOptions = buildTemplateOptions(promptTemplates);
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -125,15 +187,7 @@ export default function AnalysisPage() {
             children: ocrLoading ? (
               <Spin />
             ) : (
-              <div
-                style={{
-                  maxHeight: 480,
-                  overflowY: 'auto',
-                  padding: '0 4px',
-                  fontSize: 13,
-                  lineHeight: 1.7,
-                }}
-              >
+              <div style={{ maxHeight: 480, overflowY: 'auto', padding: '0 4px', fontSize: 13, lineHeight: 1.7 }}>
                 {ocrText ? (
                   <Markdown remarkPlugins={[remarkGfm]}>{ocrText}</Markdown>
                 ) : (
@@ -145,49 +199,51 @@ export default function AnalysisPage() {
         />
       )}
 
-      <Collapse
-        items={[
-          {
-            key: 'fields',
-            label: (
-              <Space>
-                <UnorderedListOutlined />
-                2. Extraction Fields — configure which fields to extract from the contract
-              </Space>
-            ),
-            children: (
-              <FieldTemplateEditor
-                queryKey={['field-template']}
-                fetchFn={getCurrentFieldTemplate}
-                saveFn={saveFieldTemplate}
-                resetFn={resetFieldTemplate}
-              />
-            ),
-          },
-        ]}
-      />
+      <Card
+        title={
+          <Space>
+            <UnorderedListOutlined />
+            2. Extraction Fields Template
+          </Space>
+        }
+      >
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Typography.Text type="secondary">
+            Select a field template to define which fields to extract from the contract. Manage your templates in <a href="/settings">Settings</a>.
+          </Typography.Text>
+          <Select
+            style={{ width: '100%', maxWidth: 480 }}
+            placeholder="Select a field template"
+            value={selectedFieldTemplateId}
+            onChange={(id) => { setSelectedFieldTemplateId(id); localStorage.setItem(LAST_FIELD_TEMPLATE_KEY, id); }}
+            options={fieldTemplateOptions}
+            loading={fieldTemplates.length === 0}
+          />
+        </Space>
+      </Card>
 
-      <Collapse
-        items={[
-          {
-            key: 'prompt',
-            label: (
-              <Space>
-                <EditOutlined />
-                3. Risk Analysis Prompt — configure the prompt used for risk analysis
-              </Space>
-            ),
-            children: (
-              <PromptEditor
-                queryKey={['prompt-template']}
-                fetchFn={getCurrentPromptTemplate}
-                saveFn={savePromptTemplate}
-                resetFn={resetPromptTemplate}
-              />
-            ),
-          },
-        ]}
-      />
+      <Card
+        title={
+          <Space>
+            <EditOutlined />
+            3. Risk Analysis Prompt Template
+          </Space>
+        }
+      >
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Typography.Text type="secondary">
+            Select a prompt template for risk analysis. Manage your templates in <a href="/settings">Settings</a>.
+          </Typography.Text>
+          <Select
+            style={{ width: '100%', maxWidth: 480 }}
+            placeholder="Select a prompt template"
+            value={selectedPromptTemplateId}
+            onChange={(id) => { setSelectedPromptTemplateId(id); localStorage.setItem(LAST_PROMPT_TEMPLATE_KEY, id); }}
+            options={promptTemplateOptions}
+            loading={promptTemplates.length === 0}
+          />
+        </Space>
+      </Card>
 
       <Card title="4. Select Model & Run">
         <Space>
@@ -237,23 +293,15 @@ export default function AnalysisPage() {
                 <div style={{ maxHeight: 500, overflowY: 'auto', padding: '0 4px' }}>
                   {result.riskAnalysisResult.originalContractDescription && (
                     <>
-                      <Typography.Title level={5} style={{ marginTop: 0 }}>
-                        Original Contract Description
-                      </Typography.Title>
-                      <Markdown remarkPlugins={[remarkGfm]}>
-                        {result.riskAnalysisResult.originalContractDescription}
-                      </Markdown>
+                      <Typography.Title level={5} style={{ marginTop: 0 }}>Original Contract Description</Typography.Title>
+                      <Markdown remarkPlugins={[remarkGfm]}>{result.riskAnalysisResult.originalContractDescription}</Markdown>
                       <hr style={{ margin: '16px 0', borderColor: '#f0f0f0' }} />
                     </>
                   )}
                   {result.riskAnalysisResult.riskAnalysis && (
                     <>
-                      <Typography.Title level={5} style={{ marginTop: 0 }}>
-                        Risk Analysis
-                      </Typography.Title>
-                      <Markdown remarkPlugins={[remarkGfm]}>
-                        {result.riskAnalysisResult.riskAnalysis}
-                      </Markdown>
+                      <Typography.Title level={5} style={{ marginTop: 0 }}>Risk Analysis</Typography.Title>
+                      <Markdown remarkPlugins={[remarkGfm]}>{result.riskAnalysisResult.riskAnalysis}</Markdown>
                     </>
                   )}
                   {!result.riskAnalysisResult.originalContractDescription && !result.riskAnalysisResult.riskAnalysis && (
@@ -282,3 +330,4 @@ export default function AnalysisPage() {
     </Space>
   );
 }
+

@@ -8,8 +8,8 @@ export class AnalysisController {
   constructor(private analysisService: AnalysisService) {}
 
   @Post('run')
-  run(@Request() req: any, @Body() body: { documentId: string; model: string }) {
-    return this.analysisService.run(req.user.userId, body.documentId, body.model);
+  run(@Request() req: any, @Body() body: { documentId: string; model: string; fieldTemplateId?: string; promptTemplateId?: string }) {
+    return this.analysisService.run(req.user.userId, body.documentId, body.model, body.fieldTemplateId, body.promptTemplateId);
   }
 
   @Get('recent')
