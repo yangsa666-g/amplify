@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { useAuthStore } from '../stores/authStore';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -10,13 +11,50 @@ client.interceptors.request.use((config) => {
   return config;
 });
 
+// Tracks an in-flight refresh to prevent concurrent refresh calls
+let refreshPromise: Promise<void> | null = null;
+
 client.interceptors.response.use(
   (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem('access_token');
-      window.location.href = '/login';
+  async (err) => {
+    const originalRequest = err.config;
+
+    if (err.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (!refreshToken) {
+        useAuthStore.getState().clearAuth();
+        window.location.href = '/login';
+        return Promise.reject(err);
+      }
+
+      if (!refreshPromise) {
+        refreshPromise = (async () => {
+          try {
+            // Use a plain axios instance to avoid triggering this interceptor recursively
+            const { data } = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken });
+            useAuthStore.getState().setTokens(data.accessToken, data.refreshToken);
+          } catch {
+            useAuthStore.getState().clearAuth();
+            window.location.href = '/login';
+          } finally {
+            refreshPromise = null;
+          }
+        })();
+      }
+
+      await refreshPromise;
+
+      // If clearAuth was called, the token is gone — bail out
+      if (!localStorage.getItem('access_token')) {
+        return Promise.reject(err);
+      }
+
+      originalRequest.headers.Authorization = `Bearer ${localStorage.getItem('access_token')}`;
+      return client(originalRequest);
     }
+
     return Promise.reject(err);
   },
 );

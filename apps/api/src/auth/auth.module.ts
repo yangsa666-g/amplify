@@ -7,17 +7,19 @@ import { AuthService } from './auth.service';
 import { LocalStrategy } from './strategies/local.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersModule } from '../users/users.module';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [
     UsersModule,
+    PrismaModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_SECRET', 'dev-secret'),
-        signOptions: { expiresIn: (config.get<string>('JWT_EXPIRES_IN', '15m') || '15m') as any },
+        signOptions: { expiresIn: (config.get<string>('JWT_EXPIRES_IN', '1h') || '1h') as any },
       }),
     }),
   ],

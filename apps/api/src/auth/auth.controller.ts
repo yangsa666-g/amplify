@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Request, Get, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, Get, HttpCode, HttpStatus, UnauthorizedException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -14,10 +14,19 @@ export class AuthController {
     return this.authService.login(req.user);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  async refresh(@Body() body: { refreshToken: string }) {
+    if (!body.refreshToken) throw new UnauthorizedException('Refresh token is required');
+    return this.authService.refresh(body.refreshToken);
+  }
+
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  logout() {
+  async logout(@Body() body: { refreshToken?: string }) {
+    if (body.refreshToken) {
+      await this.authService.revokeRefreshToken(body.refreshToken);
+    }
     return { message: 'Logged out successfully' };
   }
 

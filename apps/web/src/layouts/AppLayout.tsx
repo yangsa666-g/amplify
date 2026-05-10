@@ -69,7 +69,7 @@ function NotificationBell() {
         <Typography.Text type="secondary" style={{ display: 'block', textAlign: 'center', padding: '16px 0' }}>No notifications</Typography.Text>
       ) : (
         <List
-          dataSource={notifications}
+          dataSource={notifications.slice(0, 6)}
           renderItem={(n) => (
             <List.Item
               style={{ padding: '8px 4px', background: n.isRead ? undefined : '#f6ffed', borderRadius: 4 }}
@@ -115,12 +115,12 @@ function NotificationBell() {
 export default function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, clearAuth } = useAuthStore();
+  const { user, clearAuth, refreshToken } = useAuthStore();
   const isAdmin = user?.role === 'admin';
   const [collapsed, setCollapsed] = useState(false);
 
   const handleLogout = async () => {
-    try { await logout(); } catch {}
+    try { await logout(refreshToken); } catch {}
     clearAuth();
     navigate('/login');
   };

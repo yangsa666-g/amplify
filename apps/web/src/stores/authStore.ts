@@ -5,7 +5,9 @@ import { User } from '../types';
 interface AuthState {
   user: User | null;
   accessToken: string | null;
-  setAuth: (user: User, token: string) => void;
+  refreshToken: string | null;
+  setAuth: (user: User, accessToken: string, refreshToken: string) => void;
+  setTokens: (accessToken: string, refreshToken: string) => void;
   clearAuth: () => void;
 }
 
@@ -14,13 +16,21 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       accessToken: null,
-      setAuth: (user, accessToken) => {
+      refreshToken: null,
+      setAuth: (user, accessToken, refreshToken) => {
         localStorage.setItem('access_token', accessToken);
-        set({ user, accessToken });
+        localStorage.setItem('refresh_token', refreshToken);
+        set({ user, accessToken, refreshToken });
+      },
+      setTokens: (accessToken, refreshToken) => {
+        localStorage.setItem('access_token', accessToken);
+        localStorage.setItem('refresh_token', refreshToken);
+        set({ accessToken, refreshToken });
       },
       clearAuth: () => {
         localStorage.removeItem('access_token');
-        set({ user: null, accessToken: null });
+        localStorage.removeItem('refresh_token');
+        set({ user: null, accessToken: null, refreshToken: null });
       },
     }),
     { name: 'auth-store' },

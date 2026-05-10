@@ -14,7 +14,7 @@ export default function LoginPage() {
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       login(email, password).then((r) => r.data),
     onSuccess: (data) => {
-      setAuth(data.user, data.accessToken);
+      setAuth(data.user, data.accessToken, data.refreshToken);
       navigate('/analysis');
     },
   });

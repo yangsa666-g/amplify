@@ -6,11 +6,11 @@ import { useAuthStore } from '../stores/authStore';
 import { useNavigate } from 'react-router-dom';
 
 export default function ProfilePage() {
-  const { user, clearAuth } = useAuthStore();
+  const { user, clearAuth, refreshToken } = useAuthStore();
   const navigate = useNavigate();
 
   const logoutMutation = useMutation({
-    mutationFn: () => logout(),
+    mutationFn: () => logout(refreshToken),
     onSuccess: () => { clearAuth(); navigate('/login'); },
   });
 
