@@ -27,7 +27,6 @@ export class AiFoundryService {
         `${this.baseUrl}/openai/deployments/${model}/chat/completions?api-version=2024-02-01`,
         {
           messages: [{ role: 'user', content: prompt }],
-          temperature: 0,
         },
         {
           headers: {
