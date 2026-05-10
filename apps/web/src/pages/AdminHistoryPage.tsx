@@ -1,54 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Tabs, Table, Tag, Typography, Input, Button, Space } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
-import type { FilterDropdownProps } from 'antd/es/table/interface';
+import React, { useState, useEffect } from 'react';
+import { Tabs, Table, Tag, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getHistory } from '../api/history';
 import type { AnalysisJob } from '../types';
 import AnalysisDetailDrawer from '../components/AnalysisDetailDrawer';
+import { useTextFilter, getFeedbackSummary } from '../utils/historyUtils';
 
-function useTextFilter(dataIndex: string | string[]) {
-  const searchInput = useRef<any>(null);
-  return {
-    filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }: FilterDropdownProps) => (
-      <div style={{ padding: 8 }} onKeyDown={(e) => e.stopPropagation()}>
-        <Input
-          ref={searchInput}
-          placeholder="Search…"
-          value={selectedKeys[0]}
-          onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
-          onPressEnter={() => confirm()}
-          style={{ marginBottom: 8, display: 'block' }}
-        />
-        <Space>
-          <Button type="primary" onClick={() => confirm()} icon={<SearchOutlined />} size="small" style={{ width: 90 }}>
-            Search
-          </Button>
-          <Button onClick={() => { clearFilters?.(); confirm(); }} size="small" style={{ width: 90 }}>
-            Reset
-          </Button>
-        </Space>
-      </div>
-    ),
-    filterIcon: (filtered: boolean) => <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />,
-    onFilter: (value: any, record: any) => {
-      const keys = Array.isArray(dataIndex) ? dataIndex : [dataIndex];
-      const val = keys.reduce((obj: any, k) => obj?.[k], record);
-      return String(val ?? '').toLowerCase().includes(String(value).toLowerCase());
-    },
-    onFilterDropdownOpenChange: (open: boolean) => {
-      if (open) setTimeout(() => searchInput.current?.select(), 100);
-    },
-  };
-}
-
-function getFeedbackSummary(feedbacks?: AnalysisJob['feedbacks']) {
-  if (!feedbacks || feedbacks.length === 0) return null;
-  const withRating = feedbacks.find((f) => f.rating !== undefined && f.rating !== null);
-  if (withRating) return withRating;
-  return feedbacks.find((f) => f.comment) ?? null;
-}
 
 export default function AdminHistoryPage() {
   const { data, isLoading } = useQuery({

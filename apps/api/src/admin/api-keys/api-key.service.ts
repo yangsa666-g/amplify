@@ -15,12 +15,11 @@ export class ApiKeyService {
   private computeExpiry(option: ExpiryOption): Date | null {
     if (option === 'never') return null;
     const now = new Date();
-    const map: Record<ExpiryOption, () => Date | null> = {
+    const map: Record<Exclude<ExpiryOption, 'never'>, () => Date> = {
       '1m': () => new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()),
       '3m': () => new Date(now.getFullYear(), now.getMonth() + 3, now.getDate()),
       '6m': () => new Date(now.getFullYear(), now.getMonth() + 6, now.getDate()),
       '1y': () => new Date(now.getFullYear() + 1, now.getMonth(), now.getDate()),
-      'never': () => null,
     };
     return map[option]();
   }

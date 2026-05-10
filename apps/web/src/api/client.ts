@@ -6,7 +6,7 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const client = axios.create({ baseURL: BASE_URL, withCredentials: true });
 
 client.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
+  const token = useAuthStore.getState().accessToken;
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -22,7 +22,7 @@ client.interceptors.response.use(
     if (err.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      const refreshToken = localStorage.getItem('refresh_token');
+      const refreshToken = useAuthStore.getState().refreshToken;
       if (!refreshToken) {
         useAuthStore.getState().clearAuth();
         window.location.href = '/login';
@@ -47,11 +47,12 @@ client.interceptors.response.use(
       await refreshPromise;
 
       // If clearAuth was called, the token is gone — bail out
-      if (!localStorage.getItem('access_token')) {
+      const newToken = useAuthStore.getState().accessToken;
+      if (!newToken) {
         return Promise.reject(err);
       }
 
-      originalRequest.headers.Authorization = `Bearer ${localStorage.getItem('access_token')}`;
+      originalRequest.headers.Authorization = `Bearer ${newToken}`;
       return client(originalRequest);
     }
 
