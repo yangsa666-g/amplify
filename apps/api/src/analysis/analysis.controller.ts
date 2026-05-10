@@ -2,7 +2,7 @@ import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, AuthUser } from '../auth/decorators/current-user.decorator';
 import { AnalysisService } from './analysis.service';
-import type { ReasoningEffort } from './ai-foundry.service';
+import type { ReasoningEffort } from './azure-openai.service';
 
 @Controller('analysis')
 @UseGuards(JwtAuthGuard)

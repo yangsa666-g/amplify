@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { AiFoundryService, type ReasoningEffort } from './ai-foundry.service';
+import { AzureOpenAIService, type ReasoningEffort } from './azure-openai.service';
 import { FieldTemplatesService } from '../field-templates/field-templates.service';
 import { PromptTemplatesService } from '../prompt-templates/prompt-templates.service';
 import { DocumentsService } from '../documents/documents.service';
@@ -82,7 +82,7 @@ For each field below, return:
 export class AnalysisService {
   constructor(
     private prisma: PrismaService,
-    private ai: AiFoundryService,
+    private ai: AzureOpenAIService,
     private fieldTemplates: FieldTemplatesService,
     private promptTemplates: PromptTemplatesService,
     private documents: DocumentsService,
