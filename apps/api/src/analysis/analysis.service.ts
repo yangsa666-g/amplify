@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AzureOpenAIService, type ReasoningEffort } from './azure-openai.service';
+import { AnthropicService } from './anthropic.service';
 import { FieldTemplatesService } from '../field-templates/field-templates.service';
 import { PromptTemplatesService } from '../prompt-templates/prompt-templates.service';
 import { DocumentsService } from '../documents/documents.service';
@@ -82,11 +83,16 @@ For each field below, return:
 export class AnalysisService {
   constructor(
     private prisma: PrismaService,
-    private ai: AzureOpenAIService,
+    private azureAI: AzureOpenAIService,
+    private anthropicAI: AnthropicService,
     private fieldTemplates: FieldTemplatesService,
     private promptTemplates: PromptTemplatesService,
     private documents: DocumentsService,
   ) {}
+
+  private selectAI(model: string): AzureOpenAIService | AnthropicService {
+    return model.startsWith('claude') ? this.anthropicAI : this.azureAI;
+  }
 
   async run(
     userId: string,
@@ -146,9 +152,10 @@ export class AnalysisService {
 
     try {
       // 6. Field extraction + risk analysis in parallel
+      const ai = this.selectAI(model);
       const [rawFieldResult, riskResult] = await Promise.all([
-        this.ai.chat(model, fieldPrompt, reasoningEffort),
-        this.ai.chat(model, riskPrompt, reasoningEffort),
+        ai.chat(model, fieldPrompt, reasoningEffort),
+        ai.chat(model, riskPrompt, reasoningEffort),
       ]);
 
       let fieldExtractionResult: any;

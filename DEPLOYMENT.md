@@ -111,7 +111,10 @@ If the repository later chooses a flatter layout, keep the same asset separation
 | `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint |
 | `AZURE_OPENAI_API_KEY` | Azure OpenAI credential |
 | `AZURE_OPENAI_MODELS` | Allowed models, comma-separated |
-| `AZURE_OPENAI_TIMEOUT_MS` | Request timeout |
+| `AZURE_OPENAI_TIMEOUT_MS` | Request timeout (shared with Anthropic) |
+| `ANTHROPIC_ENDPOINT` | Anthropic API endpoint (optional, defaults to `https://api.anthropic.com`) |
+| `ANTHROPIC_API_KEY` | Anthropic API key (optional) |
+| `ANTHROPIC_MODELS` | Allowed Claude models, comma-separated (optional) |
 | `FILE_UPLOAD_DIR` | Mounted upload directory, for example `/app/uploads` |
 | `MAX_UPLOAD_SIZE_MB` | Upload limit |
 | `ENTRA_CLIENT_ID` | Entra application client ID |
