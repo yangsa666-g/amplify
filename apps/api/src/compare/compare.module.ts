@@ -8,5 +8,6 @@ import { DocumentsModule } from '../documents/documents.module';
   imports: [DocumentsModule],
   controllers: [CompareController],
   providers: [CompareService, DiffService],
+  exports: [CompareService],
 })
 export class CompareModule {}

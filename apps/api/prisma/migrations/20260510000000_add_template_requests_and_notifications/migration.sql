@@ -1,14 +1,21 @@
--- CreateEnum
-CREATE TYPE "TemplateKind" AS ENUM ('field', 'prompt');
+-- CreateEnum (idempotent)
+DO $$ BEGIN
+  CREATE TYPE "TemplateKind" AS ENUM ('field', 'prompt');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
--- CreateEnum
-CREATE TYPE "RequestStatus" AS ENUM ('pending', 'approved', 'rejected');
+DO $$ BEGIN
+  CREATE TYPE "RequestStatus" AS ENUM ('pending', 'approved', 'rejected');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
--- CreateEnum
-CREATE TYPE "NotificationType" AS ENUM ('template_request_submitted', 'template_request_approved', 'template_request_rejected');
+DO $$ BEGIN
+  CREATE TYPE "NotificationType" AS ENUM ('template_request_submitted', 'template_request_approved', 'template_request_rejected');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
 -- CreateTable
-CREATE TABLE "template_requests" (
+CREATE TABLE IF NOT EXISTS "template_requests" (
     "id" TEXT NOT NULL,
     "user_id" TEXT NOT NULL,
     "template_kind" "TemplateKind" NOT NULL,
@@ -24,7 +31,7 @@ CREATE TABLE "template_requests" (
 );
 
 -- CreateTable
-CREATE TABLE "notifications" (
+CREATE TABLE IF NOT EXISTS "notifications" (
     "id" TEXT NOT NULL,
     "user_id" TEXT NOT NULL,
     "type" "NotificationType" NOT NULL,
@@ -37,20 +44,33 @@ CREATE TABLE "notifications" (
     CONSTRAINT "notifications_pkey" PRIMARY KEY ("id")
 );
 
--- AddForeignKey
-ALTER TABLE "template_requests" ADD CONSTRAINT "template_requests_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- AddForeignKey (idempotent)
+DO $$ BEGIN
+  ALTER TABLE "template_requests" ADD CONSTRAINT "template_requests_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "template_requests" ADD CONSTRAINT "template_requests_reviewed_by_id_fkey" FOREIGN KEY ("reviewed_by_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "template_requests" ADD CONSTRAINT "template_requests_reviewed_by_id_fkey" FOREIGN KEY ("reviewed_by_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "template_requests" ADD CONSTRAINT "template_requests_field_template_id_fkey" FOREIGN KEY ("field_template_id") REFERENCES "field_templates"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "template_requests" ADD CONSTRAINT "template_requests_field_template_id_fkey" FOREIGN KEY ("field_template_id") REFERENCES "field_templates"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "template_requests" ADD CONSTRAINT "template_requests_prompt_template_id_fkey" FOREIGN KEY ("prompt_template_id") REFERENCES "prompt_templates"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "template_requests" ADD CONSTRAINT "template_requests_prompt_template_id_fkey" FOREIGN KEY ("prompt_template_id") REFERENCES "prompt_templates"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "notifications" ADD CONSTRAINT "notifications_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "notifications" ADD CONSTRAINT "notifications_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
--- AddForeignKey
-ALTER TABLE "notifications" ADD CONSTRAINT "notifications_request_id_fkey" FOREIGN KEY ("request_id") REFERENCES "template_requests"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "notifications" ADD CONSTRAINT "notifications_request_id_fkey" FOREIGN KEY ("request_id") REFERENCES "template_requests"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;

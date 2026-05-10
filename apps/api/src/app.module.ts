@@ -14,6 +14,7 @@ import { HistoryModule } from './history/history.module';
 import { AdminModule } from './admin/admin.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { TemplateRequestsModule } from './template-requests/template-requests.module';
+import { ExternalApiModule } from './external-api/external-api.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { TemplateRequestsModule } from './template-requests/template-requests.mo
     AdminModule,
     NotificationsModule,
     TemplateRequestsModule,
+    ExternalApiModule,
   ],
   controllers: [AppController],
 })

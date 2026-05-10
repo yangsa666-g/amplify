@@ -83,6 +83,7 @@ model User {
   notifications   Notification[]
   reviewedRequests TemplateRequest[] @relation("ReviewedBy")
   refreshTokens   RefreshToken[]
+  apiKeys         ApiKey[]
 
   @@map("users")
 }
@@ -286,4 +287,17 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("refresh_tokens")
+}
+
+model ApiKey {
+  id        String    @id @default(cuid())
+  keyHash   String    @unique @map("key_hash")
+  keyPrefix String    @map("key_prefix")
+  expiresAt DateTime? @map("expires_at")
+  createdBy String    @map("created_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  creator User @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@map("api_keys")
 }

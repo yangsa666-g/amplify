@@ -10,5 +10,6 @@ import { DocumentsModule } from '../documents/documents.module';
   imports: [FieldTemplatesModule, PromptTemplatesModule, DocumentsModule],
   controllers: [AnalysisController],
   providers: [AnalysisService, AiFoundryService],
+  exports: [AnalysisService],
 })
 export class AnalysisModule {}

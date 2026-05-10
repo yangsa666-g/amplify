@@ -89,6 +89,11 @@ migrate: ## Apply pending Prisma migrations
 	$(COMPOSE) exec $(API_SVC) node_modules/.bin/prisma migrate deploy
 	@echo "$(GREEN)✔ Migrations applied$(RESET)"
 
+.PHONY: migrate-resolve
+migrate-resolve: ## Mark a failed migration as resolved (already applied manually). Usage: make migrate-resolve name=<migration_name>
+	$(COMPOSE) exec $(API_SVC) node_modules/.bin/prisma migrate resolve --applied $(name)
+	@echo "$(GREEN)✔ Migration marked as applied$(RESET)"
+
 .PHONY: migrate-dev
 migrate-dev: ## Create & apply a new migration (dev only). Usage: make migrate-dev name=add_column
 	$(COMPOSE) exec $(API_SVC) node_modules/.bin/prisma migrate dev --name $(name)
