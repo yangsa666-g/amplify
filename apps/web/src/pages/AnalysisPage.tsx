@@ -265,39 +265,50 @@ export default function AnalysisPage() {
       </Card>
 
       <Card title="4. Select Model & Run">
-        <Space>
-          <Select
-            placeholder="Select AI model"
-            style={{ width: 200 }}
-            value={selectedModel || undefined}
-            onChange={setSelectedModel}
-            options={models.map((m) => ({ label: m.label, value: m.name }))}
-          />
-          <Select
-            placeholder="Reasoning effort"
-            style={{ width: 180 }}
-            value={selectedReasoningEffort}
-            onChange={setSelectedReasoningEffort}
-            options={[
-              { label: 'None', value: 'none' },
-              { label: 'Low', value: 'low' },
-              { label: 'Medium', value: 'medium' },
-              { label: 'High', value: 'high' },
-              { label: 'XHigh', value: 'xhigh' },
-            ]}
-          />
-          <Button
-            type="primary"
-            loading={analysisMutation.isPending}
-            disabled={!uploadedDoc || !selectedModel || uploadedDoc.textExtractionStatus !== 'success'}
-            onClick={() => analysisMutation.mutate()}
-          >
-            Run Analysis
-          </Button>
+        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <Space align="end" wrap size={24}>
+            <Space direction="vertical" size={4}>
+              <Typography.Text strong>Model</Typography.Text>
+              <Select
+                placeholder="Select AI model"
+                style={{ width: 220 }}
+                value={selectedModel || undefined}
+                onChange={setSelectedModel}
+                options={models.map((m) => ({ label: m.label, value: m.name }))}
+              />
+            </Space>
+            <Space direction="vertical" size={4}>
+              <Space size={6}>
+                <Typography.Text strong>Reasoning Effort</Typography.Text>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>(for models that support it)</Typography.Text>
+              </Space>
+              <Select
+                placeholder="Select reasoning effort"
+                style={{ width: 210 }}
+                value={selectedReasoningEffort}
+                onChange={setSelectedReasoningEffort}
+                options={[
+                  { label: 'None', value: 'none' },
+                  { label: 'Low', value: 'low' },
+                  { label: 'Medium', value: 'medium' },
+                  { label: 'High', value: 'high' },
+                  { label: 'XHigh', value: 'xhigh' },
+                ]}
+              />
+            </Space>
+            <Button
+              type="primary"
+              loading={analysisMutation.isPending}
+              disabled={!uploadedDoc || !selectedModel || uploadedDoc.textExtractionStatus !== 'success'}
+              onClick={() => analysisMutation.mutate()}
+            >
+              Run Analysis
+            </Button>
+          </Space>
+          {analysisMutation.isError && (
+            <Alert type="error" message={(analysisMutation.error as any)?.response?.data?.message || 'Analysis failed'} />
+          )}
         </Space>
-        {analysisMutation.isError && (
-          <Alert type="error" message={(analysisMutation.error as any)?.response?.data?.message || 'Analysis failed'} style={{ marginTop: 8 }} />
-        )}
       </Card>
 
       {result && (
