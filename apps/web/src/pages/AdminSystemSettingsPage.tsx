@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import {
-  Typography, Tabs, Button, Card, Space, Tag, Popconfirm, Modal, Input, message, Spin, Empty,
+  Typography, Tabs, Button, Card, Space, Tag, Popconfirm, Modal, Input, message, Spin, Empty, Select, Alert, Tooltip,
 } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, StarOutlined, StarFilled, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, StarOutlined, StarFilled, CheckCircleOutlined, CloseCircleOutlined, KeyOutlined, CopyOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { FieldTemplate, FieldTemplateItem, PromptTemplate } from '../types';
 import {
@@ -15,6 +15,7 @@ import {
 } from '../api/promptTemplates';
 import { getAdminRequests, approveRequest, rejectRequest } from '../api/templateRequests';
 import { FieldTemplateEditorModal, PromptEditorModal } from '../components/TemplateEditorModals';
+import { getApiKey, createApiKey, deleteApiKey, ExpiryOption, ApiKeyInfo } from '../api/apiKeys';
 
 // ─── System Field Templates Tab ───────────────────────────────────────────────
 
@@ -303,6 +304,167 @@ function PendingRequestsTab() {
   );
 }
 
+// ─── API Keys Tab ─────────────────────────────────────────────────────────────
+
+const EXPIRY_OPTIONS: { value: ExpiryOption; label: string }[] = [
+  { value: '1m', label: '1 Month (Default)' },
+  { value: '3m', label: '3 Months' },
+  { value: '6m', label: '6 Months' },
+  { value: '1y', label: '1 Year' },
+  { value: 'never', label: 'Never Expires' },
+];
+
+function ApiKeysTab() {
+  const qc = useQueryClient();
+  const [expiry, setExpiry] = useState<ExpiryOption>('1m');
+  const [newKey, setNewKey] = useState<string | null>(null);
+  const [keyVisible, setKeyVisible] = useState(false);
+
+  const { data: keyInfo, isLoading } = useQuery<ApiKeyInfo | null>({
+    queryKey: ['admin-api-key'],
+    queryFn: () => getApiKey().then((r) => r.data),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: () => createApiKey(expiry).then((r) => r.data),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['admin-api-key'] });
+      setNewKey(data.rawKey);
+      setKeyVisible(true);
+      message.success('API Key created successfully');
+    },
+    onError: (e: any) => message.error(e.response?.data?.message || 'Failed to create API key'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteApiKey(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-api-key'] });
+      setNewKey(null);
+      message.success('API Key deleted');
+    },
+    onError: () => message.error('Failed to delete API key'),
+  });
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => message.success('Copied to clipboard'));
+  };
+
+  const formatExpiry = (expiresAt: string | null) => {
+    if (!expiresAt) return <Tag color="purple">Never Expires</Tag>;
+    const d = new Date(expiresAt);
+    const now = new Date();
+    if (d < now) return <Tag color="red">Expired</Tag>;
+    return <Tag color="green">{d.toLocaleDateString()}</Tag>;
+  };
+
+  if (isLoading) return <Spin />;
+
+  return (
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <Typography.Text type="secondary">
+        A single shared API key for all administrators. Use it to call the contract analysis and compare APIs externally via <code>X-API-Key</code> header.
+      </Typography.Text>
+
+      {newKey && (
+        <Alert
+          type="success"
+          showIcon
+          message="API Key Created — Copy it now!"
+          description={
+            <Space direction="vertical" style={{ width: '100%', marginTop: 8 }}>
+              <Typography.Text type="secondary">This key is shown only once. Store it securely.</Typography.Text>
+              <Input.Password
+                value={newKey}
+                visibilityToggle={{ visible: keyVisible, onVisibleChange: setKeyVisible }}
+                readOnly
+                addonAfter={
+                  <Tooltip title="Copy">
+                    <CopyOutlined style={{ cursor: 'pointer' }} onClick={() => copyToClipboard(newKey)} />
+                  </Tooltip>
+                }
+                style={{ fontFamily: 'monospace' }}
+              />
+            </Space>
+          }
+          closable
+          onClose={() => setNewKey(null)}
+        />
+      )}
+
+      {keyInfo ? (
+        <Card
+          title={
+            <Space>
+              <KeyOutlined />
+              <span>Active API Key</span>
+            </Space>
+          }
+          extra={
+            <Popconfirm
+              title="Delete this API key? All external integrations using it will stop working."
+              okText="Delete"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => deleteMutation.mutate(keyInfo.id)}
+            >
+              <Button icon={<DeleteOutlined />} danger size="small" loading={deleteMutation.isPending}>
+                Delete
+              </Button>
+            </Popconfirm>
+          }
+        >
+          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+            <Space>
+              <Typography.Text type="secondary">Key Prefix:</Typography.Text>
+              <Typography.Text code>{keyInfo.keyPrefix}…</Typography.Text>
+              <Typography.Text type="secondary">(full key shown only at creation)</Typography.Text>
+            </Space>
+            <Space>
+              <Typography.Text type="secondary">Expires:</Typography.Text>
+              {formatExpiry(keyInfo.expiresAt)}
+            </Space>
+            <Space>
+              <Typography.Text type="secondary">Created:</Typography.Text>
+              <Typography.Text>{new Date(keyInfo.createdAt).toLocaleString()}</Typography.Text>
+            </Space>
+            <Typography.Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+              External API Usage Example:
+            </Typography.Text>
+            <Typography.Text code style={{ display: 'block', background: '#f5f5f5', padding: '8px 12px', borderRadius: 4 }}>
+              {`curl -X POST /v1/analysis/run \\
+  -H "X-API-Key: <your-api-key>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"documentId":"...","model":"..."}'`}
+            </Typography.Text>
+          </Space>
+        </Card>
+      ) : (
+        <Card>
+          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+            <Empty description="No API key exists. Create one to enable external API access." />
+            <Space>
+              <Select
+                value={expiry}
+                onChange={setExpiry}
+                options={EXPIRY_OPTIONS}
+                style={{ width: 200 }}
+              />
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => createMutation.mutate()}
+                loading={createMutation.isPending}
+              >
+                Create API Key
+              </Button>
+            </Space>
+          </Space>
+        </Card>
+      )}
+    </Space>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminSystemSettingsPage() {
@@ -334,6 +496,16 @@ export default function AdminSystemSettingsPage() {
         </Space>
       ),
       children: <PendingRequestsTab />,
+    },
+    {
+      key: 'admin-api-keys',
+      label: (
+        <Space>
+          <KeyOutlined />
+          API Keys
+        </Space>
+      ),
+      children: <ApiKeysTab />,
     },
   ];
 
