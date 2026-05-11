@@ -242,6 +242,9 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
           <Space style={{ marginBottom: 16 }} wrap>
             <Typography.Text strong>{job.document.fileName}</Typography.Text>
             <Typography.Text type="secondary">Model: {job.modelName}</Typography.Text>
+            {job.reasoningEffort && job.reasoningEffort !== 'none' && (
+              <Typography.Text type="secondary">Reasoning Effort: <Tag style={{ marginLeft: 0 }}>{job.reasoningEffort}</Tag></Typography.Text>
+            )}
             <Typography.Text type="secondary">
               {new Date(job.createdAt).toLocaleString()}
             </Typography.Text>
