@@ -1,0 +1,89 @@
+# =============================================================================
+# Contract AI Review — Unified Azure Dockerfile
+# =============================================================================
+# Builds frontend (Vite) and backend (NestJS) into a single container.
+# nginx serves static files and proxies /api to NestJS.
+# supervisord manages both processes.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Stage 1: Build Web (Vite frontend)
+# ---------------------------------------------------------------------------
+FROM node:20-alpine AS web-builder
+WORKDIR /app
+
+RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml turbo.json ./
+COPY packages/ ./packages/
+COPY apps/web/package.json ./apps/web/package.json
+
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
+
+COPY apps/web/ ./apps/web/
+
+ARG VITE_API_BASE_URL=/api
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+
+RUN cd apps/web && pnpm run build
+
+# ---------------------------------------------------------------------------
+# Stage 2: Build API (NestJS backend)
+# ---------------------------------------------------------------------------
+FROM node:20-alpine AS api-builder
+WORKDIR /app
+
+RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml turbo.json ./
+COPY packages/ ./packages/
+COPY apps/api/package.json ./apps/api/package.json
+
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
+
+COPY apps/api/ ./apps/api/
+
+RUN cd apps/api && pnpm exec prisma generate
+RUN cd apps/api && pnpm exec tsc -p tsconfig.json
+
+# ---------------------------------------------------------------------------
+# Stage 3: Production runtime
+# ---------------------------------------------------------------------------
+FROM node:20-alpine AS runtime
+
+RUN apk add --no-cache nginx supervisor
+
+# --- API artifacts ---
+WORKDIR /app
+
+# node_modules
+COPY --from=api-builder /app/node_modules ./node_modules
+COPY --from=api-builder /app/apps/api/node_modules ./apps/api/node_modules
+
+# Package manifests (needed by Node module resolution)
+COPY package.json pnpm-workspace.yaml ./
+COPY apps/api/package.json ./apps/api/package.json
+
+# Compiled output + Prisma
+COPY --from=api-builder /app/apps/api/dist ./apps/api/dist
+COPY --from=api-builder /app/apps/api/generated ./apps/api/generated
+COPY --from=api-builder /app/apps/api/prisma ./apps/api/prisma
+COPY --from=api-builder /app/apps/api/prisma.config.ts ./apps/api/prisma.config.ts
+COPY --from=api-builder /app/apps/api/tsconfig.json ./apps/api/tsconfig.json
+
+# --- Web static files ---
+COPY --from=web-builder /app/apps/web/dist /usr/share/nginx/html
+
+# --- Configuration ---
+COPY deploy/nginx.conf /etc/nginx/http.d/default.conf
+COPY deploy/supervisord.conf /etc/supervisord.conf
+
+# Ensure nginx log and run directories exist
+RUN mkdir -p /run/nginx /var/log/nginx
+
+# Azure App Service expects port 80
+EXPOSE 80
+
+CMD ["supervisord", "-c", "/etc/supervisord.conf"]

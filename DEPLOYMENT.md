@@ -367,3 +367,139 @@ This Compose-based deployment should be designed so the application can later ev
 - inline logs -> centralized logging/monitoring
 
 The key design rule is to avoid baking host-specific assumptions into application logic. Storage paths, public URLs, model configuration, and auth secrets must remain environment-driven.
+
+---
+
+## 15. Azure Deployment (App Service)
+
+This section covers deploying the application to **Azure App Service** as a single Docker container.
+
+### 15.1 Architecture
+
+```text
+Internet
+  │
+  ▼
+┌──────────────────────────────────┐
+│  Azure App Service (Web App)     │
+│  ┌────────────────────────────┐  │
+│  │  Single Container          │  │
+│  │  nginx :80 → static files  │  │
+│  │            → /api/* proxy  │  │
+│  │  NestJS :3001 (API)        │  │
+│  │  supervisord (process mgr) │  │
+│  └────────────────────────────┘  │
+└──────────────────┬───────────────┘
+                   │
+       ┌───────────┼───────────┐
+       ▼           ▼           ▼
+  Azure PG    Azure Blob   Azure OpenAI
+  Flexible    Storage      + Doc Intel
+```
+
+### 15.2 Azure Services
+
+| Service | Purpose | SKU |
+|---------|---------|-----|
+| App Service | Host unified container (web + API) | B1 (Basic) |
+| Container Registry | Store Docker images | Basic |
+| PostgreSQL Flexible Server | Database | Burstable B1ms |
+| Blob Storage | File uploads (future) | Standard LRS |
+| Key Vault | Secrets management | Standard |
+
+### 15.3 Prerequisites
+
+- Azure CLI installed and authenticated (`az login`)
+- A configured `infra/main.bicepparam` with your values
+- Secrets provided via CLI parameters (never committed)
+
+### 15.4 First-Time Deployment
+
+```bash
+# 1. Log in to Azure
+make azure-login
+
+# 2. Deploy all infrastructure + build image + deploy app
+make azure-deploy
+
+# 3. Run database migrations
+make azure-migrate
+
+# 4. Seed initial data
+make azure-seed
+
+# 5. Verify
+make azure-status
+```
+
+### 15.5 Subsequent Deployments
+
+```bash
+# Deploy code changes (rebuild image + update app)
+make azure-deploy
+
+# If there are new migrations
+make azure-migrate
+```
+
+### 15.6 Available Make Targets
+
+| Target | Description |
+|--------|-------------|
+| `make azure-login` | Log in to Azure CLI |
+| `make azure-infra` | Deploy/update Bicep infrastructure |
+| `make azure-build` | Build Docker image in ACR (remote) |
+| `make azure-deploy-app` | Update Web App container image |
+| `make azure-deploy` | Full deploy: infra + build + app |
+| `make azure-migrate` | Run Prisma migrations |
+| `make azure-seed` | Seed database |
+| `make azure-logs` | Tail application logs |
+| `make azure-status` | Show Web App status |
+| `make azure-destroy` | ⚠️ Delete all Azure resources |
+
+### 15.7 Azure DevOps Pipeline
+
+The `azure-pipelines.yml` file defines a CI/CD pipeline with three stages:
+
+1. **Build** — Builds the Docker image in ACR
+2. **Deploy Infra** — Applies Bicep templates
+3. **Deploy App** — Updates the Web App container + runs migrations
+
+Required pipeline variables (set in Azure DevOps):
+- `AZURE_SUBSCRIPTION` — Service connection name
+- `AZURE_RESOURCE_GROUP` — Resource group name
+- `AZURE_ACR_NAME` — Container Registry name
+- `AZURE_APP_NAME` — Web App name
+- Plus any secrets (set as secret variables)
+
+### 15.8 Configuration
+
+Environment variables are set via App Service Configuration (populated by Bicep).
+Sensitive values should be provided as CLI parameters during `az deployment group create`:
+
+```bash
+az deployment group create \
+  --resource-group contract-ai-rg \
+  --template-file infra/main.bicep \
+  --parameters infra/main.bicepparam \
+  --parameters pgAdminPassword='...' jwtSecret='...' azureOpenAiApiKey='...'
+```
+
+### 15.9 File Structure
+
+```text
+Dockerfile.azure            # Unified frontend + backend container
+deploy/
+  nginx.conf                # nginx: static files + API reverse proxy
+  supervisord.conf          # Process manager for nginx + NestJS
+infra/
+  main.bicep                # Main Bicep template
+  main.bicepparam           # Parameter file
+  modules/
+    app-service.bicep       # App Service Plan + Web App
+    container-registry.bicep # ACR
+    postgresql.bicep        # PostgreSQL Flexible Server
+    storage.bicep           # Blob Storage
+    keyvault.bicep          # Key Vault
+azure-pipelines.yml         # Azure DevOps CI/CD pipeline
+```

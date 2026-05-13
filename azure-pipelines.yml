@@ -1,0 +1,129 @@
+# =============================================================================
+# Contract AI Review — Azure DevOps Pipeline
+# =============================================================================
+# Builds the unified Docker image and deploys to Azure App Service.
+#
+# Required pipeline variables (set in Azure DevOps → Pipeline → Variables):
+#   AZURE_SUBSCRIPTION       — Azure service connection name
+#   AZURE_RESOURCE_GROUP     — Resource group name
+#   AZURE_ACR_NAME           — ACR name (no dashes)
+#   AZURE_APP_NAME           — Web App name
+#   PG_ADMIN_PASSWORD        — PostgreSQL admin password (secret)
+#   JWT_SECRET               — JWT signing secret (secret)
+#   (plus any other secrets from .env)
+# =============================================================================
+
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  imageName: 'contract-ai-review'
+  imageTag: '$(Build.BuildId)'
+
+# =============================================================================
+# Stage 1: Build & Push Image
+# =============================================================================
+stages:
+  - stage: Build
+    displayName: '🔨 Build & Push Image'
+    jobs:
+      - job: BuildImage
+        displayName: 'Build Docker Image'
+        steps:
+          - task: AzureCLI@2
+            displayName: 'Build image in ACR'
+            inputs:
+              azureSubscription: '$(AZURE_SUBSCRIPTION)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az acr build \
+                  --registry $(AZURE_ACR_NAME) \
+                  --image $(imageName):$(imageTag) \
+                  --image $(imageName):latest \
+                  --file Dockerfile.azure \
+                  .
+
+  # =============================================================================
+  # Stage 2: Deploy Infrastructure
+  # =============================================================================
+  - stage: DeployInfra
+    displayName: '🏗️ Deploy Infrastructure'
+    dependsOn: Build
+    jobs:
+      - job: DeployBicep
+        displayName: 'Deploy Bicep Templates'
+        steps:
+          - task: AzureCLI@2
+            displayName: 'Deploy Bicep'
+            inputs:
+              azureSubscription: '$(AZURE_SUBSCRIPTION)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                az deployment group create \
+                  --resource-group $(AZURE_RESOURCE_GROUP) \
+                  --template-file infra/main.bicep \
+                  --parameters infra/main.bicepparam \
+                  --parameters imageTag=$(imageTag) \
+                  --output none
+
+  # =============================================================================
+  # Stage 3: Deploy Application
+  # =============================================================================
+  - stage: DeployApp
+    displayName: '🚀 Deploy Application'
+    dependsOn: DeployInfra
+    jobs:
+      - job: UpdateWebApp
+        displayName: 'Update Web App Container'
+        steps:
+          - task: AzureCLI@2
+            displayName: 'Update container image'
+            inputs:
+              azureSubscription: '$(AZURE_SUBSCRIPTION)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                ACR_SERVER=$(az acr show --name $(AZURE_ACR_NAME) --query loginServer -o tsv)
+
+                az webapp config container set \
+                  --resource-group $(AZURE_RESOURCE_GROUP) \
+                  --name $(AZURE_APP_NAME) \
+                  --container-image-name ${ACR_SERVER}/$(imageName):$(imageTag) \
+                  --container-registry-url https://${ACR_SERVER} \
+                  --output none
+
+                az webapp restart \
+                  --resource-group $(AZURE_RESOURCE_GROUP) \
+                  --name $(AZURE_APP_NAME) \
+                  --output none
+
+                echo "✔ Deployed $(imageName):$(imageTag) to $(AZURE_APP_NAME)"
+                echo "  URL → https://$(AZURE_APP_NAME).azurewebsites.net"
+
+      - job: RunMigrations
+        displayName: 'Run Database Migrations'
+        dependsOn: UpdateWebApp
+        steps:
+          - task: AzureCLI@2
+            displayName: 'Run Prisma migrate deploy'
+            inputs:
+              azureSubscription: '$(AZURE_SUBSCRIPTION)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                # Wait for the app to start
+                sleep 30
+
+                az webapp ssh \
+                  --resource-group $(AZURE_RESOURCE_GROUP) \
+                  --name $(AZURE_APP_NAME) \
+                  --command "cd /app/apps/api && node_modules/.bin/prisma migrate deploy"
+
+                echo "✔ Migrations applied"

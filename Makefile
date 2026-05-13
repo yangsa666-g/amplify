@@ -9,6 +9,22 @@ COMPOSE        := docker compose
 API_SVC        := api
 DB_SVC         := postgres
 
+# ─── Load .env.azure for Azure deployment targets ────────────────────────────
+ifneq (,$(wildcard .env.azure))
+  include .env.azure
+  export
+endif
+
+# ─── Azure Configuration ─────────────────────────────────────────────────────
+# Override these via environment or .env file
+AZURE_SUBSCRIPTION   ?= 2caeef69-d54a-43b6-9c53-363a5209abbe
+AZURE_RESOURCE_GROUP ?= rg-d-app-10009620
+AZURE_LOCATION       ?= southeastasia
+AZURE_IMAGE_TAG      ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo latest)
+AZURE_ACR_NAME       ?= devamplify
+AZURE_APP_NAME       ?= dev-amplify-app
+AZURE_IMAGE_NAME      = contract-ai-review
+
 # ─── Colors ──────────────────────────────────────────────────────────────────
 BOLD  := \033[1m
 RESET := \033[0m
@@ -209,3 +225,114 @@ nuke: ## ⚠ Remove EVERYTHING: containers, volumes, node_modules
 	$(COMPOSE) down -v --remove-orphans
 	find . -name "node_modules" -type d -prune -exec rm -rf {} + 2>/dev/null; true
 	@echo "$(GREEN)✔ Full cleanup done$(RESET)"
+
+# =============================================================================
+##@ ☁️  Azure Deployment
+# =============================================================================
+
+.PHONY: azure-login
+azure-login: ## Log in to Azure CLI (interactive)
+	az login
+	@echo "$(GREEN)✔ Logged in to Azure$(RESET)"
+
+.PHONY: azure-infra
+azure-infra: ## Deploy/update Azure infrastructure (Bicep) — reads secrets from .env
+	@echo "$(BOLD)Deploying infrastructure to $(AZURE_RESOURCE_GROUP)...$(RESET)"
+	az deployment group create \
+	  --subscription $(AZURE_SUBSCRIPTION) \
+	  --resource-group $(AZURE_RESOURCE_GROUP) \
+	  --template-file infra/main.bicep \
+	  --parameters infra/main.bicepparam \
+	  --parameters imageTag=$(AZURE_IMAGE_TAG) \
+	    pgAdminPassword='$(POSTGRES_PASSWORD)' \
+	    jwtSecret='$(JWT_SECRET)' \
+	    azureOpenAiEndpoint='$(AZURE_OPENAI_ENDPOINT)' \
+	    azureOpenAiApiKey='$(AZURE_OPENAI_API_KEY)' \
+	    azureOpenAiModels='$(AZURE_OPENAI_MODELS)' \
+	    azureOpenAiTimeoutMs='$(AZURE_OPENAI_TIMEOUT_MS)' \
+	    azureDocIntelEndpoint='$(AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT)' \
+	    azureDocIntelKey='$(AZURE_DOCUMENT_INTELLIGENCE_KEY)' \
+	    anthropicEndpoint='$(ANTHROPIC_ENDPOINT)' \
+	    anthropicApiKey='$(ANTHROPIC_API_KEY)' \
+	    anthropicModels='$(ANTHROPIC_MODELS)' \
+	    entraClientId='$(ENTRA_CLIENT_ID)' \
+	    entraClientSecret='$(ENTRA_CLIENT_SECRET)' \
+	    entraTenantId='$(ENTRA_TENANT_ID)' \
+	    entraRedirectUri='$(ENTRA_REDIRECT_URI)' \
+	    seedAdminEmail='$(SEED_ADMIN_EMAIL)' \
+	    seedAdminPassword='$(SEED_ADMIN_PASSWORD)' \
+	    seedAdminName='$(SEED_ADMIN_NAME)' \
+	  --output table
+	@echo "$(GREEN)✔ Infrastructure deployed$(RESET)"
+
+.PHONY: azure-acr-login
+azure-acr-login: ## Log in to Azure Container Registry
+	az acr login --name $(AZURE_ACR_NAME) --subscription $(AZURE_SUBSCRIPTION)
+	@echo "$(GREEN)✔ Logged in to ACR $(AZURE_ACR_NAME)$(RESET)"
+
+.PHONY: azure-build
+azure-build: ## Build Docker image in ACR (remote build, no local Docker needed)
+	@echo "$(BOLD)Building image in ACR...$(RESET)"
+	az acr build \
+	  --subscription $(AZURE_SUBSCRIPTION) \
+	  --registry $(AZURE_ACR_NAME) \
+	  --image $(AZURE_IMAGE_NAME):$(AZURE_IMAGE_TAG) \
+	  --image $(AZURE_IMAGE_NAME):latest \
+	  --file Dockerfile.azure \
+	  .
+	@echo "$(GREEN)✔ Image built: $(AZURE_IMAGE_NAME):$(AZURE_IMAGE_TAG)$(RESET)"
+
+.PHONY: azure-deploy-app
+azure-deploy-app: ## Update Web App to use the latest image
+	@echo "$(BOLD)Updating Web App container...$(RESET)"
+	az webapp config container set \
+	  --subscription $(AZURE_SUBSCRIPTION) \
+	  --resource-group $(AZURE_RESOURCE_GROUP) \
+	  --name $(AZURE_APP_NAME) \
+	  --container-image-name $(AZURE_ACR_NAME).azurecr.io/$(AZURE_IMAGE_NAME):$(AZURE_IMAGE_TAG) \
+	  --container-registry-url https://$(AZURE_ACR_NAME).azurecr.io \
+	  --output none
+	az webapp restart \
+	  --subscription $(AZURE_SUBSCRIPTION) \
+	  --resource-group $(AZURE_RESOURCE_GROUP) \
+	  --name $(AZURE_APP_NAME) \
+	  --output none
+	@echo "$(GREEN)✔ Web App updated and restarted$(RESET)"
+	@echo "  URL → https://$(AZURE_APP_NAME).azurewebsites.net"
+
+.PHONY: azure-deploy
+azure-deploy: azure-infra azure-build azure-deploy-app ## 🚀 Full Azure deploy: infra + build + update app
+	@echo ""
+	@echo "$(GREEN)$(BOLD)✔ Deployment complete!$(RESET)"
+	@echo "  URL → https://$(AZURE_APP_NAME).azurewebsites.net"
+
+.PHONY: azure-migrate
+azure-migrate: ## Run database migrations on Azure (via Web App SSH)
+	@echo "$(BOLD)Running Prisma migrations...$(RESET)"
+	az webapp ssh --subscription $(AZURE_SUBSCRIPTION) --resource-group $(AZURE_RESOURCE_GROUP) --name $(AZURE_APP_NAME) \
+	  --command "cd /app/apps/api && node_modules/.bin/prisma migrate deploy"
+	@echo "$(GREEN)✔ Migrations applied$(RESET)"
+
+.PHONY: azure-seed
+azure-seed: ## Seed database on Azure
+	@echo "$(BOLD)Seeding database...$(RESET)"
+	az webapp ssh --subscription $(AZURE_SUBSCRIPTION) --resource-group $(AZURE_RESOURCE_GROUP) --name $(AZURE_APP_NAME) \
+	  --command "cd /app/apps/api && node_modules/.bin/prisma db seed"
+	@echo "$(GREEN)✔ Seed complete$(RESET)"
+
+.PHONY: azure-logs
+azure-logs: ## Tail Azure Web App logs
+	az webapp log tail --subscription $(AZURE_SUBSCRIPTION) --resource-group $(AZURE_RESOURCE_GROUP) --name $(AZURE_APP_NAME)
+
+.PHONY: azure-status
+azure-status: ## Show Azure Web App status
+	@az webapp show --subscription $(AZURE_SUBSCRIPTION) --resource-group $(AZURE_RESOURCE_GROUP) --name $(AZURE_APP_NAME) \
+	  --query "{name:name, state:state, url:defaultHostName, resourceGroup:resourceGroup}" \
+	  --output table
+
+.PHONY: azure-destroy
+azure-destroy: ## ⚠ Delete ALL Azure resources in the resource group
+	@echo "$(BOLD)WARNING: This will delete ALL resources in $(AZURE_RESOURCE_GROUP). Press Ctrl-C to cancel.$(RESET)"
+	@sleep 5
+	az group delete --subscription $(AZURE_SUBSCRIPTION) --name $(AZURE_RESOURCE_GROUP) --yes --no-wait
+	@echo "$(GREEN)✔ Resource group deletion initiated$(RESET)"
