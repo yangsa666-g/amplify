@@ -21,8 +21,11 @@ AZURE_SUBSCRIPTION   ?= 2caeef69-d54a-43b6-9c53-363a5209abbe
 AZURE_RESOURCE_GROUP ?= rg-d-app-10009620
 AZURE_LOCATION       ?= southeastasia
 AZURE_IMAGE_TAG      ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo latest)
-AZURE_ACR_NAME       ?= devamplify
-AZURE_APP_NAME       ?= dev-amplify-app
+AZURE_ACR_NAME        ?= devamplify
+AZURE_ACR_LOGIN_SERVER ?= $(AZURE_ACR_NAME).azurecr.io
+AZURE_ACR_USERNAME    ?= devamplify
+AZURE_ACR_PASSWORD    ?=
+AZURE_APP_NAME        ?= dev-amplify-app
 AZURE_IMAGE_NAME      = contract-ai-review
 
 # ─── Colors ──────────────────────────────────────────────────────────────────
@@ -235,47 +238,54 @@ azure-login: ## Log in to Azure CLI (interactive)
 	az login
 	@echo "$(GREEN)✔ Logged in to Azure$(RESET)"
 
-.PHONY: azure-infra
-azure-infra: ## Deploy/update Azure infrastructure (Bicep) — reads secrets from .env
-	@echo "$(BOLD)Deploying infrastructure to $(AZURE_RESOURCE_GROUP)...$(RESET)"
-	az deployment group create \
+.PHONY: azure-config
+azure-config: ## Sync .env.azure app settings to the existing Azure Web App
+	@echo "$(BOLD)Syncing app settings to $(AZURE_APP_NAME)...$(RESET)"
+	az webapp config appsettings set \
 	  --subscription $(AZURE_SUBSCRIPTION) \
 	  --resource-group $(AZURE_RESOURCE_GROUP) \
-	  --template-file infra/main.bicep \
-	  --parameters infra/main.bicepparam \
-	  --parameters imageTag=$(AZURE_IMAGE_TAG) \
-	    pgAdminPassword='$(POSTGRES_PASSWORD)' \
-	    jwtSecret='$(JWT_SECRET)' \
-	    azureOpenAiEndpoint='$(AZURE_OPENAI_ENDPOINT)' \
-	    azureOpenAiApiKey='$(AZURE_OPENAI_API_KEY)' \
-	    azureOpenAiModels='$(AZURE_OPENAI_MODELS)' \
-	    azureOpenAiTimeoutMs='$(AZURE_OPENAI_TIMEOUT_MS)' \
-	    azureDocIntelEndpoint='$(AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT)' \
-	    azureDocIntelKey='$(AZURE_DOCUMENT_INTELLIGENCE_KEY)' \
-	    anthropicEndpoint='$(ANTHROPIC_ENDPOINT)' \
-	    anthropicApiKey='$(ANTHROPIC_API_KEY)' \
-	    anthropicModels='$(ANTHROPIC_MODELS)' \
-	    entraClientId='$(ENTRA_CLIENT_ID)' \
-	    entraClientSecret='$(ENTRA_CLIENT_SECRET)' \
-	    entraTenantId='$(ENTRA_TENANT_ID)' \
-	    entraRedirectUri='$(ENTRA_REDIRECT_URI)' \
-	    seedAdminEmail='$(SEED_ADMIN_EMAIL)' \
-	    seedAdminPassword='$(SEED_ADMIN_PASSWORD)' \
-	    seedAdminName='$(SEED_ADMIN_NAME)' \
-	  --output table
-	@echo "$(GREEN)✔ Infrastructure deployed$(RESET)"
+	  --name $(AZURE_APP_NAME) \
+	  --settings \
+	    NODE_ENV=production \
+	    PORT=3001 \
+	    DATABASE_URL='$(DATABASE_URL)' \
+	    JWT_SECRET='$(JWT_SECRET)' \
+	    JWT_EXPIRES_IN='$(JWT_EXPIRES_IN)' \
+	    REFRESH_TOKEN_EXPIRES_IN='$(REFRESH_TOKEN_EXPIRES_IN)' \
+	    AZURE_OPENAI_ENDPOINT='$(AZURE_OPENAI_ENDPOINT)' \
+	    AZURE_OPENAI_API_KEY='$(AZURE_OPENAI_API_KEY)' \
+	    AZURE_OPENAI_MODELS='$(AZURE_OPENAI_MODELS)' \
+	    AZURE_OPENAI_TIMEOUT_MS='$(AZURE_OPENAI_TIMEOUT_MS)' \
+	    AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT='$(AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT)' \
+	    AZURE_DOCUMENT_INTELLIGENCE_KEY='$(AZURE_DOCUMENT_INTELLIGENCE_KEY)' \
+	    ANTHROPIC_ENDPOINT='$(ANTHROPIC_ENDPOINT)' \
+	    ANTHROPIC_API_KEY='$(ANTHROPIC_API_KEY)' \
+	    ANTHROPIC_MODELS='$(ANTHROPIC_MODELS)' \
+	    ENTRA_CLIENT_ID='$(ENTRA_CLIENT_ID)' \
+	    ENTRA_CLIENT_SECRET='$(ENTRA_CLIENT_SECRET)' \
+	    ENTRA_TENANT_ID='$(ENTRA_TENANT_ID)' \
+	    ENTRA_REDIRECT_URI='$(ENTRA_REDIRECT_URI)' \
+	    FILE_UPLOAD_DIR='/home/uploads' \
+	    MAX_UPLOAD_SIZE_MB='$(MAX_UPLOAD_SIZE_MB)' \
+	    SEED_ADMIN_EMAIL='$(SEED_ADMIN_EMAIL)' \
+	    SEED_ADMIN_PASSWORD='$(SEED_ADMIN_PASSWORD)' \
+	    SEED_ADMIN_NAME='$(SEED_ADMIN_NAME)' \
+	  --output none
+	@echo "$(GREEN)✔ App settings synced$(RESET)"
 
 .PHONY: azure-acr-login
 azure-acr-login: ## Log in to Azure Container Registry
-	az acr login --name $(AZURE_ACR_NAME) --subscription $(AZURE_SUBSCRIPTION)
-	@echo "$(GREEN)✔ Logged in to ACR $(AZURE_ACR_NAME)$(RESET)"
+	docker login $(AZURE_ACR_LOGIN_SERVER) \
+	  --username $(AZURE_ACR_USERNAME) \
+	  --password '$(AZURE_ACR_PASSWORD)'
+	@echo "$(GREEN)✔ Logged in to ACR $(AZURE_ACR_LOGIN_SERVER)$(RESET)"
 
 .PHONY: azure-build
 azure-build: ## Build Docker image in ACR (remote build, no local Docker needed)
 	@echo "$(BOLD)Building image in ACR...$(RESET)"
 	az acr build \
 	  --subscription $(AZURE_SUBSCRIPTION) \
-	  --registry $(AZURE_ACR_NAME) \
+	  --registry $(AZURE_ACR_LOGIN_SERVER) \
 	  --image $(AZURE_IMAGE_NAME):$(AZURE_IMAGE_TAG) \
 	  --image $(AZURE_IMAGE_NAME):latest \
 	  --file Dockerfile.azure \
@@ -289,8 +299,10 @@ azure-deploy-app: ## Update Web App to use the latest image
 	  --subscription $(AZURE_SUBSCRIPTION) \
 	  --resource-group $(AZURE_RESOURCE_GROUP) \
 	  --name $(AZURE_APP_NAME) \
-	  --container-image-name $(AZURE_ACR_NAME).azurecr.io/$(AZURE_IMAGE_NAME):$(AZURE_IMAGE_TAG) \
-	  --container-registry-url https://$(AZURE_ACR_NAME).azurecr.io \
+	  --container-image-name $(AZURE_ACR_LOGIN_SERVER)/$(AZURE_IMAGE_NAME):$(AZURE_IMAGE_TAG) \
+	  --container-registry-url https://$(AZURE_ACR_LOGIN_SERVER) \
+	  --container-registry-user $(AZURE_ACR_USERNAME) \
+	  --container-registry-password '$(AZURE_ACR_PASSWORD)' \
 	  --output none
 	az webapp restart \
 	  --subscription $(AZURE_SUBSCRIPTION) \
@@ -301,7 +313,7 @@ azure-deploy-app: ## Update Web App to use the latest image
 	@echo "  URL → https://$(AZURE_APP_NAME).azurewebsites.net"
 
 .PHONY: azure-deploy
-azure-deploy: azure-infra azure-build azure-deploy-app ## 🚀 Full Azure deploy: infra + build + update app
+azure-deploy: azure-build azure-config azure-deploy-app ## 🚀 Full Azure deploy: build image + sync config + update app
 	@echo ""
 	@echo "$(GREEN)$(BOLD)✔ Deployment complete!$(RESET)"
 	@echo "  URL → https://$(AZURE_APP_NAME).azurewebsites.net"
