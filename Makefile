@@ -104,7 +104,7 @@ restart-api: ## Restart only the API service
 # =============================================================================
 
 .PHONY: migrate
-migrate: ## Apply pending Prisma migrations
+migrate: ## Apply pending Prisma migrations (auto-runs on container start; use this to run manually)
 	$(COMPOSE) exec $(API_SVC) node_modules/.bin/prisma migrate deploy
 	@echo "$(GREEN)✔ Migrations applied$(RESET)"
 
@@ -319,18 +319,34 @@ azure-deploy: azure-build azure-config azure-deploy-app ## 🚀 Full Azure deplo
 	@echo "  URL → https://$(AZURE_APP_NAME).azurewebsites.net"
 
 .PHONY: azure-migrate
-azure-migrate: ## Run database migrations on Azure (via Web App SSH)
-	@echo "$(BOLD)Running Prisma migrations...$(RESET)"
-	az webapp ssh --subscription $(AZURE_SUBSCRIPTION) --resource-group $(AZURE_RESOURCE_GROUP) --name $(AZURE_APP_NAME) \
-	  --command "cd /app/apps/api && node_modules/.bin/prisma migrate deploy"
-	@echo "$(GREEN)✔ Migrations applied$(RESET)"
+azure-migrate: ## Run database migrations on Azure (auto-runs on every container start via entrypoint)
+	@echo "$(BOLD)Migrations run automatically on container startup via entrypoint.sh$(RESET)"
+	@echo "To force re-run: make azure-deploy-app (restarts the container)"
 
 .PHONY: azure-seed
-azure-seed: ## Seed database on Azure
-	@echo "$(BOLD)Seeding database...$(RESET)"
-	az webapp ssh --subscription $(AZURE_SUBSCRIPTION) --resource-group $(AZURE_RESOURCE_GROUP) --name $(AZURE_APP_NAME) \
-	  --command "cd /app/apps/api && node_modules/.bin/prisma db seed"
-	@echo "$(GREEN)✔ Seed complete$(RESET)"
+azure-seed: ## Seed database on Azure (sets RUN_SEED=true, restarts app, then clears the flag)
+	@echo "$(BOLD)Triggering seed on Azure Web App...$(RESET)"
+	az webapp config appsettings set \
+	  --subscription $(AZURE_SUBSCRIPTION) \
+	  --resource-group $(AZURE_RESOURCE_GROUP) \
+	  --name $(AZURE_APP_NAME) \
+	  --settings RUN_SEED=true \
+	  --output none
+	az webapp restart \
+	  --subscription $(AZURE_SUBSCRIPTION) \
+	  --resource-group $(AZURE_RESOURCE_GROUP) \
+	  --name $(AZURE_APP_NAME) \
+	  --output none
+	@echo "$(GRAY)  Waiting 30s for container to start and seed to complete...$(RESET)"
+	@sleep 30
+	@echo "$(BOLD)Clearing RUN_SEED flag...$(RESET)"
+	az webapp config appsettings delete \
+	  --subscription $(AZURE_SUBSCRIPTION) \
+	  --resource-group $(AZURE_RESOURCE_GROUP) \
+	  --name $(AZURE_APP_NAME) \
+	  --setting-names RUN_SEED \
+	  --output none
+	@echo "$(GREEN)✔ Seed triggered and flag cleared$(RESET)"
 
 .PHONY: azure-logs
 azure-logs: ## Tail Azure Web App logs

@@ -42,4 +42,4 @@ COPY --from=builder /app/apps/api/tsconfig.json ./apps/api/tsconfig.json
 
 WORKDIR /app/apps/api
 EXPOSE 3001
-CMD ["node", "dist/src/main.js"]
+CMD sh -c "node_modules/.bin/prisma migrate deploy && node dist/src/main.js"

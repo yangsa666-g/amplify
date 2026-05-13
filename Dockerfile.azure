@@ -77,6 +77,8 @@ COPY --from=web-builder /app/apps/web/dist /usr/share/nginx/html
 # --- Configuration ---
 COPY deploy/nginx.conf /etc/nginx/http.d/default.conf
 COPY deploy/supervisord.conf /etc/supervisord.conf
+COPY deploy/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Ensure nginx log and run directories exist
 RUN mkdir -p /run/nginx /var/log/nginx
@@ -84,4 +86,5 @@ RUN mkdir -p /run/nginx /var/log/nginx
 # Azure App Service expects port 80
 EXPOSE 80
 
-CMD ["supervisord", "-c", "/etc/supervisord.conf"]
+# entrypoint runs `prisma migrate deploy` before starting supervisord
+ENTRYPOINT ["/entrypoint.sh"]
