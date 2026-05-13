@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import {
-  Typography, Tabs, Button, Card, Space, Tag, Popconfirm, Modal, Input, message, Spin, Empty, Select, Alert, Tooltip,
+  Typography, Tabs, Button, Card, Space, Tag, Popconfirm, Modal, Input, message, Spin, Empty, Select, Alert, Tooltip, Table,
 } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, StarOutlined, StarFilled, CheckCircleOutlined, CloseCircleOutlined, KeyOutlined, CopyOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, StarOutlined, StarFilled, CheckCircleOutlined, CloseCircleOutlined, KeyOutlined, CopyOutlined, EyeOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { FieldTemplate, FieldTemplateItem, PromptTemplate } from '../types';
 import {
@@ -199,6 +199,7 @@ function PendingRequestsTab() {
 
   const [rejectModal, setRejectModal] = useState<{ open: boolean; id: string; name: string }>({ open: false, id: '', name: '' });
   const [rejectNote, setRejectNote] = useState('');
+  const [viewingReq, setViewingReq] = useState<(typeof requests)[0] | null>(null);
 
   const approveMutation = useMutation({
     mutationFn: (id: string) => approveRequest(id),
@@ -245,6 +246,9 @@ function PendingRequestsTab() {
             }
             extra={
               <Space>
+                <Button icon={<EyeOutlined />} size="small" onClick={() => setViewingReq(req)}>
+                  View
+                </Button>
                 <Popconfirm
                   title={`Approve "${tmplName}" as system template?`}
                   onConfirm={() => approveMutation.mutate(req.id)}
@@ -280,6 +284,55 @@ function PendingRequestsTab() {
           </Card>
         );
       })}
+
+      <Modal
+        open={!!viewingReq}
+        title={
+          <Space>
+            <Tag color={viewingReq?.templateKind === 'field' ? 'blue' : 'purple'}>
+              {viewingReq?.templateKind === 'field' ? 'Field Template' : 'Prompt Template'}
+            </Tag>
+            {viewingReq?.templateKind === 'field' ? viewingReq?.fieldTemplate?.name : viewingReq?.promptTemplate?.name}
+          </Space>
+        }
+        onCancel={() => setViewingReq(null)}
+        footer={<Button onClick={() => setViewingReq(null)}>Close</Button>}
+        width={700}
+      >
+        {viewingReq && (
+          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+            <Space>
+              <Typography.Text type="secondary">Requested by:</Typography.Text>
+              <Typography.Text strong>{viewingReq.user?.name || viewingReq.user?.email}</Typography.Text>
+              <Typography.Text type="secondary">({viewingReq.user?.email})</Typography.Text>
+            </Space>
+            <Space>
+              <Typography.Text type="secondary">Submitted:</Typography.Text>
+              <Typography.Text>{new Date(viewingReq.createdAt).toLocaleString()}</Typography.Text>
+            </Space>
+            {viewingReq.templateKind === 'field' && viewingReq.fieldTemplate?.items && (
+              <Table
+                size="small"
+                pagination={false}
+                dataSource={viewingReq.fieldTemplate.items}
+                rowKey={(_, i) => String(i)}
+                columns={[
+                  { title: 'Field Name', dataIndex: 'fieldName', key: 'fieldName', width: 200 },
+                  { title: 'Description', dataIndex: 'fieldDescription', key: 'fieldDescription' },
+                ]}
+              />
+            )}
+            {viewingReq.templateKind === 'prompt' && viewingReq.promptTemplate?.content && (
+              <Input.TextArea
+                readOnly
+                rows={14}
+                value={viewingReq.promptTemplate.content}
+                style={{ fontFamily: 'monospace', fontSize: 13 }}
+              />
+            )}
+          </Space>
+        )}
+      </Modal>
 
       <Modal
         open={rejectModal.open}
