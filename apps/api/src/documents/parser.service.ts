@@ -1,6 +1,5 @@
 import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import * as path from 'path';
-import * as fs from 'fs';
 import * as mammoth from 'mammoth';
 import { OcrService } from './ocr.service';
 
@@ -15,8 +14,8 @@ const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.txt'];
 export class ParserService {
   constructor(private ocr: OcrService) {}
 
-  async extractText(filePath: string, mimeType: string): Promise<string> {
-    const ext = path.extname(filePath).toLowerCase();
+  async extractText(buffer: Buffer, mimeType: string, originalName: string): Promise<string> {
+    const ext = path.extname(originalName).toLowerCase();
 
     if (ext === '.pdf' || mimeType === 'application/pdf') {
       if (!this.ocr.isConfigured) {
@@ -25,19 +24,19 @@ export class ParserService {
             'Set AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT and AZURE_DOCUMENT_INTELLIGENCE_KEY.',
         );
       }
-      return this.ocr.extractMarkdownFromPdf(filePath);
+      return this.ocr.extractMarkdownFromPdf(buffer);
     }
 
     if (
       ext === '.docx' ||
       mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     ) {
-      const result = await mammoth.extractRawText({ path: filePath });
+      const result = await mammoth.extractRawText({ buffer });
       return result.value?.trim() || '';
     }
 
     if (ext === '.txt' || mimeType === 'text/plain') {
-      return fs.readFileSync(filePath, 'utf-8').trim();
+      return buffer.toString('utf-8').trim();
     }
 
     throw new BadRequestException(`Unsupported file type: ${ext}`);

@@ -10,13 +10,10 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import * as path from 'path';
-import * as crypto from 'crypto';
+import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, AuthUser } from '../auth/decorators/current-user.decorator';
 import { DocumentsService } from './documents.service';
-import { getUploadDir } from '../common/storage';
 
 @Controller('documents')
 @UseGuards(JwtAuthGuard)
@@ -26,14 +23,8 @@ export class DocumentsController {
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => cb(null, getUploadDir()),
-        filename: (_req, file, cb) => {
-          const unique = crypto.randomBytes(8).toString('hex');
-          cb(null, `${unique}${path.extname(file.originalname)}`);
-        },
-      }),
-      limits: { fileSize: 50 * 1024 * 1024 }, // hard cap 50MB; service enforces configured limit
+      storage: memoryStorage(),
+      limits: { fileSize: 50 * 1024 * 1024 }, // hard cap 50 MB; service enforces configured limit
     }),
   )
   async upload(@UploadedFile() file: Express.Multer.File, @CurrentUser() user: AuthUser) {
@@ -49,8 +40,7 @@ export class DocumentsController {
 
   @Get(':id/download')
   async download(@Param('id') id: string, @CurrentUser() user: AuthUser, @Res() res: any) {
-    const doc = await this.documentsService.findOne(id, user.userId);
-    res.download((doc as any).storagePath, doc.fileName);
+    await this.documentsService.downloadToResponse(id, user.userId, res);
   }
 
   @Get(':id')

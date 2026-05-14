@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ParserService } from './parser.service';
+import { isAzureStorageConfigured, uploadBlob, streamBlobToResponse } from '../common/blob-storage';
+import { getUploadDir } from '../common/storage';
 import * as fs from 'fs';
+import * as path from 'path';
+import * as crypto from 'crypto';
 
 const MAX_SIZE_MB = parseInt(process.env.MAX_UPLOAD_SIZE_MB || '20', 10);
 
@@ -16,13 +20,34 @@ export class DocumentsService {
 
   async upload(userId: string, file: Express.Multer.File) {
     if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      fs.unlinkSync(file.path);
       throw new BadRequestException(`File exceeds ${MAX_SIZE_MB}MB limit`);
     }
 
     if (!this.parser.isSupported(file.mimetype, file.originalname)) {
-      fs.unlinkSync(file.path);
       throw new BadRequestException('Unsupported file type. Supported: PDF, DOCX, TXT');
+    }
+
+    // Resolve file buffer (memoryStorage provides buffer; diskStorage provides path)
+    let buffer: Buffer;
+    if (file.buffer) {
+      buffer = file.buffer;
+    } else {
+      buffer = fs.readFileSync(file.path);
+      fs.unlinkSync(file.path);
+    }
+
+    // Persist the file
+    let storagePath: string;
+    if (isAzureStorageConfigured()) {
+      storagePath = await uploadBlob(userId, file.originalname, buffer, file.mimetype);
+      this.logger.log(`Uploaded to Azure Blob: ${storagePath}`);
+    } else {
+      // Local dev: write to disk
+      const dir = getUploadDir();
+      const filename = `${crypto.randomBytes(8).toString('hex')}${path.extname(file.originalname)}`;
+      storagePath = path.join(dir, filename);
+      fs.writeFileSync(storagePath, buffer);
+      this.logger.log(`Saved locally: ${storagePath}`);
     }
 
     const doc = await this.prisma.document.create({
@@ -31,7 +56,7 @@ export class DocumentsService {
         fileName: file.originalname,
         fileType: file.mimetype,
         fileSize: file.size,
-        storagePath: file.path,
+        storagePath,
         textExtractionStatus: 'pending',
       },
     });
@@ -41,7 +66,7 @@ export class DocumentsService {
     let extractionError: string | null = null;
 
     try {
-      extractedText = await this.parser.extractText(file.path, file.mimetype);
+      extractedText = await this.parser.extractText(buffer, file.mimetype, file.originalname);
       if (!extractedText) {
         status = 'failed';
         extractionError = 'Extraction returned empty content';
@@ -82,5 +107,13 @@ export class DocumentsService {
     }
     return doc.extractedText;
   }
-}
 
+  async downloadToResponse(id: string, userId: string, res: any): Promise<void> {
+    const doc = await this.findOne(id, userId);
+    if (isAzureStorageConfigured()) {
+      await streamBlobToResponse(doc.storagePath, doc.fileName, res);
+    } else {
+      res.download(doc.storagePath, doc.fileName);
+    }
+  }
+}

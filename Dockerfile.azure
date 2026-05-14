@@ -86,5 +86,5 @@ RUN mkdir -p /run/nginx /var/log/nginx
 # Azure App Service expects port 80
 EXPOSE 80
 
-# entrypoint runs `prisma migrate deploy` before starting supervisord
+# entrypoint runs `prisma migrate deploy` and idempotent seed before starting supervisord
 ENTRYPOINT ["/entrypoint.sh"]

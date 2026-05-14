@@ -1,7 +1,6 @@
 import { Injectable, BadGatewayException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import * as fs from 'fs';
 
 const POLL_INTERVAL_MS = 3000;
 const MAX_POLL_ATTEMPTS = 60; // 3s * 60 = 3 minutes max
@@ -95,8 +94,7 @@ export class OcrService {
     return lines.join('\n');
   }
 
-  async extractMarkdownFromPdf(filePath: string): Promise<string> {
-    const buffer = fs.readFileSync(filePath);
+  async extractMarkdownFromPdf(buffer: Buffer): Promise<string> {
     const base64Source = buffer.toString('base64');
 
     // ocrHighResolution is required for scanned / low-quality PDFs
@@ -104,7 +102,7 @@ export class OcrService {
       `${this.endpoint}/documentintelligence/documentModels/prebuilt-layout:analyze` +
       `?api-version=2024-11-30&outputContentFormat=markdown&features=ocrHighResolution`;
 
-    this.logger.log(`Submitting OCR job to Azure Document Intelligence: ${filePath}`);
+    this.logger.log(`Submitting OCR job to Azure Document Intelligence`);
     this.logger.debug(`POST ${analyzeUrl}`);
 
     const submitResp = await axios
@@ -160,7 +158,7 @@ export class OcrService {
         const rawContent = analyzeResult?.content ?? '';
         const content = this.convertHtmlTablesToMarkdown(rawContent);
         this.logger.log(
-          `OCR succeeded for: ${filePath} — extracted ${content.length} characters of markdown`,
+          `OCR succeeded — extracted ${content.length} characters of markdown`,
         );
         return content;
       }

@@ -247,6 +247,7 @@ azure-config: ## Sync .env.azure app settings to the existing Azure Web App
 	  --name $(AZURE_APP_NAME) \
 	  --settings \
 	    NODE_ENV=production \
+	    WEBSITES_PORT=$(WEBSITES_PORT) \
 	    PORT=3001 \
 	    DATABASE_URL='$(DATABASE_URL)' \
 	    JWT_SECRET='$(JWT_SECRET)' \
@@ -324,29 +325,16 @@ azure-migrate: ## Run database migrations on Azure (auto-runs on every container
 	@echo "To force re-run: make azure-deploy-app (restarts the container)"
 
 .PHONY: azure-seed
-azure-seed: ## Seed database on Azure (sets RUN_SEED=true, restarts app, then clears the flag)
-	@echo "$(BOLD)Triggering seed on Azure Web App...$(RESET)"
-	az webapp config appsettings set \
-	  --subscription $(AZURE_SUBSCRIPTION) \
-	  --resource-group $(AZURE_RESOURCE_GROUP) \
-	  --name $(AZURE_APP_NAME) \
-	  --settings RUN_SEED=true \
-	  --output none
+azure-seed: ## Seed database on Azure (restart app; entrypoint runs idempotent seed automatically)
+	@echo "$(BOLD)Restarting Azure Web App to trigger seed via entrypoint.sh...$(RESET)"
 	az webapp restart \
 	  --subscription $(AZURE_SUBSCRIPTION) \
 	  --resource-group $(AZURE_RESOURCE_GROUP) \
 	  --name $(AZURE_APP_NAME) \
 	  --output none
-	@echo "$(GRAY)  Waiting 30s for container to start and seed to complete...$(RESET)"
+	@echo "$(GRAY)  Waiting 30s for container to start, migrate and seed...$(RESET)"
 	@sleep 30
-	@echo "$(BOLD)Clearing RUN_SEED flag...$(RESET)"
-	az webapp config appsettings delete \
-	  --subscription $(AZURE_SUBSCRIPTION) \
-	  --resource-group $(AZURE_RESOURCE_GROUP) \
-	  --name $(AZURE_APP_NAME) \
-	  --setting-names RUN_SEED \
-	  --output none
-	@echo "$(GREEN)✔ Seed triggered and flag cleared$(RESET)"
+	@echo "$(GREEN)✔ Seed triggered via restart$(RESET)"
 
 .PHONY: azure-logs
 azure-logs: ## Tail Azure Web App logs
