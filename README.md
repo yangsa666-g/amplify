@@ -10,7 +10,11 @@ An AI-powered contract analysis platform that helps you upload, parse, and analy
 - **Template Management** — Create personal or system-wide field templates and prompt templates to standardize analysis
 - **Analysis History** — Browse and revisit past analyses
 - **Admin Dashboard** — Manage users, view system-wide history, and configure system templates
-- **Microsoft Entra ID SSO** — Optional single sign-on via Azure Entra (configurable)
+- **External API** — Programmatic access to upload / analyze / compare endpoints via API key authentication
+
+## Roadmap
+
+- [ ] **Microsoft Entra ID SSO** — Single sign-on via Azure Entra (planned, not yet implemented)
 
 ## Tech Stack
 
@@ -21,7 +25,7 @@ An AI-powered contract analysis platform that helps you upload, parse, and analy
 | AI | Azure OpenAI API, Anthropic Claude API |
 | Document Parsing | Azure Document Intelligence (OCR), Mammoth (DOCX) |
 | File Storage | Local disk (dev) / Azure Blob Storage (production) |
-| Auth | JWT + Refresh Tokens, optional Microsoft Entra SSO |
+| Auth | JWT + Refresh Tokens, API Key (for External API) |
 | Monorepo | pnpm workspaces, Turborepo |
 
 ## Project Structure
@@ -158,9 +162,16 @@ make azure-build
 make azure-deploy-app
 ```
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for the full deployment guide including self-hosted Docker Compose topology.
-
 ## API Overview
+
+The backend exposes two distinct API surfaces:
+
+- **Internal API** — Used by the web frontend. Authenticated with JWT access + refresh tokens.
+- **External API** (`/v1/*`) — For programmatic / third-party integration. Authenticated with an API key.
+
+Full OpenAPI documentation is available at `http://localhost:3001/docs` when the API is running.
+
+### Internal API (selected endpoints)
 
 | Method | Path | Description |
 |---|---|---|
@@ -174,6 +185,43 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for the full deployment guide including self-
 | `GET` | `/models` | List available AI models |
 | `GET` | `/field-templates` | List field templates |
 | `GET` | `/prompt-templates` | List prompt templates |
+
+### External API
+
+The External API lets external systems run the same upload → analyze / compare workflow as the web app, without going through user login. All endpoints are namespaced under `/v1` and require an API key.
+
+**Authentication.** Pass your API key in the `X-API-Key` header on every request. Keys are issued and revoked from the Admin Dashboard, and each key is bound to a user account — calls inherit that user's permissions and quotas.
+
+```http
+X-API-Key: <your-api-key>
+```
+
+**Endpoints:**
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/v1/documents/upload` | Upload a contract (`multipart/form-data`, max 50 MB). Returns `documentId`. Text extraction is asynchronous — poll until `textExtractionStatus` is `success`. |
+| `POST` | `/v1/analysis/run` | Run field extraction + risk analysis on an uploaded document. Synchronous; typically 10–60 s. |
+| `GET`  | `/v1/analysis/:id` | Retrieve a previous analysis job result. |
+| `POST` | `/v1/compare/run` | Run a line-level diff between two uploaded documents. |
+| `GET`  | `/v1/compare/:id` | Retrieve a previous compare job result. |
+
+**Example — full analysis flow:**
+
+```bash
+# 1. Upload a contract
+DOC_ID=$(curl -s -X POST http://localhost:3001/v1/documents/upload \
+  -H "X-API-Key: $API_KEY" \
+  -F "file=@contract.pdf" | jq -r .id)
+
+# 2. Run analysis (after textExtractionStatus = success)
+curl -X POST http://localhost:3001/v1/analysis/run \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"documentId\": \"$DOC_ID\", \"model\": \"gpt-5.4\"}"
+```
+
+See `/docs` for the full request/response schemas.
 
 ## License
 
