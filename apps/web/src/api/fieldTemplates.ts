@@ -1,5 +1,5 @@
 import client from './client';
-import { FieldTemplate, FieldTemplateItem } from '../types';
+import type { FieldTemplate, FieldTemplateItem } from '../types';
 
 // ─── User API ────────────────────────────────────────────────────────────────
 

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import {
-  Typography, Card, Row, Col, Statistic, Select, Table, Tag, Progress, Spin, Empty,
+  Typography, Card, Row, Col, Statistic, Select, Table, Progress, Spin, Empty,
 } from 'antd';
 import {
   FileTextOutlined, DiffOutlined, TeamOutlined, UserAddOutlined,
-  LikeOutlined, DislikeOutlined, CheckCircleOutlined,
+  LikeOutlined, CheckCircleOutlined,
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { getAdminStats } from '../api/adminDashboard';
@@ -108,7 +108,7 @@ export default function AdminDashboardPage() {
     {
       title: 'Usage',
       key: 'usage',
-      render: (_: any, record: { modelName: string; count: number }) => {
+      render: (_: unknown, record: { modelName: string; count: number }) => {
         const total = stats?.modelUsage.reduce((s, m) => s + m.count, 0) ?? 1;
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

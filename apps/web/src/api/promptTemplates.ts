@@ -1,5 +1,5 @@
 import client from './client';
-import { PromptTemplate } from '../types';
+import type { PromptTemplate } from '../types';
 
 // ─── User API ────────────────────────────────────────────────────────────────
 

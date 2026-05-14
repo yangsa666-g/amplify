@@ -9,7 +9,6 @@ import {
   Spin,
   Alert,
   Tag,
-  Rate,
   Input,
   List,
   Avatar,
@@ -36,7 +35,7 @@ const fieldColumns = [
     title: 'Value',
     dataIndex: 'extracted_value',
     key: 'value',
-    render: (v: any) => {
+    render: (v: unknown) => {
       if (v === null || v === undefined)
         return <Typography.Text type="secondary">Not found</Typography.Text>;
       if (typeof v === 'object')
@@ -49,10 +48,10 @@ const fieldColumns = [
     title: 'Evidence',
     dataIndex: 'evidence',
     key: 'evidence',
-    render: (v: any) =>
+    render: (v: unknown) =>
       v ? (
         <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          {v}
+          {String(v)}
         </Typography.Text>
       ) : (
         '—'
@@ -62,7 +61,7 @@ const fieldColumns = [
     title: 'Comments',
     dataIndex: 'comments',
     key: 'comments',
-    render: (v: any) => v || '—',
+    render: (v: unknown) => v || '—',
   },
 ];
 
@@ -206,6 +205,7 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
     enabled: !!job?.documentId && open && ocrTabActive,
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fieldResults: any[] = Array.isArray(detail?.fieldExtractionResult?.resultJson)
     ? detail.fieldExtractionResult.resultJson
     : [];

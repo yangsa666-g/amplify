@@ -11,7 +11,7 @@ import { getModels } from '../api/models';
 import { listFieldTemplates } from '../api/fieldTemplates';
 import { listPromptTemplates } from '../api/promptTemplates';
 import { useAnalysisStore } from '../stores/analysisStore';
-import type { Document, AnalysisResult, AnalysisJob, FieldTemplate, PromptTemplate } from '../types';
+import type { FieldTemplate, PromptTemplate, ApiError } from '../types';
 
 const { Dragger } = Upload;
 
@@ -110,7 +110,7 @@ export default function AnalysisPage() {
   const uploadMutation = useMutation({
     mutationFn: (file: File) => uploadDocument(file).then((r) => r.data),
     onSuccess: (doc) => { setUploadedDoc(doc); setOcrPreviewOpen(false); message.success('File uploaded and text extracted'); },
-    onError: (e: any) => message.error(e.response?.data?.message || 'Upload failed'),
+    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Upload failed'),
   });
 
   const analysisMutation = useMutation({
@@ -130,7 +130,7 @@ export default function AnalysisPage() {
       if (selectedPromptTemplateId) localStorage.setItem(LAST_PROMPT_TEMPLATE_KEY, selectedPromptTemplateId);
       message.success('Analysis complete');
     },
-    onError: (e: any) => message.error(e.response?.data?.message || 'Analysis failed'),
+    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Analysis failed'),
   });
 
   const recentColumns = [
@@ -147,7 +147,7 @@ export default function AnalysisPage() {
       title: 'Value',
       dataIndex: 'extracted_value',
       key: 'value',
-      render: (v: any) => {
+      render: (v: unknown) => {
         if (v === null || v === undefined) return <Typography.Text type="secondary">Not found</Typography.Text>;
         if (typeof v === 'object') return <Typography.Text code>{JSON.stringify(v, null, 2)}</Typography.Text>;
         return String(v);
@@ -306,7 +306,7 @@ export default function AnalysisPage() {
             </Button>
           </Space>
           {analysisMutation.isError && (
-            <Alert type="error" message={(analysisMutation.error as any)?.response?.data?.message || 'Analysis failed'} />
+            <Alert type="error" message={(analysisMutation.error as ApiError)?.response?.data?.message || 'Analysis failed'} />
           )}
         </Space>
       </Card>

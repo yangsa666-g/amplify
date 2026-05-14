@@ -35,7 +35,7 @@ export function FieldTemplateEditorModal({
       title: 'Field Name',
       key: 'name',
       width: 180,
-      render: (_: any, _r: FieldTemplateItem, i: number) => (
+      render: (_: unknown, _r: FieldTemplateItem, i: number) => (
         <Input value={items[i]?.fieldName} onChange={(e) => {
           const next = [...items];
           next[i] = { ...next[i], fieldName: e.target.value };
@@ -46,7 +46,7 @@ export function FieldTemplateEditorModal({
     {
       title: 'Description',
       key: 'desc',
-      render: (_: any, _r: FieldTemplateItem, i: number) => (
+      render: (_: unknown, _r: FieldTemplateItem, i: number) => (
         <Input value={items[i]?.fieldDescription} onChange={(e) => {
           const next = [...items];
           next[i] = { ...next[i], fieldDescription: e.target.value };
@@ -58,7 +58,7 @@ export function FieldTemplateEditorModal({
       title: '',
       key: 'del',
       width: 48,
-      render: (_: any, __: any, i: number) => (
+      render: (_: unknown, __: unknown, i: number) => (
         <Button icon={<DeleteOutlined />} type="text" danger onClick={() => setItems(items.filter((_, j) => j !== i))} />
       ),
     },

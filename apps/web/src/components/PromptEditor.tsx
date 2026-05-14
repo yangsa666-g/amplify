@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Input, Space, Popconfirm, Spin, Typography, message } from 'antd';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { PromptTemplate } from '../types';
+import type { PromptTemplate, ApiError } from '../types';
 
 interface Props {
   queryKey: string[];
@@ -30,7 +30,7 @@ export default function PromptEditor({ queryKey, fetchFn, saveFn, resetFn, showN
       qc.invalidateQueries({ queryKey });
       message.success('Prompt saved');
     },
-    onError: (e: any) => message.error(e.response?.data?.message || 'Save failed'),
+    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Save failed'),
   });
 
   const resetMutation = useMutation({

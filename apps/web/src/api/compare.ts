@@ -1,5 +1,5 @@
 import client from './client';
-import { CompareResult, CompareJob } from '../types';
+import type { CompareResult, CompareJob } from '../types';
 
 export const runCompare = (oldDocumentId: string, newDocumentId: string, diffMode: 'unified' | 'side_by_side') =>
   client.post<CompareResult>('/compare/run', { oldDocumentId, newDocumentId, diffMode });

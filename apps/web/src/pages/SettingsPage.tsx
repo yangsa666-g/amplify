@@ -4,7 +4,7 @@ import {
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, SendOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { FieldTemplate, FieldTemplateItem, PromptTemplate } from '../types';
+import type { FieldTemplate, FieldTemplateItem, PromptTemplate, ApiError } from '../types';
 import {
   listFieldTemplates, createFieldTemplate, updateFieldTemplate, deleteFieldTemplate, duplicateFieldTemplate,
 } from '../api/fieldTemplates';
@@ -112,7 +112,7 @@ function FieldTemplatesTab() {
       qc.invalidateQueries({ queryKey: ['my-template-requests'] });
       message.success('Request submitted! Admins will review your template.');
     },
-    onError: (e: any) => message.error(e.response?.data?.message || 'Request failed'),
+    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Request failed'),
   });
 
   const handleSave = (name: string, items: FieldTemplateItem[]) => {
@@ -237,14 +237,14 @@ function PromptTemplatesTab() {
     mutationFn: ({ name, content }: { name: string; content: string }) =>
       createPromptTemplate(name, content).then((r) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['prompt-templates'] }); setEditorOpen(false); message.success('Template created'); },
-    onError: (e: any) => message.error(e.response?.data?.message || 'Create failed'),
+    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Create failed'),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, name, content }: { id: string; name: string; content: string }) =>
       updatePromptTemplate(id, name, content).then((r) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['prompt-templates'] }); setEditorOpen(false); message.success('Template saved'); },
-    onError: (e: any) => message.error(e.response?.data?.message || 'Save failed'),
+    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Save failed'),
   });
 
   const deleteMutation = useMutation({
@@ -271,7 +271,7 @@ function PromptTemplatesTab() {
       qc.invalidateQueries({ queryKey: ['my-template-requests'] });
       message.success('Request submitted! Admins will review your template.');
     },
-    onError: (e: any) => message.error(e.response?.data?.message || 'Request failed'),
+    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Request failed'),
   });
 
   const handleSave = (name: string, content: string) => {
