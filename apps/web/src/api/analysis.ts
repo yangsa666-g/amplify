@@ -1,5 +1,5 @@
 import client from './client';
-import { AnalysisResult, AnalysisJob, AnalysisJobFeedback } from '../types';
+import type { AnalysisResult, AnalysisJob, AnalysisJobFeedback } from '../types';
 import type { ReasoningEffort } from '../types';
 
 export const runAnalysis = (

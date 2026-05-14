@@ -1,5 +1,5 @@
 import client from './client';
-import { User } from '../types';
+import type { User } from '../types';
 
 export const login = (email: string, password: string) =>
   client.post<{ accessToken: string; refreshToken: string; user: User }>('/auth/login', { email, password });

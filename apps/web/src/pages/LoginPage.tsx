@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { login } from '../api/auth';
 import { useAuthStore } from '../stores/authStore';
+import type { ApiError } from '../types';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ export default function LoginPage() {
           Amplify - Document Intelligent Platform
         </Typography.Title>
         {mutation.isError && (
-          <Alert message={(mutation.error as any)?.response?.data?.message || 'Login failed'} type="error" style={{ marginBottom: 16 }} />
+          <Alert message={(mutation.error as ApiError)?.response?.data?.message || 'Login failed'} type="error" style={{ marginBottom: 16 }} />
         )}
         <Form onFinish={(v) => mutation.mutate(v)} layout="vertical">
           <Form.Item name="email" rules={[{ required: true, type: 'email' }]}>

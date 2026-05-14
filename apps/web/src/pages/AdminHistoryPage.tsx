@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, Table, Tag, Typography } from 'antd';
+import type { TableColumnsType } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getHistory } from '../api/history';
-import type { AnalysisJob } from '../types';
+import type { AnalysisJob, CompareJob } from '../types';
 import AnalysisDetailDrawer from '../components/AnalysisDetailDrawer';
 import { useTextFilter, getFeedbackSummary } from '../utils/historyUtils';
 
@@ -42,12 +43,12 @@ export default function AdminHistoryPage() {
   const oldFileFilter = useTextFilter(['oldDocument', 'fileName']);
   const newFileFilter = useTextFilter(['newDocument', 'fileName']);
 
-  const analysisColumns: any[] = [
+  const analysisColumns: TableColumnsType<AnalysisJob> = [
     {
       title: 'User',
       dataIndex: ['user', 'name'],
       key: 'user',
-      render: (name: string, record: any) => name || record.userId,
+      render: (name: string, record: AnalysisJob) => name || record.userId,
       ...userFilter,
     },
     {
@@ -61,7 +62,7 @@ export default function AdminHistoryPage() {
       dataIndex: 'modelName',
       key: 'model',
       filters: modelOptions,
-      onFilter: (value: any, record: any) => record.modelName === value,
+      onFilter: (value: React.Key | boolean, record: AnalysisJob) => record.modelName === value,
     },
     {
       title: 'Reasoning Effort',
@@ -74,7 +75,7 @@ export default function AdminHistoryPage() {
         { text: 'High', value: 'high' },
         { text: 'XHigh', value: 'xhigh' },
       ],
-      onFilter: (value: any, record: any) => record.reasoningEffort === value,
+      onFilter: (value: React.Key | boolean, record: AnalysisJob) => record.reasoningEffort === value,
     },
     {
       title: 'Status',
@@ -89,7 +90,7 @@ export default function AdminHistoryPage() {
         { text: 'Running', value: 'running' },
         { text: 'Pending', value: 'pending' },
       ],
-      onFilter: (value: any, record: any) => record.status === value,
+      onFilter: (value: React.Key | boolean, record: AnalysisJob) => record.status === value,
     },
     {
       title: 'Feedback',
@@ -100,7 +101,7 @@ export default function AdminHistoryPage() {
         { text: '💬 Comment only', value: 'comment' },
         { text: 'No Feedback', value: 'none' },
       ],
-      onFilter: (value: any, record: any) => {
+      onFilter: (value: React.Key | boolean, record: AnalysisJob) => {
         const fb = getFeedbackSummary(record.feedbacks);
         if (value === 'none') return !fb;
         if (value === 'helpful') return fb?.rating === 1;
@@ -108,7 +109,7 @@ export default function AdminHistoryPage() {
         if (value === 'comment') return !!fb && (fb.rating === undefined || fb.rating === null) && !!fb.comment;
         return true;
       },
-      render: (_: any, record: AnalysisJob) => {
+      render: (_: unknown, record: AnalysisJob) => {
         const fb = getFeedbackSummary(record.feedbacks);
         if (!fb) return null;
         if (fb.rating === 1) return <Tag color="green">👍 Helpful</Tag>;
@@ -126,17 +127,17 @@ export default function AdminHistoryPage() {
       dataIndex: 'createdAt',
       key: 'date',
       render: (d: string) => new Date(d).toLocaleString(),
-      sorter: (a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      sorter: (a: AnalysisJob, b: AnalysisJob) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
       defaultSortOrder: 'descend' as const,
     },
   ];
 
-  const compareColumns: any[] = [
+  const compareColumns: TableColumnsType<CompareJob> = [
     {
       title: 'User',
       dataIndex: ['user', 'name'],
       key: 'user',
-      render: (name: string, record: any) => name || record.userId,
+      render: (name: string, record: CompareJob) => name || record.user?.id,
       ...userFilter,
     },
     {
@@ -159,7 +160,7 @@ export default function AdminHistoryPage() {
         { text: 'Unified', value: 'unified' },
         { text: 'Side by Side', value: 'side_by_side' },
       ],
-      onFilter: (value: any, record: any) => record.diffMode === value,
+      onFilter: (value: React.Key | boolean, record: CompareJob) => record.diffMode === value,
     },
     {
       title: 'Status',
@@ -172,14 +173,14 @@ export default function AdminHistoryPage() {
         { text: 'Running', value: 'running' },
         { text: 'Pending', value: 'pending' },
       ],
-      onFilter: (value: any, record: any) => record.status === value,
+      onFilter: (value: React.Key | boolean, record: CompareJob) => record.status === value,
     },
     {
       title: 'Date',
       dataIndex: 'createdAt',
       key: 'date',
       render: (d: string) => new Date(d).toLocaleString(),
-      sorter: (a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      sorter: (a: CompareJob, b: CompareJob) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
       defaultSortOrder: 'descend' as const,
     },
   ];

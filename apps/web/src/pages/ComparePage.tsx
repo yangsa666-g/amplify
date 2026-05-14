@@ -5,7 +5,7 @@ import { useMutation } from '@tanstack/react-query';
 import ReactDiffViewer from 'react-diff-viewer-continued';
 import { uploadDocument } from '../api/documents';
 import { runCompare } from '../api/compare';
-import type { Document, CompareResult } from '../types';
+import type { Document, CompareResult, ApiError } from '../types';
 
 const { Dragger } = Upload;
 
@@ -18,19 +18,19 @@ export default function ComparePage() {
   const oldUpload = useMutation({
     mutationFn: (file: File) => uploadDocument(file).then((r) => r.data),
     onSuccess: (doc) => { setOldDoc(doc); message.success(`Uploaded: ${doc.fileName}`); },
-    onError: (e: any) => message.error(e.response?.data?.message || 'Upload failed'),
+    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Upload failed'),
   });
 
   const newUpload = useMutation({
     mutationFn: (file: File) => uploadDocument(file).then((r) => r.data),
     onSuccess: (doc) => { setNewDoc(doc); message.success(`Uploaded: ${doc.fileName}`); },
-    onError: (e: any) => message.error(e.response?.data?.message || 'Upload failed'),
+    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Upload failed'),
   });
 
   const compareMutation = useMutation({
     mutationFn: () => runCompare(oldDoc!.id, newDoc!.id, diffMode).then((r) => r.data),
     onSuccess: (data) => { setResult(data); message.success('Comparison complete'); },
-    onError: (e: any) => message.error(e.response?.data?.message || 'Comparison failed'),
+    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Comparison failed'),
   });
 
   const oldText = result?.diffResult.chunks.filter((c) => c.type !== 'added').map((c) => c.value).join('') || '';

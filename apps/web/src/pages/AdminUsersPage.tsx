@@ -3,6 +3,7 @@ import {
   Typography, Table, Tag, Button, Space, Modal, Form, Input, Select,
   Popconfirm, message, Tooltip,
 } from 'antd';
+import type { TableColumnsType } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
   LockOutlined, UnlockOutlined,
@@ -13,7 +14,7 @@ import {
   updateAdminUserRole, updateAdminUserStatus, deleteAdminUser,
 } from '../api/adminUsers';
 import { useAuthStore } from '../stores/authStore';
-import type { User } from '../types';
+import type { User, ApiError } from '../types';
 
 type ModalMode = 'create' | 'edit';
 
@@ -35,33 +36,33 @@ export default function AdminUsersPage() {
   const createMutation = useMutation({
     mutationFn: createAdminUser,
     onSuccess: () => { message.success('User created'); setModalOpen(false); invalidate(); },
-    onError: (e: any) => message.error(e?.response?.data?.message ?? 'Failed to create user'),
+    onError: (e: ApiError) => message.error(e?.response?.data?.message ?? 'Failed to create user'),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: { name?: string; email?: string } }) =>
       updateAdminUser(id, data),
     onSuccess: () => { message.success('User updated'); setModalOpen(false); invalidate(); },
-    onError: (e: any) => message.error(e?.response?.data?.message ?? 'Failed to update user'),
+    onError: (e: ApiError) => message.error(e?.response?.data?.message ?? 'Failed to update user'),
   });
 
   const roleMutation = useMutation({
     mutationFn: ({ id, role }: { id: string; role: 'admin' | 'user' }) => updateAdminUserRole(id, role),
     onSuccess: () => { message.success('Role updated'); invalidate(); },
-    onError: (e: any) => message.error(e?.response?.data?.message ?? 'Failed to update role'),
+    onError: (e: ApiError) => message.error(e?.response?.data?.message ?? 'Failed to update role'),
   });
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: 'active' | 'disabled' }) =>
       updateAdminUserStatus(id, status),
     onSuccess: () => { message.success('Status updated'); invalidate(); },
-    onError: (e: any) => message.error(e?.response?.data?.message ?? 'Failed to update status'),
+    onError: (e: ApiError) => message.error(e?.response?.data?.message ?? 'Failed to update status'),
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteAdminUser,
     onSuccess: () => { message.success('User deleted'); invalidate(); },
-    onError: (e: any) => message.error(e?.response?.data?.message ?? 'Failed to delete user'),
+    onError: (e: ApiError) => message.error(e?.response?.data?.message ?? 'Failed to delete user'),
   });
 
   const openCreate = () => {
@@ -89,7 +90,7 @@ export default function AdminUsersPage() {
 
   const isSelf = (u: User) => u.id === currentUser?.id;
 
-  const columns: any[] = [
+  const columns: TableColumnsType<User> = [
     {
       title: 'Name',
       dataIndex: 'name',
@@ -106,7 +107,7 @@ export default function AdminUsersPage() {
       dataIndex: 'role',
       key: 'role',
       filters: [{ text: 'Admin', value: 'admin' }, { text: 'User', value: 'user' }],
-      onFilter: (v: any, r: User) => r.role === v,
+      onFilter: (v: React.Key | boolean, r: User) => r.role === v,
       render: (role: string, record: User) =>
         isSelf(record) ? (
           <Tag color={role === 'admin' ? 'volcano' : 'default'}>{role}</Tag>
@@ -125,7 +126,7 @@ export default function AdminUsersPage() {
       dataIndex: 'status',
       key: 'status',
       filters: [{ text: 'Active', value: 'active' }, { text: 'Disabled', value: 'disabled' }],
-      onFilter: (v: any, r: User) => r.status === v,
+      onFilter: (v: React.Key | boolean, r: User) => r.status === v,
       render: (status: string) => (
         <Tag color={status === 'active' ? 'green' : 'red'}>{status}</Tag>
       ),
@@ -148,7 +149,7 @@ export default function AdminUsersPage() {
     {
       title: 'Actions',
       key: 'actions',
-      render: (_: any, record: User) => (
+      render: (_: unknown, record: User) => (
         <Space size="small">
           <Tooltip title="Edit name / email">
             <Button

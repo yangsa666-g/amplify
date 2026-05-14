@@ -1,5 +1,5 @@
 import client from './client';
-import { User } from '../types';
+import type { User } from '../types';
 
 export const getAdminUsers = () =>
   client.get<User[]>('/admin/users');

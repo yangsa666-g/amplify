@@ -3,6 +3,7 @@ import { Card, Descriptions, Button, Form, Input, Typography, Space, Tag, messag
 import { useMutation } from '@tanstack/react-query';
 import { changePassword, logout } from '../api/auth';
 import { useAuthStore } from '../stores/authStore';
+import type { ApiError } from '../types';
 import { useNavigate } from 'react-router-dom';
 
 export default function ProfilePage() {
@@ -18,7 +19,7 @@ export default function ProfilePage() {
     mutationFn: ({ oldPassword, newPassword }: { oldPassword: string; newPassword: string }) =>
       changePassword(oldPassword, newPassword),
     onSuccess: () => message.success('Password changed successfully'),
-    onError: (e: any) => message.error(e.response?.data?.message || 'Failed to change password'),
+    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Failed to change password'),
   });
 
   return (

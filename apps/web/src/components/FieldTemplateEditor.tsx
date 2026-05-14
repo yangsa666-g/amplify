@@ -53,7 +53,7 @@ export default function FieldTemplateEditor({ queryKey, fetchFn, saveFn, resetFn
       dataIndex: 'fieldName',
       key: 'name',
       width: 200,
-      render: (_: any, r: FieldTemplateItem, i: number) => (
+      render: (_: unknown, r: FieldTemplateItem, i: number) => (
         <Input
           value={r.fieldName}
           onChange={(e) => {
@@ -68,7 +68,7 @@ export default function FieldTemplateEditor({ queryKey, fetchFn, saveFn, resetFn
       title: 'Description',
       dataIndex: 'fieldDescription',
       key: 'desc',
-      render: (_: any, r: FieldTemplateItem, i: number) => (
+      render: (_: unknown, r: FieldTemplateItem, i: number) => (
         <Input
           value={r.fieldDescription}
           onChange={(e) => {
@@ -83,7 +83,7 @@ export default function FieldTemplateEditor({ queryKey, fetchFn, saveFn, resetFn
       title: '',
       key: 'del',
       width: 56,
-      render: (_: any, __: any, i: number) => (
+      render: (_: unknown, __: unknown, i: number) => (
         <Button
           icon={<DeleteOutlined />}
           type="text"

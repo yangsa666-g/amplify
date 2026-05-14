@@ -4,7 +4,7 @@ import {
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, StarOutlined, StarFilled, CheckCircleOutlined, CloseCircleOutlined, KeyOutlined, CopyOutlined, EyeOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { FieldTemplate, FieldTemplateItem, PromptTemplate } from '../types';
+import type { FieldTemplate, FieldTemplateItem, PromptTemplate, ApiError } from '../types';
 import {
   adminListFieldTemplates, adminCreateFieldTemplate, adminUpdateFieldTemplate,
   adminDeleteFieldTemplate, adminSetDefaultFieldTemplate,
@@ -15,7 +15,8 @@ import {
 } from '../api/promptTemplates';
 import { getAdminRequests, approveRequest, rejectRequest } from '../api/templateRequests';
 import { FieldTemplateEditorModal, PromptEditorModal } from '../components/TemplateEditorModals';
-import { getApiKey, createApiKey, deleteApiKey, ExpiryOption, ApiKeyInfo } from '../api/apiKeys';
+import type { ExpiryOption, ApiKeyInfo } from '../api/apiKeys';
+import { getApiKey, createApiKey, deleteApiKey } from '../api/apiKeys';
 
 // ─── System Field Templates Tab ───────────────────────────────────────────────
 
@@ -116,14 +117,14 @@ function SystemPromptTemplatesTab() {
     mutationFn: ({ name, content }: { name: string; content: string }) =>
       adminCreatePromptTemplate(name, content).then((r) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-prompt-templates'] }); setEditorOpen(false); message.success('Template created'); },
-    onError: (e: any) => message.error(e.response?.data?.message || 'Create failed'),
+    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Create failed'),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, name, content }: { id: string; name: string; content: string }) =>
       adminUpdatePromptTemplate(id, name, content).then((r) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-prompt-templates'] }); setEditorOpen(false); message.success('Template saved'); },
-    onError: (e: any) => message.error(e.response?.data?.message || 'Save failed'),
+    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Save failed'),
   });
 
   const deleteMutation = useMutation({
@@ -386,7 +387,7 @@ function ApiKeysTab() {
       setKeyVisible(true);
       message.success('API Key created successfully');
     },
-    onError: (e: any) => message.error(e.response?.data?.message || 'Failed to create API key'),
+    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Failed to create API key'),
   });
 
   const deleteMutation = useMutation({

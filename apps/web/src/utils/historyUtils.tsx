@@ -1,11 +1,12 @@
 import React, { useRef } from 'react';
 import { Input, Button, Space } from 'antd';
+import type { InputRef } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import type { FilterDropdownProps } from 'antd/es/table/interface';
 import type { AnalysisJob } from '../types';
 
 export function useTextFilter(dataIndex: string | string[]) {
-  const searchInput = useRef<any>(null);
+  const searchInput = useRef<InputRef>(null);
   return {
     filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }: FilterDropdownProps) => (
       <div style={{ padding: 8 }} onKeyDown={(e) => e.stopPropagation()}>
@@ -28,9 +29,10 @@ export function useTextFilter(dataIndex: string | string[]) {
       </div>
     ),
     filterIcon: (filtered: boolean) => <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />,
-    onFilter: (value: any, record: any) => {
+    onFilter: (value: React.Key | boolean, record: unknown) => {
       const keys = Array.isArray(dataIndex) ? dataIndex : [dataIndex];
-      const val = keys.reduce((obj: any, k) => obj?.[k], record);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const val = keys.reduce((obj: any, k) => (obj as Record<string, unknown>)?.[k], record);
       return String(val ?? '').toLowerCase().includes(String(value).toLowerCase());
     },
     onFilterDropdownOpenChange: (open: boolean) => {

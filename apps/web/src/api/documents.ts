@@ -1,5 +1,5 @@
 import client from './client';
-import { Document } from '../types';
+import type { Document } from '../types';
 
 export const uploadDocument = (file: File) => {
   const form = new FormData();

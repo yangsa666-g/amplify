@@ -1,3 +1,7 @@
+import type { AxiosError } from 'axios';
+
+export type ApiError = AxiosError<{ message?: string }>;
+
 export interface User {
   id: string;
   email: string;
@@ -68,6 +72,7 @@ export interface AnalysisJob {
   document: { fileName: string };
   user?: { id: string; name: string; email: string };
   feedbacks?: Array<{ userId: string; rating: number; comment?: string | null }>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fieldExtractionResult?: { id: string; resultJson?: any[] } | null;
   riskAnalysisResult?: {
     id: string;
@@ -90,6 +95,7 @@ export interface AnalysisJobFeedback {
 export interface AnalysisResult {
   analysisJobId: string;
   status: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fieldExtractionResult: any[];
   riskAnalysisResult: { originalContractDescription: string; riskAnalysis: string };
 }
