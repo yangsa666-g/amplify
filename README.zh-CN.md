@@ -10,7 +10,11 @@
 - **模板管理** — 创建个人或系统级字段模板和提示词模板，标准化分析流程
 - **分析历史** — 浏览和回顾历史分析记录
 - **管理员后台** — 管理用户、查看全系统历史记录、配置系统模板
-- **Microsoft Entra ID 单点登录** — 可选的 Azure Entra SSO 支持
+- **External API（对外 API）** — 通过 API Key 鉴权，对外暴露上传 / 分析 / 比较等能力，便于第三方系统集成
+
+## 开发路线图（Roadmap）
+
+- [ ] **Microsoft Entra ID 单点登录** — 计划支持 Azure Entra SSO（暂未实现）
 
 ## 技术栈
 
@@ -21,7 +25,7 @@
 | AI | Azure OpenAI API、Anthropic Claude API |
 | 文档解析 | Azure Document Intelligence（OCR）、Mammoth（DOCX） |
 | 文件存储 | 本地磁盘（开发环境）/ Azure Blob Storage（生产环境） |
-| 认证 | JWT + 刷新令牌，可选 Microsoft Entra SSO |
+| 认证 | JWT + 刷新令牌；API Key（用于 External API） |
 | Monorepo | pnpm workspaces、Turborepo |
 
 ## 项目结构
@@ -158,9 +162,16 @@ make azure-build
 make azure-deploy-app
 ```
 
-详细部署指南（包括自托管 Docker Compose 拓扑）请参阅 [DEPLOYMENT.md](DEPLOYMENT.md)。
-
 ## API 概览
+
+后端提供两套独立的 API：
+
+- **Internal API（内部 API）** — 供 Web 前端使用，采用 JWT 访问令牌 + 刷新令牌进行鉴权。
+- **External API（对外 API，`/v1/*`）** — 面向第三方系统集成，使用 API Key 鉴权。
+
+API 运行时，可在 `http://localhost:3001/docs` 访问完整的 OpenAPI 文档。
+
+### Internal API（部分常用端点）
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
@@ -174,6 +185,43 @@ make azure-deploy-app
 | `GET` | `/models` | 列出可用的 AI 模型 |
 | `GET` | `/field-templates` | 列出字段模板 |
 | `GET` | `/prompt-templates` | 列出提示词模板 |
+
+### External API（对外 API）
+
+External API 允许外部系统在不经过用户登录的前提下，使用与 Web 应用相同的 上传 → 分析 / 比较 工作流。所有端点统一挂载在 `/v1` 下，需通过 API Key 鉴权。
+
+**鉴权方式。** 在每次请求中通过 `X-API-Key` 请求头携带 API Key。Key 在管理员后台签发与吊销，每个 Key 绑定到某个用户账号，调用所产生的权限与配额继承自该用户。
+
+```http
+X-API-Key: <your-api-key>
+```
+
+**端点列表：**
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| `POST` | `/v1/documents/upload` | 上传合同（`multipart/form-data`，最大 50 MB），返回 `documentId`。文本抽取为异步执行，需轮询直到 `textExtractionStatus` 为 `success`。 |
+| `POST` | `/v1/analysis/run` | 对已上传的文档执行字段抽取与风险分析，同步返回，通常耗时 10–60 秒。 |
+| `GET`  | `/v1/analysis/:id` | 查询历史分析任务结果。 |
+| `POST` | `/v1/compare/run` | 对两份已上传文档执行行级差异对比。 |
+| `GET`  | `/v1/compare/:id` | 查询历史比较任务结果。 |
+
+**示例 — 完整分析流程：**
+
+```bash
+# 1. 上传合同
+DOC_ID=$(curl -s -X POST http://localhost:3001/v1/documents/upload \
+  -H "X-API-Key: $API_KEY" \
+  -F "file=@contract.pdf" | jq -r .id)
+
+# 2. 待 textExtractionStatus = success 后，执行分析
+curl -X POST http://localhost:3001/v1/analysis/run \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"documentId\": \"$DOC_ID\", \"model\": \"gpt-5.4\"}"
+```
+
+完整的请求 / 响应结构请参阅 `/docs`。
 
 ## 许可证
 
