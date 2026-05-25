@@ -14,3 +14,12 @@ export const changePassword = (oldPassword: string, newPassword: string) =>
 
 export const refreshTokens = (refreshToken: string) =>
   client.post<{ accessToken: string; refreshToken: string }>('/auth/refresh', { refreshToken });
+
+// ─── Microsoft Entra ID SSO ──────────────────────────────────────────────────
+
+export const getEntraEnabled = () =>
+  client.get<{ enabled: boolean }>('/auth/entra/enabled');
+
+// Trades the one-time code from the SSO callback redirect for app session tokens.
+export const exchangeEntraCode = (code: string) =>
+  client.post<{ accessToken: string; refreshToken: string; user: User }>('/auth/entra/exchange', { code });

@@ -6,7 +6,8 @@ import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.use(cookieParser());
+  // Secret enables signed cookies (used by the Entra SSO transaction cookie).
+  app.use(cookieParser(process.env.COOKIE_SECRET || process.env.JWT_SECRET || 'dev-secret'));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.enableCors({
     origin: process.env.CORS_ORIGIN || 'http://localhost:3000',

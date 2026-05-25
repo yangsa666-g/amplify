@@ -11,10 +11,7 @@ An AI-powered contract analysis platform that helps you upload, parse, and analy
 - **Analysis History** — Browse and revisit past analyses
 - **Admin Dashboard** — Manage users, view system-wide history, and configure system templates
 - **External API** — Programmatic access to upload / analyze / compare endpoints via API key authentication
-
-## Roadmap
-
-- [ ] **Microsoft Entra ID SSO** — Single sign-on via Azure Entra (planned, not yet implemented)
+- **Microsoft Entra ID SSO** — Optional single sign-on via Azure Entra ID, alongside local username/password login
 
 ## Tech Stack
 
@@ -25,7 +22,7 @@ An AI-powered contract analysis platform that helps you upload, parse, and analy
 | AI | Azure OpenAI API, Anthropic Claude API |
 | Document Parsing | Azure Document Intelligence (OCR), Mammoth (DOCX) |
 | File Storage | Local disk (dev) / Azure Blob Storage (production) |
-| Auth | JWT + Refresh Tokens, API Key (for External API) |
+| Auth | JWT + Refresh Tokens, Microsoft Entra ID SSO (OIDC), API Key (for External API) |
 | Monorepo | pnpm workspaces, Turborepo |
 
 ## Project Structure
@@ -103,6 +100,30 @@ Copy `.env.example` to `.env` and fill in the values.
 | `SEED_ADMIN_EMAIL` | ❌ | Admin account email for initial seed |
 | `SEED_ADMIN_PASSWORD` | ❌ | Admin account password for initial seed |
 | `MAX_UPLOAD_SIZE_MB` | ❌ | Max upload file size in MB (default: 20) |
+| `ENTRA_CLIENT_ID` | ❌ | Entra app (client) ID. Blank disables SSO entirely |
+| `ENTRA_CLIENT_SECRET` | ❌ | Entra client secret (required when SSO is enabled) |
+| `ENTRA_TENANT_ID` | ❌ | Entra directory (tenant) GUID — single-tenant |
+| `ENTRA_REDIRECT_URI` | ❌ | Public callback URL, e.g. `https://<host>/api/auth/entra/callback` |
+| `ENTRA_POST_LOGIN_REDIRECT` | ❌ | SPA landing URL after callback, e.g. `https://<host>/auth/callback` |
+
+### Microsoft Entra ID SSO (optional)
+
+SSO runs alongside local login — leaving `ENTRA_CLIENT_ID` blank disables it cleanly
+(the "Sign in with Microsoft" button and the `/auth/entra/*` endpoints stay off).
+
+The flow is backend-driven OAuth2 Authorization Code + PKCE: Microsoft redirects to the
+NestJS callback, which validates the `id_token` (signature/issuer/audience/nonce via MSAL),
+provisions or links the local user, then issues the app's own JWT + refresh token — so the
+rest of the auth stack is unchanged. Behavior:
+
+- **First-time tenant users** are auto-provisioned (JIT) with the `user` role; an admin promotes them later.
+- **A matching local email** is auto-linked to the Entra identity (the account switches to SSO). This relies on the single-tenant restriction (`tid` is verified on every callback) and Entra-verified emails.
+- Identity is keyed on the stable Entra object id (`oid`), so a user's email can change without losing their account.
+
+**Azure app registration** (one-time): register a **single-tenant** app, add a **Web** platform
+redirect URI matching `ENTRA_REDIRECT_URI` (local: `http://localhost:3000/api/auth/entra/callback`),
+create a client secret, and grant delegated `openid`, `profile`, `email` permissions. Put the
+client/tenant IDs and secret into `.env` (local) or App Service settings / Key Vault (production).
 
 ## Available Make Targets
 
