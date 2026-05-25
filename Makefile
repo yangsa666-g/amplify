@@ -266,6 +266,7 @@ azure-config: ## Sync .env.azure app settings to the existing Azure Web App
 	    ENTRA_CLIENT_SECRET='$(ENTRA_CLIENT_SECRET)' \
 	    ENTRA_TENANT_ID='$(ENTRA_TENANT_ID)' \
 	    ENTRA_REDIRECT_URI='$(ENTRA_REDIRECT_URI)' \
+	    ENTRA_POST_LOGIN_REDIRECT='$(ENTRA_POST_LOGIN_REDIRECT)' \
 	    FILE_UPLOAD_DIR='/home/uploads' \
 	    MAX_UPLOAD_SIZE_MB='$(MAX_UPLOAD_SIZE_MB)' \
 	    SEED_ADMIN_EMAIL='$(SEED_ADMIN_EMAIL)' \

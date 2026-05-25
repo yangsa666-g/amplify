@@ -10,6 +10,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   UnauthorizedException,
   BadRequestException,
   ServiceUnavailableException,
@@ -33,6 +34,8 @@ interface EntraTx {
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private authService: AuthService,
     private entraService: EntraService,
@@ -164,9 +167,30 @@ export class AuthController {
     };
   }
 
+  // Resolves the SPA base URL for post-callback redirects. Prefers the explicit
+  // ENTRA_POST_LOGIN_REDIRECT, otherwise derives it from the origin of
+  // ENTRA_REDIRECT_URI (which is mandatory for SSO to be enabled at all), so a
+  // deployed environment never silently redirects to the localhost dev default.
+  private postLoginBase(): string {
+    const explicit = this.config.get<string>('ENTRA_POST_LOGIN_REDIRECT');
+    if (explicit) return explicit;
+
+    const redirectUri = this.config.get<string>('ENTRA_REDIRECT_URI');
+    if (redirectUri) {
+      this.logger.warn(
+        'ENTRA_POST_LOGIN_REDIRECT is not set; deriving the SPA redirect from ENTRA_REDIRECT_URI origin.',
+      );
+      return `${new URL(redirectUri).origin}/auth/callback`;
+    }
+
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('ENTRA_POST_LOGIN_REDIRECT or ENTRA_REDIRECT_URI must be configured for SSO in production');
+    }
+    return 'http://localhost:3000/auth/callback';
+  }
+
   private frontendOrigin(): string {
-    const base = this.config.get<string>('ENTRA_POST_LOGIN_REDIRECT') || 'http://localhost:3000/auth/callback';
-    return new URL(base).origin;
+    return new URL(this.postLoginBase()).origin;
   }
 
   private loginErrorUrl(code: string): string {
@@ -174,8 +198,7 @@ export class AuthController {
   }
 
   private successUrl(code: string, returnTo?: string): string {
-    const base = this.config.get<string>('ENTRA_POST_LOGIN_REDIRECT') || 'http://localhost:3000/auth/callback';
-    const u = new URL(base);
+    const u = new URL(this.postLoginBase());
     u.searchParams.set('code', code);
     if (returnTo) u.searchParams.set('returnTo', returnTo);
     return u.toString();
