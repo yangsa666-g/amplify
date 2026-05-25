@@ -1,11 +1,21 @@
 import React from 'react';
 import { Form, Input, Button, Card, Typography, Alert, Divider } from 'antd';
-import { UserOutlined, LockOutlined, WindowsOutlined } from '@ant-design/icons';
+import Icon, { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { login, getEntraEnabled } from '../api/auth';
 import { useAuthStore } from '../stores/authStore';
 import type { ApiError } from '../types';
+
+// Official Microsoft four-square logo (not the Windows glyph).
+const MicrosoftIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 23 23" width="1em" height="1em" {...props}>
+    <path fill="#F25022" d="M1 1h10v10H1z" />
+    <path fill="#7FBA00" d="M12 1h10v10H12z" />
+    <path fill="#00A4EF" d="M1 12h10v10H1z" />
+    <path fill="#FFB900" d="M12 12h10v10H12z" />
+  </svg>
+);
 
 const SSO_ERROR_MESSAGES: Record<string, string> = {
   state: 'The sign-in request could not be verified. Please try again.',
@@ -67,8 +77,8 @@ export default function LoginPage() {
         {entraEnabled.data && (
           <>
             <Divider plain style={{ color: '#999' }}>or</Divider>
-            <Button icon={<WindowsOutlined />} onClick={signInWithMicrosoft} block size="large">
-              Sign in with Microsoft
+            <Button icon={<Icon component={MicrosoftIcon} />} onClick={signInWithMicrosoft} block size="large">
+              SSO with Entra ID
             </Button>
           </>
         )}
