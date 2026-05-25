@@ -42,6 +42,39 @@ export class UsersService {
     });
   }
 
+  async findByEntraOid(entraOid: string) {
+    return this.prisma.user.findUnique({ where: { entraOid } });
+  }
+
+  // Creates an SSO user provisioned just-in-time from Entra claims (no password).
+  async createEntraUser(data: { entraOid: string; email: string; name: string }) {
+    return this.prisma.user.create({
+      data: {
+        email: data.email,
+        name: data.name,
+        entraOid: data.entraOid,
+        authProvider: 'entra',
+        passwordHash: null,
+        role: 'user',
+        status: 'active',
+      },
+    });
+  }
+
+  // Links an Entra identity onto an existing (local) account and switches it to SSO.
+  async linkEntraOid(id: string, entraOid: string) {
+    return this.prisma.user.update({
+      where: { id },
+      data: { entraOid, authProvider: 'entra' },
+    });
+  }
+
+  // Keeps the display name in sync with Entra on each login. Email is intentionally
+  // left untouched: it is @unique and changing it could collide with another row.
+  async syncEntraProfile(id: string, name: string) {
+    return this.prisma.user.update({ where: { id }, data: { name } });
+  }
+
   async updateUser(id: string, data: { name?: string; email?: string }) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');

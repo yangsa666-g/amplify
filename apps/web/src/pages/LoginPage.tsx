@@ -1,15 +1,41 @@
 import React from 'react';
-import { Form, Input, Button, Card, Typography, Alert } from 'antd';
-import { UserOutlined, LockOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
-import { login } from '../api/auth';
+import { Form, Input, Button, Card, Typography, Alert, Divider } from 'antd';
+import Icon, { UserOutlined, LockOutlined } from '@ant-design/icons';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { login, getEntraEnabled } from '../api/auth';
 import { useAuthStore } from '../stores/authStore';
 import type { ApiError } from '../types';
 
+// Official Microsoft four-square logo (not the Windows glyph).
+const MicrosoftIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg viewBox="0 0 23 23" width="1em" height="1em" {...props}>
+    <path fill="#F25022" d="M1 1h10v10H1z" />
+    <path fill="#7FBA00" d="M12 1h10v10H12z" />
+    <path fill="#00A4EF" d="M1 12h10v10H1z" />
+    <path fill="#FFB900" d="M12 12h10v10H12z" />
+  </svg>
+);
+
+const SSO_ERROR_MESSAGES: Record<string, string> = {
+  state: 'The sign-in request could not be verified. Please try again.',
+  exchange: 'We could not complete sign-in with Microsoft. Please try again.',
+  disabled: 'Your account is disabled. Please contact an administrator.',
+  provider: 'Microsoft reported a sign-in error. Please try again.',
+};
+
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const { setAuth } = useAuthStore();
+
+  const ssoError = params.get('sso_error');
+
+  const entraEnabled = useQuery({
+    queryKey: ['entra-enabled'],
+    queryFn: () => getEntraEnabled().then((r) => r.data.enabled),
+    staleTime: Infinity,
+  });
 
   const mutation = useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) =>
@@ -20,12 +46,20 @@ export default function LoginPage() {
     },
   });
 
+  const signInWithMicrosoft = () => {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || '/api';
+    window.location.href = `${apiBase}/auth/entra/login`;
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f2f5' }}>
       <Card style={{ width: 380 }}>
         <Typography.Title level={3} style={{ textAlign: 'center', marginBottom: 24 }}>
           Amplify - Document Intelligent Platform
         </Typography.Title>
+        {ssoError && (
+          <Alert message={SSO_ERROR_MESSAGES[ssoError] || 'Sign-in failed. Please try again.'} type="error" style={{ marginBottom: 16 }} />
+        )}
         {mutation.isError && (
           <Alert message={(mutation.error as ApiError)?.response?.data?.message || 'Login failed'} type="error" style={{ marginBottom: 16 }} />
         )}
@@ -40,6 +74,14 @@ export default function LoginPage() {
             Sign In
           </Button>
         </Form>
+        {entraEnabled.data && (
+          <>
+            <Divider plain style={{ color: '#999' }}>or</Divider>
+            <Button icon={<Icon component={MicrosoftIcon} />} onClick={signInWithMicrosoft} block size="large">
+              SSO with Entra ID
+            </Button>
+          </>
+        )}
       </Card>
     </div>
   );
