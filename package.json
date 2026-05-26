@@ -2,6 +2,8 @@
   "name": "amplify",
   "version": "0.0.0",
   "private": true,
+  "author": "Sa Yang",
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
