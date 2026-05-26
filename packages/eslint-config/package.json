@@ -2,12 +2,16 @@
   "name": "@repo/eslint-config",
   "version": "0.0.0",
   "private": true,
+  "license": "Apache-2.0",
   "main": "base.js",
   "exports": {
     "./base": "./base.js",
     "./react": "./react.js"
   },
-  "files": ["base.js", "react.js"],
+  "files": [
+    "base.js",
+    "react.js"
+  ],
   "peerDependencies": {
     "eslint": ">=9.0.0",
     "typescript-eslint": ">=7.0.0",

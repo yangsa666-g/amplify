@@ -245,4 +245,6 @@ curl -X POST http://localhost:3001/v1/analysis/run \
 
 ## 许可证
 
-详见 [LICENSE](LICENSE)。
+基于 [Apache License 2.0](LICENSE) 授权。
+
+Copyright © 2026 Sa Yang.

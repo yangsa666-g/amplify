@@ -246,4 +246,6 @@ See `/docs` for the full request/response schemas.
 
 ## License
 
-See [LICENSE](LICENSE).
+Licensed under the [Apache License 2.0](LICENSE).
+
+Copyright © 2026 Sa Yang.
