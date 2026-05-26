@@ -109,7 +109,7 @@ pnpm dev           # 同时启动 api（:3001）和 web（:3000）
 ### Microsoft Entra ID 单点登录（可选）
 
 SSO 与本地登录并存 —— 将 `ENTRA_CLIENT_ID` 留空即可干净地禁用它
-（"使用 Microsoft 登录" 按钮和 `/auth/entra/*` 端点都会关闭）。
+（"SSO with Entra ID" 按钮和 `/auth/entra/*` 端点都会关闭）。
 
 整个流程由后端驱动，采用 OAuth2 授权码 + PKCE：Microsoft 重定向到 NestJS 回调，
 回调通过 MSAL 校验 `id_token`（签名 / issuer / audience / nonce），随后创建或关联本地用户，
