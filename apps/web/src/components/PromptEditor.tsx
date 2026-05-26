@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Input, Space, Popconfirm, Spin, Typography, message } from 'antd';
+import { Button, Input, Space, Popconfirm, Spin, Typography } from 'antd';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation, Trans } from 'react-i18next';
+import { message } from '../utils/message';
 import type { PromptTemplate, ApiError } from '../types';
 
 interface Props {
@@ -12,10 +14,11 @@ interface Props {
 }
 
 export default function PromptEditor({ queryKey, fetchFn, saveFn, resetFn, showName = true }: Props) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey, queryFn: () => fetchFn().then((r) => r.data) });
   const [content, setContent] = useState('');
-  const [name, setName] = useState('My Risk Prompt');
+  const [name, setName] = useState(t('templateEditor.defaultPromptName'));
 
   useEffect(() => {
     if (data) {
@@ -28,9 +31,9 @@ export default function PromptEditor({ queryKey, fetchFn, saveFn, resetFn, showN
     mutationFn: () => saveFn(name, content).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey });
-      message.success('Prompt saved');
+      message.success(t('templateEditor.promptSaved'));
     },
-    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Save failed'),
+    onError: (e: ApiError) => message.error(e.response?.data?.message || t('settings.saveFailed')),
   });
 
   const resetMutation = useMutation({
@@ -38,7 +41,7 @@ export default function PromptEditor({ queryKey, fetchFn, saveFn, resetFn, showN
     onSuccess: (d) => {
       setContent(d.content);
       setName(d.name);
-      message.success('Reset to default');
+      message.success(t('templateEditor.resetDone'));
     },
   });
 
@@ -48,23 +51,23 @@ export default function PromptEditor({ queryKey, fetchFn, saveFn, resetFn, showN
     <Space direction="vertical" style={{ width: '100%' }}>
       {showName && (
         <Input
-          addonBefore="Prompt Name"
+          addonBefore={t('templateEditor.promptName')}
           value={name}
           onChange={(e) => setName(e.target.value)}
           style={{ maxWidth: 400 }}
         />
       )}
       <Typography.Text type="secondary">
-        Must contain <code>{'{contract_text}'}</code>
+        <Trans i18nKey="templateEditor.mustContain" values={{ token: '{contract_text}' }} components={{ 1: <code /> }} />
       </Typography.Text>
       <Input.TextArea rows={12} value={content} onChange={(e) => setContent(e.target.value)} />
-      <Space>
+      <Space wrap>
         <Button type="primary" loading={saveMutation.isPending} onClick={() => saveMutation.mutate()}>
-          Save
+          {t('common.save')}
         </Button>
         {resetFn && (
-          <Popconfirm title="Reset to system default?" onConfirm={() => resetMutation.mutate()}>
-            <Button>Reset to Default</Button>
+          <Popconfirm title={t('templateEditor.resetConfirm')} onConfirm={() => resetMutation.mutate()}>
+            <Button>{t('templateEditor.resetToDefault')}</Button>
           </Popconfirm>
         )}
       </Space>

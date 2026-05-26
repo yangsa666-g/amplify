@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, Input, Table, Button, Space, Typography } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { useTranslation, Trans } from 'react-i18next';
 import type { FieldTemplateItem } from '../types';
 
 // ─── Field Template Editor Modal ─────────────────────────────────────────────
@@ -15,8 +16,9 @@ interface FieldTemplateEditorModalProps {
 }
 
 export function FieldTemplateEditorModal({
-  open, title = 'Edit Field Template', initialData, onSave, onCancel, saving,
+  open, title, initialData, onSave, onCancel, saving,
 }: FieldTemplateEditorModalProps) {
+  const { t } = useTranslation();
   const [name, setName] = React.useState('');
   const [items, setItems] = React.useState<FieldTemplateItem[]>([]);
 
@@ -32,7 +34,7 @@ export function FieldTemplateEditorModal({
 
   const columns = [
     {
-      title: 'Field Name',
+      title: t('templateEditor.fieldName'),
       key: 'name',
       width: 180,
       render: (_: unknown, _r: FieldTemplateItem, i: number) => (
@@ -44,7 +46,7 @@ export function FieldTemplateEditorModal({
       ),
     },
     {
-      title: 'Description',
+      title: t('templateEditor.description'),
       key: 'desc',
       render: (_: unknown, _r: FieldTemplateItem, i: number) => (
         <Input value={items[i]?.fieldDescription} onChange={(e) => {
@@ -67,21 +69,22 @@ export function FieldTemplateEditorModal({
   return (
     <Modal
       open={open}
-      title={title}
+      title={title ?? t('templateEditor.editField')}
       onCancel={onCancel}
       onOk={() => onSave(name, items.map((it, i) => ({ ...it, sortOrder: i })))}
-      okText="Save"
+      okText={t('common.save')}
+      cancelText={t('common.cancel')}
       confirmLoading={saving}
       width={700}
     >
       <Space direction="vertical" style={{ width: '100%' }}>
-        <Input addonBefore="Template Name" value={name} onChange={(e) => setName(e.target.value)} style={{ maxWidth: 400 }} />
-        <Table dataSource={items} columns={columns} rowKey={(_, i) => String(i)} pagination={false} size="small" />
+        <Input addonBefore={t('templateEditor.templateName')} value={name} onChange={(e) => setName(e.target.value)} style={{ maxWidth: 400 }} />
+        <Table dataSource={items} columns={columns} rowKey={(_, i) => String(i)} pagination={false} size="small" scroll={{ x: 'max-content' }} />
         <Button
           icon={<PlusOutlined />}
           onClick={() => setItems([...items, { fieldName: '', fieldDescription: '', sortOrder: items.length }])}
         >
-          Add Field
+          {t('templateEditor.addField')}
         </Button>
       </Space>
     </Modal>
@@ -100,8 +103,9 @@ interface PromptEditorModalProps {
 }
 
 export function PromptEditorModal({
-  open, title = 'Edit Prompt Template', initialData, onSave, onCancel, saving,
+  open, title, initialData, onSave, onCancel, saving,
 }: PromptEditorModalProps) {
+  const { t } = useTranslation();
   const [name, setName] = React.useState('');
   const [content, setContent] = React.useState('');
 
@@ -118,16 +122,19 @@ export function PromptEditorModal({
   return (
     <Modal
       open={open}
-      title={title}
+      title={title ?? t('templateEditor.editPrompt')}
       onCancel={onCancel}
       onOk={() => onSave(name, content)}
-      okText="Save"
+      okText={t('common.save')}
+      cancelText={t('common.cancel')}
       confirmLoading={saving}
       width={700}
     >
       <Space direction="vertical" style={{ width: '100%' }}>
-        <Input addonBefore="Template Name" value={name} onChange={(e) => setName(e.target.value)} style={{ maxWidth: 400 }} />
-        <Typography.Text type="secondary">Must contain <code>{'{contract_text}'}</code></Typography.Text>
+        <Input addonBefore={t('templateEditor.templateName')} value={name} onChange={(e) => setName(e.target.value)} style={{ maxWidth: 400 }} />
+        <Typography.Text type="secondary">
+          <Trans i18nKey="templateEditor.mustContain" values={{ token: '{contract_text}' }} components={{ 1: <code /> }} />
+        </Typography.Text>
         <Input.TextArea rows={12} value={content} onChange={(e) => setContent(e.target.value)} />
       </Space>
     </Modal>

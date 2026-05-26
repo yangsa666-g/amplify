@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Input, Space, Popconfirm, Spin, message } from 'antd';
+import { Table, Button, Input, Space, Popconfirm, Spin } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { message } from '../utils/message';
 import type { FieldTemplate, FieldTemplateItem } from '../types';
 
 interface Props {
@@ -13,10 +15,11 @@ interface Props {
 }
 
 export default function FieldTemplateEditor({ queryKey, fetchFn, saveFn, resetFn, showName = true }: Props) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey, queryFn: () => fetchFn().then((r) => r.data) });
   const [items, setItems] = useState<FieldTemplateItem[]>([]);
-  const [templateName, setTemplateName] = useState('My Fields');
+  const [templateName, setTemplateName] = useState(t('templateEditor.defaultFieldsName'));
 
   useEffect(() => {
     if (data) {
@@ -30,9 +33,9 @@ export default function FieldTemplateEditor({ queryKey, fetchFn, saveFn, resetFn
       saveFn(templateName, items.map((it, i) => ({ ...it, sortOrder: i }))).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey });
-      message.success('Field template saved');
+      message.success(t('templateEditor.fieldTemplateSaved'));
     },
-    onError: () => message.error('Save failed'),
+    onError: () => message.error(t('settings.saveFailed')),
   });
 
   const resetMutation = useMutation({
@@ -41,7 +44,7 @@ export default function FieldTemplateEditor({ queryKey, fetchFn, saveFn, resetFn
       setItems(d.items);
       setTemplateName(d.name);
       qc.invalidateQueries({ queryKey });
-      message.success('Reset to default');
+      message.success(t('templateEditor.resetDone'));
     },
   });
 
@@ -49,7 +52,7 @@ export default function FieldTemplateEditor({ queryKey, fetchFn, saveFn, resetFn
 
   const columns = [
     {
-      title: 'Field Name',
+      title: t('templateEditor.fieldName'),
       dataIndex: 'fieldName',
       key: 'name',
       width: 200,
@@ -65,7 +68,7 @@ export default function FieldTemplateEditor({ queryKey, fetchFn, saveFn, resetFn
       ),
     },
     {
-      title: 'Description',
+      title: t('templateEditor.description'),
       dataIndex: 'fieldDescription',
       key: 'desc',
       render: (_: unknown, r: FieldTemplateItem, i: number) => (
@@ -98,7 +101,7 @@ export default function FieldTemplateEditor({ queryKey, fetchFn, saveFn, resetFn
     <Space direction="vertical" style={{ width: '100%' }}>
       {showName && (
         <Input
-          addonBefore="Template Name"
+          addonBefore={t('templateEditor.templateName')}
           value={templateName}
           onChange={(e) => setTemplateName(e.target.value)}
           style={{ maxWidth: 400 }}
@@ -110,22 +113,23 @@ export default function FieldTemplateEditor({ queryKey, fetchFn, saveFn, resetFn
         rowKey={(_, i) => String(i)}
         pagination={false}
         size="small"
+        scroll={{ x: 'max-content' }}
       />
-      <Space>
+      <Space wrap>
         <Button
           icon={<PlusOutlined />}
           onClick={() =>
             setItems([...items, { fieldName: '', fieldDescription: '', sortOrder: items.length }])
           }
         >
-          Add Field
+          {t('templateEditor.addField')}
         </Button>
         <Button type="primary" loading={saveMutation.isPending} onClick={() => saveMutation.mutate()}>
-          Save
+          {t('common.save')}
         </Button>
         {resetFn && (
-          <Popconfirm title="Reset to system default?" onConfirm={() => resetMutation.mutate()}>
-            <Button>Reset to Default</Button>
+          <Popconfirm title={t('templateEditor.resetConfirm')} onConfirm={() => resetMutation.mutate()}>
+            <Button>{t('templateEditor.resetToDefault')}</Button>
           </Popconfirm>
         )}
       </Space>

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Upload, Select, Button, Card, Table, Typography, Alert, Tabs, Spin, Tag, Space, message, Collapse } from 'antd';
+import { Upload, Select, Button, Card, Table, Typography, Alert, Tabs, Spin, Tag, Space, Collapse, theme } from 'antd';
 import { InboxOutlined, FileTextOutlined, UnorderedListOutlined, EditOutlined } from '@ant-design/icons';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation, Trans } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { uploadDocument, getDocumentText } from '../api/documents';
@@ -11,6 +13,8 @@ import { getModels } from '../api/models';
 import { listFieldTemplates } from '../api/fieldTemplates';
 import { listPromptTemplates } from '../api/promptTemplates';
 import { useAnalysisStore } from '../stores/analysisStore';
+import { message } from '../utils/message';
+import { statusLabel, effortLabel } from '../utils/labels';
 import type { FieldTemplate, PromptTemplate, ApiError } from '../types';
 
 const { Dragger } = Upload;
@@ -18,23 +22,23 @@ const { Dragger } = Upload;
 const LAST_FIELD_TEMPLATE_KEY = 'lastFieldTemplateId';
 const LAST_PROMPT_TEMPLATE_KEY = 'lastPromptTemplateId';
 
-function buildTemplateOptions(templates: (FieldTemplate | PromptTemplate)[]) {
+function buildTemplateOptions(templates: (FieldTemplate | PromptTemplate)[], t: TFunction) {
   const system = templates.filter((t) => t.scope === 'system');
   const personal = templates.filter((t) => t.scope === 'personal');
   const opts = [];
   if (system.length > 0) {
     opts.push({
-      label: 'System Templates',
-      options: system.map((t) => ({
-        label: (t as FieldTemplate).isDefault ? `${t.name} (Default)` : t.name,
-        value: t.id,
+      label: t('analysis.systemTemplates'),
+      options: system.map((tmpl) => ({
+        label: (tmpl as FieldTemplate).isDefault ? t('analysis.defaultSuffix', { name: tmpl.name }) : tmpl.name,
+        value: tmpl.id,
       })),
     });
   }
   if (personal.length > 0) {
     opts.push({
-      label: 'My Templates',
-      options: personal.map((t) => ({ label: t.name, value: t.id })),
+      label: t('analysis.myTemplates'),
+      options: personal.map((tmpl) => ({ label: tmpl.name, value: tmpl.id })),
     });
   }
   return opts;
@@ -42,6 +46,8 @@ function buildTemplateOptions(templates: (FieldTemplate | PromptTemplate)[]) {
 
 export default function AnalysisPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const { token } = theme.useToken();
   const {
     uploadedDoc,
     selectedModel,
@@ -109,8 +115,8 @@ export default function AnalysisPage() {
 
   const uploadMutation = useMutation({
     mutationFn: (file: File) => uploadDocument(file).then((r) => r.data),
-    onSuccess: (doc) => { setUploadedDoc(doc); setOcrPreviewOpen(false); message.success('File uploaded and text extracted'); },
-    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Upload failed'),
+    onSuccess: (doc) => { setUploadedDoc(doc); setOcrPreviewOpen(false); message.success(t('analysis.fileUploaded')); },
+    onError: (e: ApiError) => message.error(e.response?.data?.message || t('analysis.uploadFailed')),
   });
 
   const analysisMutation = useMutation({
@@ -128,42 +134,42 @@ export default function AnalysisPage() {
       // Remember last-used template IDs
       if (selectedFieldTemplateId) localStorage.setItem(LAST_FIELD_TEMPLATE_KEY, selectedFieldTemplateId);
       if (selectedPromptTemplateId) localStorage.setItem(LAST_PROMPT_TEMPLATE_KEY, selectedPromptTemplateId);
-      message.success('Analysis complete');
+      message.success(t('analysis.analysisComplete'));
     },
-    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Analysis failed'),
+    onError: (e: ApiError) => message.error(e.response?.data?.message || t('analysis.analysisFailed')),
   });
 
   const recentColumns = [
-    { title: 'File', dataIndex: ['document', 'fileName'], key: 'fileName' },
-    { title: 'Model', dataIndex: 'modelName', key: 'model' },
-    { title: 'Reasoning Effort', dataIndex: 'reasoningEffort', key: 'reasoningEffort' },
-    { title: 'Status', dataIndex: 'status', key: 'status', render: (s: string) => <Tag color={s === 'success' ? 'green' : s === 'failed' ? 'red' : 'blue'}>{s}</Tag> },
-    { title: 'Created', dataIndex: 'createdAt', key: 'createdAt', render: (d: string) => new Date(d).toLocaleString() },
+    { title: t('analysis.columns.file'), dataIndex: ['document', 'fileName'], key: 'fileName' },
+    { title: t('analysis.columns.model'), dataIndex: 'modelName', key: 'model' },
+    { title: t('analysis.columns.effort'), dataIndex: 'reasoningEffort', key: 'reasoningEffort', render: (e: string) => effortLabel(t, e) },
+    { title: t('analysis.columns.status'), dataIndex: 'status', key: 'status', render: (s: string) => <Tag color={s === 'success' ? 'green' : s === 'failed' ? 'red' : 'blue'}>{statusLabel(t, s)}</Tag> },
+    { title: t('analysis.columns.created'), dataIndex: 'createdAt', key: 'createdAt', render: (d: string) => new Date(d).toLocaleString() },
   ];
 
   const fieldColumns = [
-    { title: 'Field', dataIndex: 'field', key: 'field', width: 160 },
+    { title: t('analysis.columns.field'), dataIndex: 'field', key: 'field', width: 160 },
     {
-      title: 'Value',
+      title: t('analysis.columns.value'),
       dataIndex: 'extracted_value',
       key: 'value',
       render: (v: unknown) => {
-        if (v === null || v === undefined) return <Typography.Text type="secondary">Not found</Typography.Text>;
+        if (v === null || v === undefined) return <Typography.Text type="secondary">{t('analysis.columns.notFound')}</Typography.Text>;
         if (typeof v === 'object') return <Typography.Text code>{JSON.stringify(v, null, 2)}</Typography.Text>;
         return String(v);
       },
     },
-    { title: 'Confidence', dataIndex: 'confidence', key: 'conf', width: 100 },
+    { title: t('analysis.columns.confidence'), dataIndex: 'confidence', key: 'conf', width: 100 },
   ];
 
-  const fieldTemplateOptions = buildTemplateOptions(fieldTemplates);
-  const promptTemplateOptions = buildTemplateOptions(promptTemplates);
+  const fieldTemplateOptions = buildTemplateOptions(fieldTemplates, t);
+  const promptTemplateOptions = buildTemplateOptions(promptTemplates, t);
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Typography.Title level={4}>Contract Analysis</Typography.Title>
+      <Typography.Title level={4}>{t('analysis.title')}</Typography.Title>
 
-      <Card title="1. Upload Contract">
+      <Card title={t('analysis.step1')}>
         <Dragger
           multiple={false}
           showUploadList={false}
@@ -171,21 +177,21 @@ export default function AnalysisPage() {
           accept=".pdf,.docx,.txt"
         >
           <p className="ant-upload-drag-icon"><InboxOutlined /></p>
-          <p>Click or drag file here to upload (PDF, DOCX, TXT)</p>
+          <p>{t('analysis.dragHint')}</p>
         </Dragger>
         {uploadMutation.isPending && <Spin style={{ marginTop: 8 }} />}
         {uploadedDoc && uploadedDoc.textExtractionStatus === 'success' && (
           <Alert
             type="success"
-            message={`Uploaded: ${uploadedDoc.fileName} | Extraction: ${uploadedDoc.textExtractionStatus}`}
+            message={t('analysis.uploadedExtraction', { file: uploadedDoc.fileName, status: uploadedDoc.textExtractionStatus })}
             style={{ marginTop: 8 }}
           />
         )}
         {uploadedDoc && uploadedDoc.textExtractionStatus === 'failed' && (
           <Alert
             type="error"
-            message={`Extraction failed for: ${uploadedDoc.fileName}`}
-            description={uploadedDoc.extractionError ?? 'Unknown error — check server logs for details.'}
+            message={t('analysis.extractionFailed', { file: uploadedDoc.fileName })}
+            description={uploadedDoc.extractionError ?? t('analysis.extractionUnknownError')}
             style={{ marginTop: 8 }}
             showIcon
           />
@@ -200,7 +206,7 @@ export default function AnalysisPage() {
             label: (
               <Space>
                 <FileTextOutlined />
-                OCR Preview — verify the extracted content before running analysis
+                {t('analysis.ocrPreview')}
               </Space>
             ),
             children: ocrLoading ? (
@@ -210,7 +216,7 @@ export default function AnalysisPage() {
                 {ocrText ? (
                   <Markdown remarkPlugins={[remarkGfm]}>{ocrText}</Markdown>
                 ) : (
-                  <Typography.Text type="secondary">No content available.</Typography.Text>
+                  <Typography.Text type="secondary">{t('analysis.noContent')}</Typography.Text>
                 )}
               </div>
             ),
@@ -222,17 +228,18 @@ export default function AnalysisPage() {
         title={
           <Space>
             <UnorderedListOutlined />
-            2. Extraction Fields Template
+            {t('analysis.step2')}
           </Space>
         }
       >
         <Space direction="vertical" style={{ width: '100%' }}>
           <Typography.Text type="secondary">
-            Select a field template to define which fields to extract from the contract. Manage your templates in <a href="/settings">Settings</a>.
+            {t('analysis.fieldTemplateHint')}{' '}
+            <Trans i18nKey="analysis.manageInSettings" components={{ 1: <a href="/settings" /> }} />
           </Typography.Text>
           <Select
             style={{ width: '100%', maxWidth: 480 }}
-            placeholder="Select a field template"
+            placeholder={t('analysis.selectFieldTemplate')}
             value={selectedFieldTemplateId}
             onChange={(id) => { setSelectedFieldTemplateId(id); localStorage.setItem(LAST_FIELD_TEMPLATE_KEY, id); }}
             options={fieldTemplateOptions}
@@ -245,17 +252,18 @@ export default function AnalysisPage() {
         title={
           <Space>
             <EditOutlined />
-            3. Risk Analysis Prompt Template
+            {t('analysis.step3')}
           </Space>
         }
       >
         <Space direction="vertical" style={{ width: '100%' }}>
           <Typography.Text type="secondary">
-            Select a prompt template for risk analysis. Manage your templates in <a href="/settings">Settings</a>.
+            {t('analysis.promptTemplateHint')}{' '}
+            <Trans i18nKey="analysis.manageInSettings" components={{ 1: <a href="/settings" /> }} />
           </Typography.Text>
           <Select
             style={{ width: '100%', maxWidth: 480 }}
-            placeholder="Select a prompt template"
+            placeholder={t('analysis.selectPromptTemplate')}
             value={selectedPromptTemplateId}
             onChange={(id) => { setSelectedPromptTemplateId(id); localStorage.setItem(LAST_PROMPT_TEMPLATE_KEY, id); }}
             options={promptTemplateOptions}
@@ -264,13 +272,13 @@ export default function AnalysisPage() {
         </Space>
       </Card>
 
-      <Card title="4. Select Model & Run">
+      <Card title={t('analysis.step4')}>
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
           <Space align="end" wrap size={24}>
             <Space direction="vertical" size={4}>
-              <Typography.Text strong>Model</Typography.Text>
+              <Typography.Text strong>{t('analysis.model')}</Typography.Text>
               <Select
-                placeholder="Select AI model"
+                placeholder={t('analysis.selectModel')}
                 style={{ width: 220 }}
                 value={selectedModel || undefined}
                 onChange={setSelectedModel}
@@ -279,20 +287,20 @@ export default function AnalysisPage() {
             </Space>
             <Space direction="vertical" size={4}>
               <Space size={6}>
-                <Typography.Text strong>Reasoning Effort</Typography.Text>
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>(for models that support it)</Typography.Text>
+                <Typography.Text strong>{t('effort.label')}</Typography.Text>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>{t('effort.hint')}</Typography.Text>
               </Space>
               <Select
-                placeholder="Select reasoning effort"
+                placeholder={t('analysis.selectEffort')}
                 style={{ width: 210 }}
                 value={selectedReasoningEffort}
                 onChange={setSelectedReasoningEffort}
                 options={[
-                  { label: 'None', value: 'none' },
-                  { label: 'Low', value: 'low' },
-                  { label: 'Medium', value: 'medium' },
-                  { label: 'High', value: 'high' },
-                  { label: 'XHigh', value: 'xhigh' },
+                  { label: t('effort.none'), value: 'none' },
+                  { label: t('effort.low'), value: 'low' },
+                  { label: t('effort.medium'), value: 'medium' },
+                  { label: t('effort.high'), value: 'high' },
+                  { label: t('effort.xhigh'), value: 'xhigh' },
                 ]}
               />
             </Space>
@@ -302,21 +310,21 @@ export default function AnalysisPage() {
               disabled={!uploadedDoc || !selectedModel || uploadedDoc.textExtractionStatus !== 'success'}
               onClick={() => analysisMutation.mutate()}
             >
-              Run Analysis
+              {t('analysis.runAnalysis')}
             </Button>
           </Space>
           {analysisMutation.isError && (
-            <Alert type="error" message={(analysisMutation.error as ApiError)?.response?.data?.message || 'Analysis failed'} />
+            <Alert type="error" message={(analysisMutation.error as ApiError)?.response?.data?.message || t('analysis.analysisFailed')} />
           )}
         </Space>
       </Card>
 
       {result && (
-        <Card title="5. Results">
+        <Card title={t('analysis.step5')}>
           <Tabs items={[
             {
               key: 'fields',
-              label: 'Field Extraction',
+              label: t('analysis.fieldExtraction'),
               children: Array.isArray(result.fieldExtractionResult) ? (
                 <Table
                   dataSource={result.fieldExtractionResult}
@@ -324,31 +332,32 @@ export default function AnalysisPage() {
                   rowKey={(row, idx) => row.field ?? String(idx)}
                   pagination={false}
                   size="small"
+                  scroll={{ x: 'max-content' }}
                 />
               ) : (
-                <Alert type="warning" message="Field extraction result is not available or has an unexpected format." />
+                <Alert type="warning" message={t('analysis.fieldResultBadFormat')} />
               ),
             },
             {
               key: 'risk',
-              label: 'Risk Analysis',
+              label: t('analysis.riskAnalysis'),
               children: (
                 <div style={{ maxHeight: 500, overflowY: 'auto', padding: '0 4px' }}>
                   {result.riskAnalysisResult.originalContractDescription && (
                     <>
-                      <Typography.Title level={5} style={{ marginTop: 0 }}>Original Contract Description</Typography.Title>
+                      <Typography.Title level={5} style={{ marginTop: 0 }}>{t('analysis.originalContractDescription')}</Typography.Title>
                       <Markdown remarkPlugins={[remarkGfm]}>{result.riskAnalysisResult.originalContractDescription}</Markdown>
-                      <hr style={{ margin: '16px 0', borderColor: '#f0f0f0' }} />
+                      <hr style={{ margin: '16px 0', border: 'none', borderTop: `1px solid ${token.colorBorderSecondary}` }} />
                     </>
                   )}
                   {result.riskAnalysisResult.riskAnalysis && (
                     <>
-                      <Typography.Title level={5} style={{ marginTop: 0 }}>Risk Analysis</Typography.Title>
+                      <Typography.Title level={5} style={{ marginTop: 0 }}>{t('analysis.riskAnalysis')}</Typography.Title>
                       <Markdown remarkPlugins={[remarkGfm]}>{result.riskAnalysisResult.riskAnalysis}</Markdown>
                     </>
                   )}
                   {!result.riskAnalysisResult.originalContractDescription && !result.riskAnalysisResult.riskAnalysis && (
-                    <Alert type="info" message="No risk analysis results available." />
+                    <Alert type="info" message={t('analysis.noRiskResults')} />
                   )}
                 </div>
               ),
@@ -357,13 +366,14 @@ export default function AnalysisPage() {
         </Card>
       )}
 
-      <Card title="Recent History">
+      <Card title={t('analysis.recentHistory')}>
         <Table
           dataSource={recent}
           columns={recentColumns}
           rowKey="id"
           pagination={false}
           size="small"
+          scroll={{ x: 'max-content' }}
           onRow={(record) => ({
             onClick: () => navigate(`/history?jobId=${record.id}`),
             style: { cursor: 'pointer' },
@@ -373,4 +383,3 @@ export default function AnalysisPage() {
     </Space>
   );
 }
-

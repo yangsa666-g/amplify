@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Typography, Table, Tag, Button, Space, Modal, Form, Input, Select,
-  Popconfirm, message, Tooltip,
+  Popconfirm, Tooltip,
 } from 'antd';
 import type { TableColumnsType } from 'antd';
 import {
@@ -9,22 +9,28 @@ import {
   LockOutlined, UnlockOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import {
   getAdminUsers, createAdminUser, updateAdminUser,
   updateAdminUserRole, updateAdminUserStatus, deleteAdminUser,
 } from '../api/adminUsers';
 import { useAuthStore } from '../stores/authStore';
+import { message } from '../utils/message';
 import type { User, ApiError } from '../types';
 
 type ModalMode = 'create' | 'edit';
 
 export default function AdminUsersPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuthStore();
   const [form] = Form.useForm();
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<ModalMode>('create');
   const [editingUser, setEditingUser] = useState<User | null>(null);
+
+  const roleLabel = (role: string) => (role === 'admin' ? t('admin.users.roleAdmin') : t('admin.users.roleUser'));
+  const userStatusLabel = (status: string) => (status === 'active' ? t('admin.users.statusActive') : t('admin.users.statusDisabled'));
 
   const { data: users, isLoading } = useQuery({
     queryKey: ['admin-users'],
@@ -35,34 +41,34 @@ export default function AdminUsersPage() {
 
   const createMutation = useMutation({
     mutationFn: createAdminUser,
-    onSuccess: () => { message.success('User created'); setModalOpen(false); invalidate(); },
-    onError: (e: ApiError) => message.error(e?.response?.data?.message ?? 'Failed to create user'),
+    onSuccess: () => { message.success(t('admin.users.userCreated')); setModalOpen(false); invalidate(); },
+    onError: (e: ApiError) => message.error(e?.response?.data?.message ?? t('admin.users.createFailed')),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: { name?: string; email?: string } }) =>
       updateAdminUser(id, data),
-    onSuccess: () => { message.success('User updated'); setModalOpen(false); invalidate(); },
-    onError: (e: ApiError) => message.error(e?.response?.data?.message ?? 'Failed to update user'),
+    onSuccess: () => { message.success(t('admin.users.userUpdated')); setModalOpen(false); invalidate(); },
+    onError: (e: ApiError) => message.error(e?.response?.data?.message ?? t('admin.users.updateFailed')),
   });
 
   const roleMutation = useMutation({
     mutationFn: ({ id, role }: { id: string; role: 'admin' | 'user' }) => updateAdminUserRole(id, role),
-    onSuccess: () => { message.success('Role updated'); invalidate(); },
-    onError: (e: ApiError) => message.error(e?.response?.data?.message ?? 'Failed to update role'),
+    onSuccess: () => { message.success(t('admin.users.roleUpdated')); invalidate(); },
+    onError: (e: ApiError) => message.error(e?.response?.data?.message ?? t('admin.users.roleFailed')),
   });
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: 'active' | 'disabled' }) =>
       updateAdminUserStatus(id, status),
-    onSuccess: () => { message.success('Status updated'); invalidate(); },
-    onError: (e: ApiError) => message.error(e?.response?.data?.message ?? 'Failed to update status'),
+    onSuccess: () => { message.success(t('admin.users.statusUpdated')); invalidate(); },
+    onError: (e: ApiError) => message.error(e?.response?.data?.message ?? t('admin.users.statusFailed')),
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteAdminUser,
-    onSuccess: () => { message.success('User deleted'); invalidate(); },
-    onError: (e: ApiError) => message.error(e?.response?.data?.message ?? 'Failed to delete user'),
+    onSuccess: () => { message.success(t('admin.users.userDeleted')); invalidate(); },
+    onError: (e: ApiError) => message.error(e?.response?.data?.message ?? t('admin.users.deleteFailed')),
   });
 
   const openCreate = () => {
@@ -92,53 +98,53 @@ export default function AdminUsersPage() {
 
   const columns: TableColumnsType<User> = [
     {
-      title: 'Name',
+      title: t('admin.users.colName'),
       dataIndex: 'name',
       key: 'name',
       sorter: (a: User, b: User) => a.name.localeCompare(b.name),
     },
     {
-      title: 'Email',
+      title: t('admin.users.colEmail'),
       dataIndex: 'email',
       key: 'email',
     },
     {
-      title: 'Role',
+      title: t('admin.users.colRole'),
       dataIndex: 'role',
       key: 'role',
-      filters: [{ text: 'Admin', value: 'admin' }, { text: 'User', value: 'user' }],
+      filters: [{ text: t('admin.users.roleAdmin'), value: 'admin' }, { text: t('admin.users.roleUser'), value: 'user' }],
       onFilter: (v: React.Key | boolean, r: User) => r.role === v,
       render: (role: string, record: User) =>
         isSelf(record) ? (
-          <Tag color={role === 'admin' ? 'volcano' : 'default'}>{role}</Tag>
+          <Tag color={role === 'admin' ? 'volcano' : 'default'}>{roleLabel(role)}</Tag>
         ) : (
           <Select
             value={role}
             size="small"
-            style={{ width: 90 }}
-            options={[{ value: 'admin', label: 'admin' }, { value: 'user', label: 'user' }]}
+            style={{ width: 100 }}
+            options={[{ value: 'admin', label: t('admin.users.roleAdmin') }, { value: 'user', label: t('admin.users.roleUser') }]}
             onChange={(val) => roleMutation.mutate({ id: record.id, role: val as 'admin' | 'user' })}
           />
         ),
     },
     {
-      title: 'Status',
+      title: t('admin.users.colStatus'),
       dataIndex: 'status',
       key: 'status',
-      filters: [{ text: 'Active', value: 'active' }, { text: 'Disabled', value: 'disabled' }],
+      filters: [{ text: t('admin.users.statusActive'), value: 'active' }, { text: t('admin.users.statusDisabled'), value: 'disabled' }],
       onFilter: (v: React.Key | boolean, r: User) => r.status === v,
       render: (status: string) => (
-        <Tag color={status === 'active' ? 'green' : 'red'}>{status}</Tag>
+        <Tag color={status === 'active' ? 'green' : 'red'}>{userStatusLabel(status)}</Tag>
       ),
     },
     {
-      title: 'Auth',
+      title: t('admin.users.colAuth'),
       dataIndex: 'authProvider',
       key: 'auth',
       render: (p: string) => <Tag>{p}</Tag>,
     },
     {
-      title: 'Joined',
+      title: t('admin.users.colJoined'),
       dataIndex: 'createdAt',
       key: 'joined',
       render: (d: string) => new Date(d).toLocaleDateString(),
@@ -147,11 +153,11 @@ export default function AdminUsersPage() {
       defaultSortOrder: 'descend' as const,
     },
     {
-      title: 'Actions',
+      title: t('admin.users.colActions'),
       key: 'actions',
       render: (_: unknown, record: User) => (
         <Space size="small">
-          <Tooltip title="Edit name / email">
+          <Tooltip title={t('admin.users.editNameEmail')}>
             <Button
               size="small"
               icon={<EditOutlined />}
@@ -159,7 +165,7 @@ export default function AdminUsersPage() {
               disabled={isSelf(record)}
             />
           </Tooltip>
-          <Tooltip title={record.status === 'active' ? 'Disable account' : 'Enable account'}>
+          <Tooltip title={record.status === 'active' ? t('admin.users.disableAccount') : t('admin.users.enableAccount')}>
             <Button
               size="small"
               icon={record.status === 'active' ? <LockOutlined /> : <UnlockOutlined />}
@@ -174,14 +180,14 @@ export default function AdminUsersPage() {
             />
           </Tooltip>
           <Popconfirm
-            title="Delete this user?"
-            description="This cannot be undone. All their data will be deleted."
+            title={t('admin.users.deleteConfirmTitle')}
+            description={t('admin.users.deleteConfirmDesc')}
             onConfirm={() => deleteMutation.mutate(record.id)}
-            okText="Delete"
+            okText={t('common.delete')}
             okType="danger"
             disabled={isSelf(record)}
           >
-            <Tooltip title="Delete user">
+            <Tooltip title={t('admin.users.deleteUser')}>
               <Button
                 size="small"
                 icon={<DeleteOutlined />}
@@ -197,10 +203,10 @@ export default function AdminUsersPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>User Management</Typography.Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
+        <Typography.Title level={4} style={{ margin: 0 }}>{t('admin.users.title')}</Typography.Title>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-          Create User
+          {t('admin.users.createUser')}
         </Button>
       </div>
 
@@ -210,28 +216,30 @@ export default function AdminUsersPage() {
         columns={columns}
         rowKey="id"
         size="small"
+        scroll={{ x: 'max-content' }}
         pagination={{ pageSize: 20, showSizeChanger: true }}
       />
 
       <Modal
-        title={modalMode === 'create' ? 'Create User' : 'Edit User'}
+        title={modalMode === 'create' ? t('admin.users.createUser') : t('admin.users.editUser')}
         open={modalOpen}
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
-        okText={modalMode === 'create' ? 'Create' : 'Save'}
+        okText={modalMode === 'create' ? t('common.create') : t('common.save')}
+        cancelText={t('common.cancel')}
         destroyOnHidden
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="name" label="Name" rules={[{ required: true, message: 'Name is required' }]}>
+          <Form.Item name="name" label={t('admin.users.colName')} rules={[{ required: true, message: t('admin.users.nameRequired') }]}>
             <Input />
           </Form.Item>
           <Form.Item
             name="email"
-            label="Email"
+            label={t('admin.users.colEmail')}
             rules={[
-              { required: true, message: 'Email is required' },
-              { type: 'email', message: 'Enter a valid email' },
+              { required: true, message: t('admin.users.emailRequired') },
+              { type: 'email', message: t('admin.users.validEmail') },
             ]}
           >
             <Input />
@@ -240,16 +248,16 @@ export default function AdminUsersPage() {
             <>
               <Form.Item
                 name="password"
-                label="Password"
+                label={t('admin.users.password')}
                 rules={[
-                  { required: true, message: 'Password is required' },
-                  { min: 8, message: 'Minimum 8 characters' },
+                  { required: true, message: t('admin.users.passwordRequired') },
+                  { min: 8, message: t('admin.users.minChars') },
                 ]}
               >
                 <Input.Password />
               </Form.Item>
-              <Form.Item name="role" label="Role" initialValue="user">
-                <Select options={[{ value: 'user', label: 'User' }, { value: 'admin', label: 'Admin' }]} />
+              <Form.Item name="role" label={t('admin.users.colRole')} initialValue="user">
+                <Select options={[{ value: 'user', label: t('admin.users.roleUser') }, { value: 'admin', label: t('admin.users.roleAdmin') }]} />
               </Form.Item>
             </>
           )}

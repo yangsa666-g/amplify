@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
-import { Upload, Button, Card, Radio, Typography, Alert, Space, message } from 'antd';
+import { Upload, Button, Card, Radio, Typography, Alert, Space } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import { useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import ReactDiffViewer from 'react-diff-viewer-continued';
 import { uploadDocument } from '../api/documents';
 import { runCompare } from '../api/compare';
+import { message } from '../utils/message';
+import { useIsDark } from '../hooks/useIsDark';
 import type { Document, CompareResult, ApiError } from '../types';
 
 const { Dragger } = Upload;
 
 export default function ComparePage() {
+  const { t } = useTranslation();
+  const isDark = useIsDark();
   const [oldDoc, setOldDoc] = useState<Document | null>(null);
   const [newDoc, setNewDoc] = useState<Document | null>(null);
   const [diffMode, setDiffMode] = useState<'side_by_side' | 'unified'>('side_by_side');
@@ -17,20 +22,20 @@ export default function ComparePage() {
 
   const oldUpload = useMutation({
     mutationFn: (file: File) => uploadDocument(file).then((r) => r.data),
-    onSuccess: (doc) => { setOldDoc(doc); message.success(`Uploaded: ${doc.fileName}`); },
-    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Upload failed'),
+    onSuccess: (doc) => { setOldDoc(doc); message.success(t('compare.uploaded', { file: doc.fileName })); },
+    onError: (e: ApiError) => message.error(e.response?.data?.message || t('compare.uploadFailed')),
   });
 
   const newUpload = useMutation({
     mutationFn: (file: File) => uploadDocument(file).then((r) => r.data),
-    onSuccess: (doc) => { setNewDoc(doc); message.success(`Uploaded: ${doc.fileName}`); },
-    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Upload failed'),
+    onSuccess: (doc) => { setNewDoc(doc); message.success(t('compare.uploaded', { file: doc.fileName })); },
+    onError: (e: ApiError) => message.error(e.response?.data?.message || t('compare.uploadFailed')),
   });
 
   const compareMutation = useMutation({
     mutationFn: () => runCompare(oldDoc!.id, newDoc!.id, diffMode).then((r) => r.data),
-    onSuccess: (data) => { setResult(data); message.success('Comparison complete'); },
-    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Comparison failed'),
+    onSuccess: (data) => { setResult(data); message.success(t('compare.comparisonComplete')); },
+    onError: (e: ApiError) => message.error(e.response?.data?.message || t('compare.comparisonFailed')),
   });
 
   const oldText = result?.diffResult.chunks.filter((c) => c.type !== 'added').map((c) => c.value).join('') || '';
@@ -38,28 +43,28 @@ export default function ComparePage() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Typography.Title level={4}>Contract Compare</Typography.Title>
+      <Typography.Title level={4}>{t('compare.title')}</Typography.Title>
 
       <Card>
-        <Space size={16} style={{ width: '100%' }} align="start">
-          <Card title="Old Version" style={{ flex: 1, minWidth: 240 }} size="small">
+        <Space size={16} style={{ width: '100%' }} align="start" wrap>
+          <Card title={t('compare.oldVersion')} style={{ flex: 1, minWidth: 240 }} size="small">
             <Dragger multiple={false} showUploadList={false} beforeUpload={(f) => { oldUpload.mutate(f); return false; }} accept=".pdf,.docx,.txt">
-              <p><InboxOutlined /></p><p>Upload old version</p>
+              <p><InboxOutlined /></p><p>{t('compare.uploadOld')}</p>
             </Dragger>
             {oldDoc && <Alert type="success" message={oldDoc.fileName} style={{ marginTop: 8 }} />}
           </Card>
-          <Card title="New Version" style={{ flex: 1, minWidth: 240 }} size="small">
+          <Card title={t('compare.newVersion')} style={{ flex: 1, minWidth: 240 }} size="small">
             <Dragger multiple={false} showUploadList={false} beforeUpload={(f) => { newUpload.mutate(f); return false; }} accept=".pdf,.docx,.txt">
-              <p><InboxOutlined /></p><p>Upload new version</p>
+              <p><InboxOutlined /></p><p>{t('compare.uploadNew')}</p>
             </Dragger>
             {newDoc && <Alert type="success" message={newDoc.fileName} style={{ marginTop: 8 }} />}
           </Card>
         </Space>
 
-        <Space style={{ marginTop: 16 }}>
+        <Space style={{ marginTop: 16 }} wrap>
           <Radio.Group value={diffMode} onChange={(e) => setDiffMode(e.target.value)}>
-            <Radio.Button value="side_by_side">Side by Side</Radio.Button>
-            <Radio.Button value="unified">Unified</Radio.Button>
+            <Radio.Button value="side_by_side">{t('compare.sideBySide')}</Radio.Button>
+            <Radio.Button value="unified">{t('compare.unified')}</Radio.Button>
           </Radio.Group>
           <Button
             type="primary"
@@ -67,20 +72,23 @@ export default function ComparePage() {
             disabled={!oldDoc || !newDoc}
             onClick={() => compareMutation.mutate()}
           >
-            Compare
+            {t('compare.compare')}
           </Button>
         </Space>
       </Card>
 
       {result && (
-        <Card title={`Diff Result — Added: ${result.diffResult.stats.added} | Removed: ${result.diffResult.stats.removed}`}>
-          <ReactDiffViewer
-            oldValue={oldText}
-            newValue={newText}
-            splitView={diffMode === 'side_by_side'}
-            leftTitle={oldDoc?.fileName}
-            rightTitle={newDoc?.fileName}
-          />
+        <Card title={t('compare.diffResult', { added: result.diffResult.stats.added, removed: result.diffResult.stats.removed })}>
+          <div style={{ overflowX: 'auto' }}>
+            <ReactDiffViewer
+              oldValue={oldText}
+              newValue={newText}
+              splitView={diffMode === 'side_by_side'}
+              useDarkTheme={isDark}
+              leftTitle={oldDoc?.fileName}
+              rightTitle={newDoc?.fileName}
+            />
+          </div>
         </Card>
       )}
     </Space>

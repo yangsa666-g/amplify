@@ -1,5 +1,6 @@
 import React from 'react';
 import { Alert, Button } from 'antd';
+import i18n from '../i18n';
 
 interface State {
   error: Error | null;
@@ -22,12 +23,12 @@ export default class ErrorBoundary extends React.Component<React.PropsWithChildr
         <div style={{ padding: 24 }}>
           <Alert
             type="error"
-            message="Something went wrong"
+            message={i18n.t('common.somethingWrong')}
             description={this.state.error.message}
             showIcon
             action={
               <Button size="small" onClick={() => this.setState({ error: null })}>
-                Dismiss
+                {i18n.t('common.dismiss')}
               </Button>
             }
           />

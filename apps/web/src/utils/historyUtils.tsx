@@ -1,18 +1,21 @@
 import React, { useRef } from 'react';
-import { Input, Button, Space } from 'antd';
+import { Input, Button, Space, theme } from 'antd';
 import type { InputRef } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import type { FilterDropdownProps } from 'antd/es/table/interface';
 import type { AnalysisJob } from '../types';
 
 export function useTextFilter(dataIndex: string | string[]) {
   const searchInput = useRef<InputRef>(null);
+  const { t } = useTranslation();
+  const { token } = theme.useToken();
   return {
     filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }: FilterDropdownProps) => (
       <div style={{ padding: 8 }} onKeyDown={(e) => e.stopPropagation()}>
         <Input
           ref={searchInput}
-          placeholder="Search…"
+          placeholder={t('common.search')}
           value={selectedKeys[0]}
           onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
           onPressEnter={() => confirm()}
@@ -20,15 +23,15 @@ export function useTextFilter(dataIndex: string | string[]) {
         />
         <Space>
           <Button type="primary" onClick={() => confirm()} icon={<SearchOutlined />} size="small" style={{ width: 90 }}>
-            Search
+            {t('common.searchAction')}
           </Button>
           <Button onClick={() => { clearFilters?.(); confirm(); }} size="small" style={{ width: 90 }}>
-            Reset
+            {t('common.reset')}
           </Button>
         </Space>
       </div>
     ),
-    filterIcon: (filtered: boolean) => <SearchOutlined style={{ color: filtered ? '#1677ff' : undefined }} />,
+    filterIcon: (filtered: boolean) => <SearchOutlined style={{ color: filtered ? token.colorPrimary : undefined }} />,
     onFilter: (value: React.Key | boolean, record: unknown) => {
       const keys = Array.isArray(dataIndex) ? dataIndex : [dataIndex];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
