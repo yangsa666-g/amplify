@@ -4,8 +4,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser, AuthUser } from '../auth/decorators/current-user.decorator';
 import { FieldTemplatesService } from './field-templates.service';
-
-type ItemInput = { fieldName: string; fieldDescription: string; sortOrder: number };
+import { FieldTemplateBodyDto } from './dto/field-template.dto';
 
 // ─── User Routes ─────────────────────────────────────────────────────────────
 
@@ -25,12 +24,16 @@ export class FieldTemplatesController {
   }
 
   @Post()
-  create(@CurrentUser() user: AuthUser, @Body() body: { name: string; items: ItemInput[] }) {
+  create(@CurrentUser() user: AuthUser, @Body() body: FieldTemplateBodyDto) {
     return this.service.createUserTemplate(user.userId, body);
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @CurrentUser() user: AuthUser, @Body() body: { name: string; items: ItemInput[] }) {
+  update(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() body: FieldTemplateBodyDto,
+  ) {
     return this.service.updateUserTemplate(user.userId, id, body);
   }
 
@@ -59,12 +62,12 @@ export class AdminFieldTemplatesController {
   }
 
   @Post()
-  create(@Body() body: { name: string; items: ItemInput[] }) {
+  create(@Body() body: FieldTemplateBodyDto) {
     return this.service.createSystemTemplate(body);
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() body: { name: string; items: ItemInput[] }) {
+  update(@Param('id') id: string, @Body() body: FieldTemplateBodyDto) {
     return this.service.updateSystemTemplate(id, body);
   }
 

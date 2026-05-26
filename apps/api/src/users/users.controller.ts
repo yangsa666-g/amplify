@@ -1,9 +1,20 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  BadRequestException,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser, AuthUser } from '../auth/decorators/current-user.decorator';
 import { UsersService } from './users.service';
+import { CreateUserDto, UpdateUserDto, UpdateStatusDto, UpdateRoleDto } from './dto/users.dto';
 
 @Controller('admin/users')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -22,15 +33,12 @@ export class UsersController {
   }
 
   @Post()
-  create(@Body() body: { name: string; email: string; password: string; role?: 'admin' | 'user' }) {
-    if (!body.name || !body.email || !body.password) {
-      throw new BadRequestException('name, email, and password are required');
-    }
+  create(@Body() body: CreateUserDto) {
     return this.usersService.createUser(body.name, body.email, body.password, body.role ?? 'user');
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: { name?: string; email?: string }, @CurrentUser() user: AuthUser) {
+  update(@Param('id') id: string, @Body() body: UpdateUserDto, @CurrentUser() user: AuthUser) {
     if (id === user.userId) {
       throw new BadRequestException('Use the profile page to update your own account');
     }
@@ -38,7 +46,11 @@ export class UsersController {
   }
 
   @Patch(':id/status')
-  updateStatus(@Param('id') id: string, @Body() body: { status: 'active' | 'disabled' }, @CurrentUser() user: AuthUser) {
+  updateStatus(
+    @Param('id') id: string,
+    @Body() body: UpdateStatusDto,
+    @CurrentUser() user: AuthUser,
+  ) {
     if (id === user.userId) {
       throw new BadRequestException('Cannot change your own status');
     }
@@ -46,7 +58,7 @@ export class UsersController {
   }
 
   @Patch(':id/role')
-  updateRole(@Param('id') id: string, @Body() body: { role: 'admin' | 'user' }, @CurrentUser() user: AuthUser) {
+  updateRole(@Param('id') id: string, @Body() body: UpdateRoleDto, @CurrentUser() user: AuthUser) {
     if (id === user.userId) {
       throw new BadRequestException('Cannot change your own role');
     }

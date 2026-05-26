@@ -146,6 +146,15 @@ const zh: typeof en = {
     systemTemplates: '系统模板',
     myTemplates: '我的模板',
     defaultSuffix: '{{name}}（默认）',
+    progress: {
+      title: '正在分析合同…',
+      reading: '正在读取文档…',
+      working: '正在提取字段并分析风险…',
+      stillWorking: '仍在处理 — 合同越长、推理强度越高，耗时越久…',
+      finalizing: '即将完成 — 正在整理结果…',
+      elapsed: '已用时 {{time}}',
+      hint: '通常需要约 30 秒到几分钟，请保持本页面打开。',
+    },
     columns: {
       file: '文件',
       model: '模型',
@@ -234,7 +243,8 @@ const zh: typeof en = {
   },
   settings: {
     title: '设置',
-    subtitle: '管理你的个人字段模板和风险提示词模板。你可以直接使用系统模板，也可以创建自己的模板。',
+    subtitle:
+      '管理你的个人字段模板和风险提示词模板。你可以直接使用系统模板，也可以创建自己的模板。',
     myFieldTemplates: '我的字段模板',
     myPromptTemplates: '我的风险提示词模板',
     createNew: '新建',
@@ -353,7 +363,8 @@ const zh: typeof en = {
     },
     system: {
       title: '系统设置',
-      subtitle: '管理系统级模板。用户可以直接选用这些模板，或将其复制为个人模板。当未选择模板时，将使用<1>默认</1>模板作为兜底。',
+      subtitle:
+        '管理系统级模板。用户可以直接选用这些模板，或将其复制为个人模板。当未选择模板时，将使用<1>默认</1>模板作为兜底。',
       systemFieldTemplates: '系统字段模板',
       systemPromptTemplates: '系统提示词模板',
       pendingRequests: '待处理申请',
@@ -395,7 +406,8 @@ const zh: typeof en = {
         empty: '暂无待处理申请',
       },
       apiKey: {
-        intro: '所有管理员共享的单一 API 密钥。可通过 <1>X-API-Key</1> 请求头在外部调用合同分析和比对 API。',
+        intro:
+          '所有管理员共享的单一 API 密钥。可通过 <1>X-API-Key</1> 请求头在外部调用合同分析和比对 API。',
         createdCopyNow: 'API 密钥已创建 — 请立即复制！',
         shownOnce: '此密钥仅显示一次，请妥善保存。',
         active: '当前 API 密钥',

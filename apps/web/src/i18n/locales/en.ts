@@ -119,7 +119,8 @@ const en = {
     ocrPreview: 'OCR Preview — verify the extracted content before running analysis',
     noContent: 'No content available.',
     step2: '2. Extraction Fields Template',
-    fieldTemplateHint: 'Select a field template to define which fields to extract from the contract.',
+    fieldTemplateHint:
+      'Select a field template to define which fields to extract from the contract.',
     manageInSettings: 'Manage your templates in <1>Settings</1>.',
     selectFieldTemplate: 'Select a field template',
     step3: '3. Risk Analysis Prompt Template',
@@ -144,6 +145,15 @@ const en = {
     systemTemplates: 'System Templates',
     myTemplates: 'My Templates',
     defaultSuffix: '{{name}} (Default)',
+    progress: {
+      title: 'Analyzing contract…',
+      reading: 'Reading the document…',
+      working: 'Extracting fields and analyzing risks…',
+      stillWorking: 'Still working — larger contracts and higher reasoning effort take longer…',
+      finalizing: 'Almost done — compiling results…',
+      elapsed: 'Elapsed {{time}}',
+      hint: 'This usually takes from ~30 seconds to a couple of minutes. Please keep this tab open.',
+    },
     columns: {
       file: 'File',
       model: 'Model',
@@ -232,13 +242,15 @@ const en = {
   },
   settings: {
     title: 'Settings',
-    subtitle: 'Manage your personal field templates and risk prompt templates. You can use system templates directly or create your own.',
+    subtitle:
+      'Manage your personal field templates and risk prompt templates. You can use system templates directly or create your own.',
     myFieldTemplates: 'My Field Templates',
     myPromptTemplates: 'My Risk Prompt Templates',
     createNew: 'Create New',
     duplicateFromSystem: 'Duplicate from System',
     noPersonalFields: 'No personal templates yet. Create one or duplicate from a system template.',
-    noPersonalPrompts: 'No personal prompt templates yet. Create one or duplicate from a system template.',
+    noPersonalPrompts:
+      'No personal prompt templates yet. Create one or duplicate from a system template.',
     requestToSystem: 'Request to System',
     fieldsCount: '{{count}} fields',
     deleteConfirm: 'Delete this template?',
@@ -351,7 +363,8 @@ const en = {
     },
     system: {
       title: 'System Settings',
-      subtitle: 'Manage system-level templates. Users can select these directly or duplicate them to create personal templates. The <1>Default</1> template is used as fallback when no template is selected.',
+      subtitle:
+        'Manage system-level templates. Users can select these directly or duplicate them to create personal templates. The <1>Default</1> template is used as fallback when no template is selected.',
       systemFieldTemplates: 'System Field Templates',
       systemPromptTemplates: 'System Prompt Templates',
       pendingRequests: 'Pending Requests',
@@ -393,7 +406,8 @@ const en = {
         empty: 'No pending requests',
       },
       apiKey: {
-        intro: 'A single shared API key for all administrators. Use it to call the contract analysis and compare APIs externally via <1>X-API-Key</1> header.',
+        intro:
+          'A single shared API key for all administrators. Use it to call the contract analysis and compare APIs externally via <1>X-API-Key</1> header.',
         createdCopyNow: 'API Key Created — Copy it now!',
         shownOnce: 'This key is shown only once. Store it securely.',
         active: 'Active API Key',
