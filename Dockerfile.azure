@@ -1,5 +1,5 @@
 # =============================================================================
-# Contract AI Review — Unified Azure Dockerfile
+# Amplify — Unified Azure Dockerfile
 # =============================================================================
 # Builds frontend (Vite) and backend (NestJS) into a single container.
 # nginx serves static files and proxies /api to NestJS.

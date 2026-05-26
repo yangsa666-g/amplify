@@ -1,4 +1,4 @@
-# Contract AI Review
+# Amplify
 
 An AI-powered contract analysis platform that helps you upload, parse, and analyze legal documents using Azure OpenAI and Anthropic Claude models.
 

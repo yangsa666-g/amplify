@@ -1,4 +1,4 @@
-# Contract AI Review（合同 AI 审查平台）
+# Amplify（合同 AI 审查平台）
 
 一个基于 AI 的合同分析平台，支持上传、解析和分析法律文件，使用 Azure OpenAI 和 Anthropic Claude 模型提供智能分析能力。
 

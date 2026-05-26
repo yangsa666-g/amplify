@@ -1,5 +1,5 @@
 # =============================================================================
-# Contract AI Review — Makefile
+# Amplify — Makefile
 # =============================================================================
 # Usage: make <target>
 #   Run `make help` to see all available targets.
@@ -26,7 +26,7 @@ AZURE_ACR_LOGIN_SERVER ?= $(AZURE_ACR_NAME).azurecr.io
 AZURE_ACR_USERNAME    ?= devamplify
 AZURE_ACR_PASSWORD    ?=
 AZURE_APP_NAME        ?= dev-amplify-app
-AZURE_IMAGE_NAME      = contract-ai-review
+AZURE_IMAGE_NAME      = amplify
 
 # ─── Colors ──────────────────────────────────────────────────────────────────
 BOLD  := \033[1m
@@ -42,7 +42,7 @@ GRAY  := \033[90m
 .PHONY: help
 help: ## Show this help message
 	@echo ""
-	@echo "$(BOLD)Contract AI Review$(RESET)"
+	@echo "$(BOLD)Amplify$(RESET)"
 	@echo ""
 	@awk 'BEGIN {FS = ":.*##"} \
 	  /^[a-zA-Z0-9_-]+:.*##/ { \
