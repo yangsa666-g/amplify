@@ -11,10 +11,7 @@
 - **分析历史** — 浏览和回顾历史分析记录
 - **管理员后台** — 管理用户、查看全系统历史记录、配置系统模板
 - **External API（对外 API）** — 通过 API Key 鉴权，对外暴露上传 / 分析 / 比较等能力，便于第三方系统集成
-
-## 开发路线图（Roadmap）
-
-- [ ] **Microsoft Entra ID 单点登录** — 计划支持 Azure Entra SSO（暂未实现）
+- **Microsoft Entra ID 单点登录** — 可选的 Azure Entra ID 单点登录，与本地用户名 / 密码登录并存
 
 ## 技术栈
 
@@ -25,7 +22,7 @@
 | AI | Azure OpenAI API、Anthropic Claude API |
 | 文档解析 | Azure Document Intelligence（OCR）、Mammoth（DOCX） |
 | 文件存储 | 本地磁盘（开发环境）/ Azure Blob Storage（生产环境） |
-| 认证 | JWT + 刷新令牌；API Key（用于 External API） |
+| 认证 | JWT + 刷新令牌；Microsoft Entra ID SSO（OIDC）；API Key（用于 External API） |
 | Monorepo | pnpm workspaces、Turborepo |
 
 ## 项目结构
@@ -103,6 +100,29 @@ pnpm dev           # 同时启动 api（:3001）和 web（:3000）
 | `SEED_ADMIN_EMAIL` | ❌ | 初始化管理员账号邮箱 |
 | `SEED_ADMIN_PASSWORD` | ❌ | 初始化管理员账号密码 |
 | `MAX_UPLOAD_SIZE_MB` | ❌ | 最大上传文件大小，单位 MB（默认 20） |
+| `ENTRA_CLIENT_ID` | ❌ | Entra 应用（客户端）ID。留空则完全禁用 SSO |
+| `ENTRA_CLIENT_SECRET` | ❌ | Entra 客户端密钥（启用 SSO 时必填） |
+| `ENTRA_TENANT_ID` | ❌ | Entra 目录（租户）GUID —— 单租户 |
+| `ENTRA_REDIRECT_URI` | ❌ | 公开回调 URL，例如 `https://<host>/api/auth/entra/callback` |
+| `ENTRA_POST_LOGIN_REDIRECT` | ❌ | 回调后 SPA 落地页 URL，例如 `https://<host>/auth/callback` |
+
+### Microsoft Entra ID 单点登录（可选）
+
+SSO 与本地登录并存 —— 将 `ENTRA_CLIENT_ID` 留空即可干净地禁用它
+（"SSO with Entra ID" 按钮和 `/auth/entra/*` 端点都会关闭）。
+
+整个流程由后端驱动，采用 OAuth2 授权码 + PKCE：Microsoft 重定向到 NestJS 回调，
+回调通过 MSAL 校验 `id_token`（签名 / issuer / audience / nonce），随后创建或关联本地用户，
+再签发应用自有的 JWT + 刷新令牌 —— 因此认证体系的其余部分保持不变。具体行为：
+
+- **首次登录的租户用户** 会被即时（JIT）自动创建，赋予 `user` 角色；后续由管理员提升权限。
+- **存在匹配邮箱的本地账号** 会自动关联到该 Entra 身份（账号切换为 SSO 登录）。这依赖于单租户限制（每次回调都会校验 `tid`）以及 Entra 已验证的邮箱。
+- 身份以稳定的 Entra 对象 ID（`oid`）为准，因此用户邮箱变更也不会丢失账号。
+
+**Azure 应用注册**（一次性）：注册一个 **单租户** 应用，添加与 `ENTRA_REDIRECT_URI` 匹配的
+**Web** 平台重定向 URI（本地：`http://localhost:3000/api/auth/entra/callback`），
+创建客户端密钥，并授予委派的 `openid`、`profile`、`email` 权限。将客户端 / 租户 ID 和密钥
+填入 `.env`（本地）或 App Service 设置 / Key Vault（生产环境）。
 
 ## 常用 Make 命令
 

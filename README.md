@@ -109,7 +109,7 @@ Copy `.env.example` to `.env` and fill in the values.
 ### Microsoft Entra ID SSO (optional)
 
 SSO runs alongside local login — leaving `ENTRA_CLIENT_ID` blank disables it cleanly
-(the "Sign in with Microsoft" button and the `/auth/entra/*` endpoints stay off).
+(the "SSO with Entra ID" button and the `/auth/entra/*` endpoints stay off).
 
 The flow is backend-driven OAuth2 Authorization Code + PKCE: Microsoft redirects to the
 NestJS callback, which validates the `id_token` (signature/issuer/audience/nonce via MSAL),
