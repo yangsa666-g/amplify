@@ -3,13 +3,16 @@ import { Tabs, Table, Tag, Typography } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { getHistory } from '../api/history';
 import type { AnalysisJob, CompareJob } from '../types';
 import AnalysisDetailDrawer from '../components/AnalysisDetailDrawer';
 import { useTextFilter, getFeedbackSummary } from '../utils/historyUtils';
+import { statusLabel, effortLabel } from '../utils/labels';
 
 
 export default function HistoryPage() {
+  const { t } = useTranslation();
   const { data, isLoading } = useQuery({ queryKey: ['history'], queryFn: () => getHistory().then((r) => r.data) });
   const [selectedJob, setSelectedJob] = useState<AnalysisJob | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -41,54 +44,55 @@ export default function HistoryPage() {
 
   const analysisColumns: TableColumnsType<AnalysisJob> = [
     {
-      title: 'File',
+      title: t('history.columns.file'),
       dataIndex: ['document', 'fileName'],
       key: 'file',
       ...fileFilter,
     },
     {
-      title: 'Model',
+      title: t('history.columns.model'),
       dataIndex: 'modelName',
       key: 'model',
       filters: modelOptions,
       onFilter: (value: React.Key | boolean, record: AnalysisJob) => record.modelName === value,
     },
     {
-      title: 'Reasoning Effort',
+      title: t('history.columns.effort'),
       dataIndex: 'reasoningEffort',
       key: 'reasoningEffort',
+      render: (e: string) => effortLabel(t, e),
       filters: [
-        { text: 'None', value: 'none' },
-        { text: 'Low', value: 'low' },
-        { text: 'Medium', value: 'medium' },
-        { text: 'High', value: 'high' },
-        { text: 'XHigh', value: 'xhigh' },
+        { text: t('effort.none'), value: 'none' },
+        { text: t('effort.low'), value: 'low' },
+        { text: t('effort.medium'), value: 'medium' },
+        { text: t('effort.high'), value: 'high' },
+        { text: t('effort.xhigh'), value: 'xhigh' },
       ],
       onFilter: (value: React.Key | boolean, record: AnalysisJob) => record.reasoningEffort === value,
     },
     {
-      title: 'Status',
+      title: t('history.columns.status'),
       dataIndex: 'status',
       key: 'status',
       render: (s: string) => (
-        <Tag color={s === 'success' ? 'green' : s === 'failed' ? 'red' : 'blue'}>{s}</Tag>
+        <Tag color={s === 'success' ? 'green' : s === 'failed' ? 'red' : 'blue'}>{statusLabel(t, s)}</Tag>
       ),
       filters: [
-        { text: 'Success', value: 'success' },
-        { text: 'Failed', value: 'failed' },
-        { text: 'Running', value: 'running' },
-        { text: 'Pending', value: 'pending' },
+        { text: t('status.success'), value: 'success' },
+        { text: t('status.failed'), value: 'failed' },
+        { text: t('status.running'), value: 'running' },
+        { text: t('status.pending'), value: 'pending' },
       ],
       onFilter: (value: React.Key | boolean, record: AnalysisJob) => record.status === value,
     },
     {
-      title: 'Feedback',
+      title: t('history.columns.feedback'),
       key: 'feedback',
       filters: [
-        { text: '👍 Helpful', value: 'helpful' },
-        { text: '👎 Not Helpful', value: 'not_helpful' },
-        { text: '💬 Comment only', value: 'comment' },
-        { text: 'No Feedback', value: 'none' },
+        { text: t('history.feedback.helpful'), value: 'helpful' },
+        { text: t('history.feedback.notHelpful'), value: 'not_helpful' },
+        { text: t('history.feedback.commentOnly'), value: 'comment' },
+        { text: t('history.feedback.none'), value: 'none' },
       ],
       onFilter: (value: React.Key | boolean, record: AnalysisJob) => {
         const fb = getFeedbackSummary(record.feedbacks);
@@ -101,8 +105,8 @@ export default function HistoryPage() {
       render: (_: unknown, record: AnalysisJob) => {
         const fb = getFeedbackSummary(record.feedbacks);
         if (!fb) return null;
-        if (fb.rating === 1) return <Tag color="green">👍 Helpful</Tag>;
-        if (fb.rating === -1) return <Tag color="red">👎 Not Helpful</Tag>;
+        if (fb.rating === 1) return <Tag color="green">{t('history.feedback.helpful')}</Tag>;
+        if (fb.rating === -1) return <Tag color="red">{t('history.feedback.notHelpful')}</Tag>;
         if (fb.comment) return (
           <Typography.Text type="secondary" ellipsis style={{ maxWidth: 160, display: 'inline-block' }}>
             💬 {fb.comment}
@@ -112,7 +116,7 @@ export default function HistoryPage() {
       },
     },
     {
-      title: 'Date',
+      title: t('history.columns.date'),
       dataIndex: 'createdAt',
       key: 'date',
       render: (d: string) => new Date(d).toLocaleString(),
@@ -123,42 +127,43 @@ export default function HistoryPage() {
 
   const compareColumns: TableColumnsType<CompareJob> = [
     {
-      title: 'Old File',
+      title: t('history.columns.oldFile'),
       dataIndex: ['oldDocument', 'fileName'],
       key: 'old',
       ...oldFileFilter,
     },
     {
-      title: 'New File',
+      title: t('history.columns.newFile'),
       dataIndex: ['newDocument', 'fileName'],
       key: 'new',
       ...newFileFilter,
     },
     {
-      title: 'Mode',
+      title: t('history.columns.mode'),
       dataIndex: 'diffMode',
       key: 'mode',
+      render: (m: string) => (m === 'unified' ? t('compare.unified') : t('compare.sideBySide')),
       filters: [
-        { text: 'Unified', value: 'unified' },
-        { text: 'Side by Side', value: 'side_by_side' },
+        { text: t('compare.unified'), value: 'unified' },
+        { text: t('compare.sideBySide'), value: 'side_by_side' },
       ],
       onFilter: (value: React.Key | boolean, record: CompareJob) => record.diffMode === value,
     },
     {
-      title: 'Status',
+      title: t('history.columns.status'),
       dataIndex: 'status',
       key: 'status',
-      render: (s: string) => <Tag color={s === 'success' ? 'green' : 'red'}>{s}</Tag>,
+      render: (s: string) => <Tag color={s === 'success' ? 'green' : 'red'}>{statusLabel(t, s)}</Tag>,
       filters: [
-        { text: 'Success', value: 'success' },
-        { text: 'Failed', value: 'failed' },
-        { text: 'Running', value: 'running' },
-        { text: 'Pending', value: 'pending' },
+        { text: t('status.success'), value: 'success' },
+        { text: t('status.failed'), value: 'failed' },
+        { text: t('status.running'), value: 'running' },
+        { text: t('status.pending'), value: 'pending' },
       ],
       onFilter: (value: React.Key | boolean, record: CompareJob) => record.status === value,
     },
     {
-      title: 'Date',
+      title: t('history.columns.date'),
       dataIndex: 'createdAt',
       key: 'date',
       render: (d: string) => new Date(d).toLocaleString(),
@@ -169,11 +174,11 @@ export default function HistoryPage() {
 
   return (
     <>
-      <Typography.Title level={4}>My History</Typography.Title>
+      <Typography.Title level={4}>{t('history.title')}</Typography.Title>
       <Tabs items={[
         {
           key: 'analysis',
-          label: 'Analysis History',
+          label: t('history.analysisHistory'),
           children: (
             <Table
               loading={isLoading}
@@ -181,6 +186,7 @@ export default function HistoryPage() {
               columns={analysisColumns}
               rowKey="id"
               size="small"
+              scroll={{ x: 'max-content' }}
               onRow={(record) => ({
                 onClick: () => { setSelectedJob(record as AnalysisJob); setDrawerOpen(true); },
                 style: { cursor: 'pointer' },
@@ -190,7 +196,7 @@ export default function HistoryPage() {
         },
         {
           key: 'compare',
-          label: 'Compare History',
+          label: t('history.compareHistory'),
           children: (
             <Table
               loading={isLoading}
@@ -198,6 +204,7 @@ export default function HistoryPage() {
               columns={compareColumns}
               rowKey="id"
               size="small"
+              scroll={{ x: 'max-content' }}
             />
           ),
         },

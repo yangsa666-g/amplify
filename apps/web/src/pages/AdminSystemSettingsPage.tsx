@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
-  Typography, Tabs, Button, Card, Space, Tag, Popconfirm, Modal, Input, message, Spin, Empty, Select, Alert, Tooltip, Table,
+  Typography, Tabs, Button, Card, Space, Tag, Popconfirm, Modal, Input, Spin, Empty, Select, Alert, Tooltip, Table, theme,
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, StarOutlined, StarFilled, CheckCircleOutlined, CloseCircleOutlined, KeyOutlined, CopyOutlined, EyeOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation, Trans } from 'react-i18next';
 import type { FieldTemplate, FieldTemplateItem, PromptTemplate, ApiError } from '../types';
 import {
   adminListFieldTemplates, adminCreateFieldTemplate, adminUpdateFieldTemplate,
@@ -17,10 +18,12 @@ import { getAdminRequests, approveRequest, rejectRequest } from '../api/template
 import { FieldTemplateEditorModal, PromptEditorModal } from '../components/TemplateEditorModals';
 import type { ExpiryOption, ApiKeyInfo } from '../api/apiKeys';
 import { getApiKey, createApiKey, deleteApiKey } from '../api/apiKeys';
+import { message } from '../utils/message';
 
 // ─── System Field Templates Tab ───────────────────────────────────────────────
 
 function SystemFieldTemplatesTab() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['admin-field-templates'],
@@ -32,27 +35,27 @@ function SystemFieldTemplatesTab() {
   const createMutation = useMutation({
     mutationFn: ({ name, items }: { name: string; items: FieldTemplateItem[] }) =>
       adminCreateFieldTemplate(name, items).then((r) => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-field-templates'] }); setEditorOpen(false); message.success('Template created'); },
-    onError: () => message.error('Create failed'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-field-templates'] }); setEditorOpen(false); message.success(t('admin.system.templateCreated')); },
+    onError: () => message.error(t('admin.system.createFailed')),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, name, items }: { id: string; name: string; items: FieldTemplateItem[] }) =>
       adminUpdateFieldTemplate(id, name, items).then((r) => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-field-templates'] }); setEditorOpen(false); message.success('Template saved'); },
-    onError: () => message.error('Save failed'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-field-templates'] }); setEditorOpen(false); message.success(t('admin.system.templateSaved')); },
+    onError: () => message.error(t('admin.system.saveFailed')),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => adminDeleteFieldTemplate(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-field-templates'] }); message.success('Template deleted'); },
-    onError: () => message.error('Delete failed'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-field-templates'] }); message.success(t('admin.system.templateDeleted')); },
+    onError: () => message.error(t('admin.system.deleteFailed')),
   });
 
   const setDefaultMutation = useMutation({
     mutationFn: (id: string) => adminSetDefaultFieldTemplate(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-field-templates'] }); message.success('Default updated'); },
-    onError: () => message.error('Failed'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-field-templates'] }); message.success(t('admin.system.defaultUpdated')); },
+    onError: () => message.error(t('admin.system.failed')),
   });
 
   const handleSave = (name: string, items: FieldTemplateItem[]) => {
@@ -64,35 +67,35 @@ function SystemFieldTemplatesTab() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingTemplate(null); setEditorOpen(true); }}>Create New System Template</Button>
+      <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingTemplate(null); setEditorOpen(true); }}>{t('admin.system.createNewSystem')}</Button>
       {templates.length === 0 ? (
-        <Empty description="No system field templates." />
+        <Empty description={t('admin.system.noSystemFields')} />
       ) : (
         templates.map((tmpl) => (
           <Card key={tmpl.id} size="small"
-            title={<Space>{tmpl.name}{tmpl.isDefault && <Tag color="blue">Default</Tag>}</Space>}
+            title={<Space>{tmpl.name}{tmpl.isDefault && <Tag color="blue">{t('common.default')}</Tag>}</Space>}
             extra={
-              <Space>
+              <Space wrap>
                 {!tmpl.isDefault && (
-                  <Popconfirm title="Set this as the system default?" onConfirm={() => setDefaultMutation.mutate(tmpl.id)}>
-                    <Button icon={<StarOutlined />} size="small">Set Default</Button>
+                  <Popconfirm title={t('admin.system.setDefaultConfirm')} onConfirm={() => setDefaultMutation.mutate(tmpl.id)}>
+                    <Button icon={<StarOutlined />} size="small">{t('admin.system.setDefault')}</Button>
                   </Popconfirm>
                 )}
-                {tmpl.isDefault && <Button icon={<StarFilled />} size="small" disabled>Default</Button>}
-                <Button icon={<EditOutlined />} size="small" onClick={() => { setEditingTemplate(tmpl); setEditorOpen(true); }}>Edit</Button>
-                <Popconfirm title="Delete this template?" onConfirm={() => deleteMutation.mutate(tmpl.id)}>
-                  <Button icon={<DeleteOutlined />} size="small" danger>Delete</Button>
+                {tmpl.isDefault && <Button icon={<StarFilled />} size="small" disabled>{t('common.default')}</Button>}
+                <Button icon={<EditOutlined />} size="small" onClick={() => { setEditingTemplate(tmpl); setEditorOpen(true); }}>{t('common.edit')}</Button>
+                <Popconfirm title={t('admin.system.deleteConfirm')} onConfirm={() => deleteMutation.mutate(tmpl.id)}>
+                  <Button icon={<DeleteOutlined />} size="small" danger>{t('common.delete')}</Button>
                 </Popconfirm>
               </Space>
             }
           >
-            <Typography.Text type="secondary">{tmpl.items?.length ?? 0} fields</Typography.Text>
+            <Typography.Text type="secondary">{t('settings.fieldsCount', { count: tmpl.items?.length ?? 0 })}</Typography.Text>
           </Card>
         ))
       )}
       <FieldTemplateEditorModal
         open={editorOpen}
-        title="System Field Template"
+        title={t('templateEditor.systemField')}
         initialData={editingTemplate ? { name: editingTemplate.name, items: editingTemplate.items } : null}
         onSave={handleSave}
         onCancel={() => setEditorOpen(false)}
@@ -105,6 +108,7 @@ function SystemFieldTemplatesTab() {
 // ─── System Prompt Templates Tab ──────────────────────────────────────────────
 
 function SystemPromptTemplatesTab() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['admin-prompt-templates'],
@@ -116,27 +120,27 @@ function SystemPromptTemplatesTab() {
   const createMutation = useMutation({
     mutationFn: ({ name, content }: { name: string; content: string }) =>
       adminCreatePromptTemplate(name, content).then((r) => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-prompt-templates'] }); setEditorOpen(false); message.success('Template created'); },
-    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Create failed'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-prompt-templates'] }); setEditorOpen(false); message.success(t('admin.system.templateCreated')); },
+    onError: (e: ApiError) => message.error(e.response?.data?.message || t('admin.system.createFailed')),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, name, content }: { id: string; name: string; content: string }) =>
       adminUpdatePromptTemplate(id, name, content).then((r) => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-prompt-templates'] }); setEditorOpen(false); message.success('Template saved'); },
-    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Save failed'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-prompt-templates'] }); setEditorOpen(false); message.success(t('admin.system.templateSaved')); },
+    onError: (e: ApiError) => message.error(e.response?.data?.message || t('admin.system.saveFailed')),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => adminDeletePromptTemplate(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-prompt-templates'] }); message.success('Template deleted'); },
-    onError: () => message.error('Delete failed'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-prompt-templates'] }); message.success(t('admin.system.templateDeleted')); },
+    onError: () => message.error(t('admin.system.deleteFailed')),
   });
 
   const setDefaultMutation = useMutation({
     mutationFn: (id: string) => adminSetDefaultPromptTemplate(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-prompt-templates'] }); message.success('Default updated'); },
-    onError: () => message.error('Failed'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-prompt-templates'] }); message.success(t('admin.system.defaultUpdated')); },
+    onError: () => message.error(t('admin.system.failed')),
   });
 
   const handleSave = (name: string, content: string) => {
@@ -148,24 +152,24 @@ function SystemPromptTemplatesTab() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingTemplate(null); setEditorOpen(true); }}>Create New System Template</Button>
+      <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingTemplate(null); setEditorOpen(true); }}>{t('admin.system.createNewSystem')}</Button>
       {templates.length === 0 ? (
-        <Empty description="No system prompt templates." />
+        <Empty description={t('admin.system.noSystemPrompts')} />
       ) : (
         templates.map((tmpl) => (
           <Card key={tmpl.id} size="small"
-            title={<Space>{tmpl.name}{tmpl.isDefault && <Tag color="blue">Default</Tag>}</Space>}
+            title={<Space>{tmpl.name}{tmpl.isDefault && <Tag color="blue">{t('common.default')}</Tag>}</Space>}
             extra={
-              <Space>
+              <Space wrap>
                 {!tmpl.isDefault && (
-                  <Popconfirm title="Set this as the system default?" onConfirm={() => setDefaultMutation.mutate(tmpl.id)}>
-                    <Button icon={<StarOutlined />} size="small">Set Default</Button>
+                  <Popconfirm title={t('admin.system.setDefaultConfirm')} onConfirm={() => setDefaultMutation.mutate(tmpl.id)}>
+                    <Button icon={<StarOutlined />} size="small">{t('admin.system.setDefault')}</Button>
                   </Popconfirm>
                 )}
-                {tmpl.isDefault && <Button icon={<StarFilled />} size="small" disabled>Default</Button>}
-                <Button icon={<EditOutlined />} size="small" onClick={() => { setEditingTemplate(tmpl); setEditorOpen(true); }}>Edit</Button>
-                <Popconfirm title="Delete this template?" onConfirm={() => deleteMutation.mutate(tmpl.id)}>
-                  <Button icon={<DeleteOutlined />} size="small" danger>Delete</Button>
+                {tmpl.isDefault && <Button icon={<StarFilled />} size="small" disabled>{t('common.default')}</Button>}
+                <Button icon={<EditOutlined />} size="small" onClick={() => { setEditingTemplate(tmpl); setEditorOpen(true); }}>{t('common.edit')}</Button>
+                <Popconfirm title={t('admin.system.deleteConfirm')} onConfirm={() => deleteMutation.mutate(tmpl.id)}>
+                  <Button icon={<DeleteOutlined />} size="small" danger>{t('common.delete')}</Button>
                 </Popconfirm>
               </Space>
             }
@@ -178,7 +182,7 @@ function SystemPromptTemplatesTab() {
       )}
       <PromptEditorModal
         open={editorOpen}
-        title="System Prompt Template"
+        title={t('templateEditor.systemPrompt')}
         initialData={editingTemplate ? { name: editingTemplate.name, content: editingTemplate.content } : null}
         onSave={handleSave}
         onCancel={() => setEditorOpen(false)}
@@ -191,6 +195,7 @@ function SystemPromptTemplatesTab() {
 // ─── Pending Requests Tab ─────────────────────────────────────────────────────
 
 function PendingRequestsTab() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['admin-template-requests'],
@@ -206,9 +211,9 @@ function PendingRequestsTab() {
     mutationFn: (id: string) => approveRequest(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-template-requests'] });
-      message.success('Template approved and added to system!');
+      message.success(t('admin.system.requests.approved'));
     },
-    onError: () => message.error('Approve failed'),
+    onError: () => message.error(t('admin.system.requests.approveFailed')),
   });
 
   const rejectMutation = useMutation({
@@ -217,15 +222,15 @@ function PendingRequestsTab() {
       qc.invalidateQueries({ queryKey: ['admin-template-requests'] });
       setRejectModal({ open: false, id: '', name: '' });
       setRejectNote('');
-      message.success('Request declined');
+      message.success(t('admin.system.requests.declined'));
     },
-    onError: () => message.error('Reject failed'),
+    onError: () => message.error(t('admin.system.requests.rejectFailed')),
   });
 
   if (isLoading) return <Spin />;
 
   if (requests.length === 0) {
-    return <Empty description="No pending requests" />;
+    return <Empty description={t('admin.system.requests.empty')} />;
   }
 
   return (
@@ -233,7 +238,7 @@ function PendingRequestsTab() {
       {requests.map((req) => {
         const isField = req.templateKind === 'field';
         const tmplName = isField ? req.fieldTemplate?.name : req.promptTemplate?.name;
-        const userName = req.user?.name || req.user?.email || 'Unknown';
+        const userName = req.user?.name || req.user?.email || t('common.unknown');
 
         return (
           <Card
@@ -241,22 +246,22 @@ function PendingRequestsTab() {
             size="small"
             title={
               <Space>
-                <Tag color={isField ? 'blue' : 'purple'}>{isField ? 'Field Template' : 'Prompt Template'}</Tag>
+                <Tag color={isField ? 'blue' : 'purple'}>{isField ? t('admin.system.requests.fieldTemplate') : t('admin.system.requests.promptTemplate')}</Tag>
                 <span>{tmplName}</span>
               </Space>
             }
             extra={
-              <Space>
+              <Space wrap>
                 <Button icon={<EyeOutlined />} size="small" onClick={() => setViewingReq(req)}>
-                  View
+                  {t('common.view')}
                 </Button>
                 <Popconfirm
-                  title={`Approve "${tmplName}" as system template?`}
+                  title={t('admin.system.requests.approveConfirm', { name: tmplName })}
                   onConfirm={() => approveMutation.mutate(req.id)}
-                  okText="Approve"
+                  okText={t('admin.system.requests.approve')}
                 >
                   <Button icon={<CheckCircleOutlined />} size="small" type="primary">
-                    Approve
+                    {t('admin.system.requests.approve')}
                   </Button>
                 </Popconfirm>
                 <Button
@@ -265,16 +270,16 @@ function PendingRequestsTab() {
                   danger
                   onClick={() => { setRejectModal({ open: true, id: req.id, name: tmplName || '' }); setRejectNote(''); }}
                 >
-                  Decline
+                  {t('admin.system.requests.decline')}
                 </Button>
               </Space>
             }
           >
             <Space direction="vertical" size={4} style={{ width: '100%' }}>
-              <Typography.Text type="secondary">Requested by: <strong>{userName}</strong> ({req.user?.email})</Typography.Text>
-              <Typography.Text type="secondary">Submitted: {new Date(req.createdAt).toLocaleString()}</Typography.Text>
+              <Typography.Text type="secondary">{t('admin.system.requests.requestedBy')}<strong>{userName}</strong> ({req.user?.email})</Typography.Text>
+              <Typography.Text type="secondary">{t('admin.system.requests.submitted', { date: new Date(req.createdAt).toLocaleString() })}</Typography.Text>
               {isField && req.fieldTemplate?.items && (
-                <Typography.Text type="secondary">Fields: {req.fieldTemplate.items.map((i) => i.fieldName).join(', ')}</Typography.Text>
+                <Typography.Text type="secondary">{t('admin.system.requests.fields', { fields: req.fieldTemplate.items.map((i) => i.fieldName).join(', ') })}</Typography.Text>
               )}
               {!isField && req.promptTemplate?.content && (
                 <Typography.Text type="secondary" ellipsis style={{ display: 'block', maxWidth: 600 }}>
@@ -291,35 +296,36 @@ function PendingRequestsTab() {
         title={
           <Space>
             <Tag color={viewingReq?.templateKind === 'field' ? 'blue' : 'purple'}>
-              {viewingReq?.templateKind === 'field' ? 'Field Template' : 'Prompt Template'}
+              {viewingReq?.templateKind === 'field' ? t('admin.system.requests.fieldTemplate') : t('admin.system.requests.promptTemplate')}
             </Tag>
             {viewingReq?.templateKind === 'field' ? viewingReq?.fieldTemplate?.name : viewingReq?.promptTemplate?.name}
           </Space>
         }
         onCancel={() => setViewingReq(null)}
-        footer={<Button onClick={() => setViewingReq(null)}>Close</Button>}
+        footer={<Button onClick={() => setViewingReq(null)}>{t('common.close')}</Button>}
         width={700}
       >
         {viewingReq && (
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
             <Space>
-              <Typography.Text type="secondary">Requested by:</Typography.Text>
+              <Typography.Text type="secondary">{t('admin.system.requests.requestedByLabel')}</Typography.Text>
               <Typography.Text strong>{viewingReq.user?.name || viewingReq.user?.email}</Typography.Text>
               <Typography.Text type="secondary">({viewingReq.user?.email})</Typography.Text>
             </Space>
             <Space>
-              <Typography.Text type="secondary">Submitted:</Typography.Text>
+              <Typography.Text type="secondary">{t('admin.system.requests.submittedLabel')}</Typography.Text>
               <Typography.Text>{new Date(viewingReq.createdAt).toLocaleString()}</Typography.Text>
             </Space>
             {viewingReq.templateKind === 'field' && viewingReq.fieldTemplate?.items && (
               <Table
                 size="small"
                 pagination={false}
+                scroll={{ x: 'max-content' }}
                 dataSource={viewingReq.fieldTemplate.items}
                 rowKey={(_, i) => String(i)}
                 columns={[
-                  { title: 'Field Name', dataIndex: 'fieldName', key: 'fieldName', width: 200 },
-                  { title: 'Description', dataIndex: 'fieldDescription', key: 'fieldDescription' },
+                  { title: t('admin.system.requests.fieldName'), dataIndex: 'fieldName', key: 'fieldName', width: 200 },
+                  { title: t('admin.system.requests.description'), dataIndex: 'fieldDescription', key: 'fieldDescription' },
                 ]}
               />
             )}
@@ -337,18 +343,19 @@ function PendingRequestsTab() {
 
       <Modal
         open={rejectModal.open}
-        title={`Decline "${rejectModal.name}"`}
+        title={t('admin.system.requests.declineTitle', { name: rejectModal.name })}
         onCancel={() => setRejectModal({ open: false, id: '', name: '' })}
         onOk={() => rejectMutation.mutate({ id: rejectModal.id, note: rejectNote })}
-        okText="Decline"
+        okText={t('admin.system.requests.decline')}
+        cancelText={t('common.cancel')}
         okButtonProps={{ danger: true }}
         confirmLoading={rejectMutation.isPending}
       >
         <Space direction="vertical" style={{ width: '100%' }}>
-          <Typography.Text>Optionally provide a note to the requester:</Typography.Text>
+          <Typography.Text>{t('admin.system.requests.declineNotePrompt')}</Typography.Text>
           <Input.TextArea
             rows={3}
-            placeholder="e.g. This template is already covered by the default system template."
+            placeholder={t('admin.system.requests.declinePlaceholder')}
             value={rejectNote}
             onChange={(e) => setRejectNote(e.target.value)}
           />
@@ -360,19 +367,21 @@ function PendingRequestsTab() {
 
 // ─── API Keys Tab ─────────────────────────────────────────────────────────────
 
-const EXPIRY_OPTIONS: { value: ExpiryOption; label: string }[] = [
-  { value: '1m', label: '1 Month (Default)' },
-  { value: '3m', label: '3 Months' },
-  { value: '6m', label: '6 Months' },
-  { value: '1y', label: '1 Year' },
-  { value: 'never', label: 'Never Expires' },
-];
-
 function ApiKeysTab() {
+  const { t } = useTranslation();
+  const { token } = theme.useToken();
   const qc = useQueryClient();
   const [expiry, setExpiry] = useState<ExpiryOption>('1m');
   const [newKey, setNewKey] = useState<string | null>(null);
   const [keyVisible, setKeyVisible] = useState(false);
+
+  const expiryOptions: { value: ExpiryOption; label: string }[] = [
+    { value: '1m', label: t('admin.system.apiKey.expiry1m') },
+    { value: '3m', label: t('admin.system.apiKey.expiry3m') },
+    { value: '6m', label: t('admin.system.apiKey.expiry6m') },
+    { value: '1y', label: t('admin.system.apiKey.expiry1y') },
+    { value: 'never', label: t('admin.system.apiKey.expiryNever') },
+  ];
 
   const { data: keyInfo, isLoading } = useQuery<ApiKeyInfo | null>({
     queryKey: ['admin-api-key'],
@@ -385,9 +394,9 @@ function ApiKeysTab() {
       qc.invalidateQueries({ queryKey: ['admin-api-key'] });
       setNewKey(data.rawKey);
       setKeyVisible(true);
-      message.success('API Key created successfully');
+      message.success(t('admin.system.apiKey.keyCreated'));
     },
-    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Failed to create API key'),
+    onError: (e: ApiError) => message.error(e.response?.data?.message || t('admin.system.apiKey.createFailed')),
   });
 
   const deleteMutation = useMutation({
@@ -395,20 +404,20 @@ function ApiKeysTab() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-api-key'] });
       setNewKey(null);
-      message.success('API Key deleted');
+      message.success(t('admin.system.apiKey.keyDeleted'));
     },
-    onError: () => message.error('Failed to delete API key'),
+    onError: () => message.error(t('admin.system.apiKey.deleteFailed')),
   });
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => message.success('Copied to clipboard'));
+    navigator.clipboard.writeText(text).then(() => message.success(t('common.copied')));
   };
 
   const formatExpiry = (expiresAt: string | null) => {
-    if (!expiresAt) return <Tag color="purple">Never Expires</Tag>;
+    if (!expiresAt) return <Tag color="purple">{t('admin.system.apiKey.neverExpires')}</Tag>;
     const d = new Date(expiresAt);
     const now = new Date();
-    if (d < now) return <Tag color="red">Expired</Tag>;
+    if (d < now) return <Tag color="red">{t('admin.system.apiKey.expired')}</Tag>;
     return <Tag color="green">{d.toLocaleDateString()}</Tag>;
   };
 
@@ -417,23 +426,23 @@ function ApiKeysTab() {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Typography.Text type="secondary">
-        A single shared API key for all administrators. Use it to call the contract analysis and compare APIs externally via <code>X-API-Key</code> header.
+        <Trans i18nKey="admin.system.apiKey.intro" components={{ 1: <code /> }} />
       </Typography.Text>
 
       {newKey && (
         <Alert
           type="success"
           showIcon
-          message="API Key Created — Copy it now!"
+          message={t('admin.system.apiKey.createdCopyNow')}
           description={
             <Space direction="vertical" style={{ width: '100%', marginTop: 8 }}>
-              <Typography.Text type="secondary">This key is shown only once. Store it securely.</Typography.Text>
+              <Typography.Text type="secondary">{t('admin.system.apiKey.shownOnce')}</Typography.Text>
               <Input.Password
                 value={newKey}
                 visibilityToggle={{ visible: keyVisible, onVisibleChange: setKeyVisible }}
                 readOnly
                 addonAfter={
-                  <Tooltip title="Copy">
+                  <Tooltip title={t('common.copy')}>
                     <CopyOutlined style={{ cursor: 'pointer' }} onClick={() => copyToClipboard(newKey)} />
                   </Tooltip>
                 }
@@ -451,40 +460,41 @@ function ApiKeysTab() {
           title={
             <Space>
               <KeyOutlined />
-              <span>Active API Key</span>
+              <span>{t('admin.system.apiKey.active')}</span>
             </Space>
           }
           extra={
             <Popconfirm
-              title="Delete this API key? All external integrations using it will stop working."
-              okText="Delete"
+              title={t('admin.system.apiKey.deleteConfirm')}
+              okText={t('common.delete')}
+              cancelText={t('common.cancel')}
               okButtonProps={{ danger: true }}
               onConfirm={() => deleteMutation.mutate(keyInfo.id)}
             >
               <Button icon={<DeleteOutlined />} danger size="small" loading={deleteMutation.isPending}>
-                Delete
+                {t('common.delete')}
               </Button>
             </Popconfirm>
           }
         >
           <Space direction="vertical" size={8} style={{ width: '100%' }}>
             <Space>
-              <Typography.Text type="secondary">Key Prefix:</Typography.Text>
+              <Typography.Text type="secondary">{t('admin.system.apiKey.keyPrefix')}</Typography.Text>
               <Typography.Text code>{keyInfo.keyPrefix}…</Typography.Text>
-              <Typography.Text type="secondary">(full key shown only at creation)</Typography.Text>
+              <Typography.Text type="secondary">{t('admin.system.apiKey.fullKeyOnce')}</Typography.Text>
             </Space>
             <Space>
-              <Typography.Text type="secondary">Expires:</Typography.Text>
+              <Typography.Text type="secondary">{t('admin.system.apiKey.expires')}</Typography.Text>
               {formatExpiry(keyInfo.expiresAt)}
             </Space>
             <Space>
-              <Typography.Text type="secondary">Created:</Typography.Text>
+              <Typography.Text type="secondary">{t('admin.system.apiKey.created')}</Typography.Text>
               <Typography.Text>{new Date(keyInfo.createdAt).toLocaleString()}</Typography.Text>
             </Space>
             <Typography.Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
-              External API Usage Example:
+              {t('admin.system.apiKey.usageExample')}
             </Typography.Text>
-            <Typography.Text code style={{ display: 'block', background: '#f5f5f5', padding: '8px 12px', borderRadius: 4 }}>
+            <Typography.Text code style={{ display: 'block', background: token.colorFillTertiary, padding: '8px 12px', borderRadius: 4, overflowX: 'auto' }}>
               {`curl -X POST /v1/analysis/run \\
   -H "X-API-Key: <your-api-key>" \\
   -H "Content-Type: application/json" \\
@@ -495,12 +505,12 @@ function ApiKeysTab() {
       ) : (
         <Card>
           <Space direction="vertical" size={12} style={{ width: '100%' }}>
-            <Empty description="No API key exists. Create one to enable external API access." />
-            <Space>
+            <Empty description={t('admin.system.apiKey.noKey')} />
+            <Space wrap>
               <Select
                 value={expiry}
                 onChange={setExpiry}
-                options={EXPIRY_OPTIONS}
+                options={expiryOptions}
                 style={{ width: 200 }}
               />
               <Button
@@ -509,7 +519,7 @@ function ApiKeysTab() {
                 onClick={() => createMutation.mutate()}
                 loading={createMutation.isPending}
               >
-                Create API Key
+                {t('admin.system.apiKey.createKey')}
               </Button>
             </Space>
           </Space>
@@ -522,6 +532,7 @@ function ApiKeysTab() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminSystemSettingsPage() {
+  const { t } = useTranslation();
   const { data: pendingRequests = [] } = useQuery({
     queryKey: ['admin-template-requests'],
     queryFn: getAdminRequests,
@@ -531,19 +542,19 @@ export default function AdminSystemSettingsPage() {
   const tabItems = [
     {
       key: 'admin-fields',
-      label: 'System Field Templates',
+      label: t('admin.system.systemFieldTemplates'),
       children: <SystemFieldTemplatesTab />,
     },
     {
       key: 'admin-prompt',
-      label: 'System Prompt Templates',
+      label: t('admin.system.systemPromptTemplates'),
       children: <SystemPromptTemplatesTab />,
     },
     {
       key: 'admin-requests',
       label: (
         <Space>
-          Pending Requests
+          {t('admin.system.pendingRequests')}
           {pendingRequests.length > 0 && (
             <Tag color="red" style={{ margin: 0 }}>{pendingRequests.length}</Tag>
           )}
@@ -556,7 +567,7 @@ export default function AdminSystemSettingsPage() {
       label: (
         <Space>
           <KeyOutlined />
-          API Keys
+          {t('admin.system.apiKeys')}
         </Space>
       ),
       children: <ApiKeysTab />,
@@ -565,12 +576,11 @@ export default function AdminSystemSettingsPage() {
 
   return (
     <div>
-      <Typography.Title level={4}>System Settings</Typography.Title>
+      <Typography.Title level={4}>{t('admin.system.title')}</Typography.Title>
       <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-        Manage system-level templates. Users can select these directly or duplicate them to create personal templates. The <strong>Default</strong> template is used as fallback when no template is selected.
+        <Trans i18nKey="admin.system.subtitle" components={{ 1: <strong /> }} />
       </Typography.Text>
       <Tabs items={tabItems} />
     </div>
   );
 }
-

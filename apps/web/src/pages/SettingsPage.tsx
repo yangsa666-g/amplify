@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
-  Tabs, Typography, Button, Card, Space, Tag, Popconfirm, Modal, message, Spin, Select, Empty, Tooltip,
+  Tabs, Typography, Button, Card, Space, Tag, Popconfirm, Modal, Spin, Select, Empty, Tooltip,
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, SendOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import type { FieldTemplate, FieldTemplateItem, PromptTemplate, ApiError } from '../types';
 import {
   listFieldTemplates, createFieldTemplate, updateFieldTemplate, deleteFieldTemplate, duplicateFieldTemplate,
@@ -13,6 +14,7 @@ import {
 } from '../api/promptTemplates';
 import { getMyRequests, submitRequest } from '../api/templateRequests';
 import { FieldTemplateEditorModal, PromptEditorModal } from '../components/TemplateEditorModals';
+import { message } from '../utils/message';
 
 // ─── Duplicate From System Modal ──────────────────────────────────────────────
 
@@ -24,19 +26,21 @@ function DuplicateSelectModal({
   onSelect: (id: string) => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<string | undefined>();
   return (
     <Modal
       open={open}
-      title="Duplicate a System Template"
+      title={t('settings.duplicateModalTitle')}
       onCancel={onCancel}
       onOk={() => { if (selected) { onSelect(selected); } }}
       okButtonProps={{ disabled: !selected }}
-      okText="Duplicate & Edit"
+      okText={t('settings.duplicateAndEdit')}
+      cancelText={t('common.cancel')}
     >
       <Select
         style={{ width: '100%' }}
-        placeholder="Select a system template to duplicate"
+        placeholder={t('settings.duplicateSelect')}
         value={selected}
         onChange={setSelected}
         options={options.map((o) => ({ label: o.name, value: o.id }))}
@@ -48,14 +52,16 @@ function DuplicateSelectModal({
 // ─── Request Status Tag ───────────────────────────────────────────────────────
 
 function RequestStatusTag({ status }: { status: 'pending' | 'approved' | 'rejected' }) {
-  if (status === 'pending') return <Tag color="orange">Pending Review</Tag>;
-  if (status === 'approved') return <Tag color="green">Approved</Tag>;
-  return <Tag color="red">Declined</Tag>;
+  const { t } = useTranslation();
+  if (status === 'pending') return <Tag color="orange">{t('settings.statusPendingReview')}</Tag>;
+  if (status === 'approved') return <Tag color="green">{t('settings.statusApproved')}</Tag>;
+  return <Tag color="red">{t('settings.statusDeclined')}</Tag>;
 }
 
 // ─── Field Templates Tab ──────────────────────────────────────────────────────
 
 function FieldTemplatesTab() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['field-templates'],
@@ -77,21 +83,21 @@ function FieldTemplatesTab() {
   const createMutation = useMutation({
     mutationFn: ({ name, items }: { name: string; items: FieldTemplateItem[] }) =>
       createFieldTemplate(name, items).then((r) => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['field-templates'] }); setEditorOpen(false); message.success('Template created'); },
-    onError: () => message.error('Create failed'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['field-templates'] }); setEditorOpen(false); message.success(t('settings.templateCreated')); },
+    onError: () => message.error(t('settings.createFailed')),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, name, items }: { id: string; name: string; items: FieldTemplateItem[] }) =>
       updateFieldTemplate(id, name, items).then((r) => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['field-templates'] }); setEditorOpen(false); message.success('Template saved'); },
-    onError: () => message.error('Save failed'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['field-templates'] }); setEditorOpen(false); message.success(t('settings.templateSaved')); },
+    onError: () => message.error(t('settings.saveFailed')),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteFieldTemplate(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['field-templates'] }); message.success('Template deleted'); },
-    onError: () => message.error('Delete failed'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['field-templates'] }); message.success(t('settings.templateDeleted')); },
+    onError: () => message.error(t('settings.deleteFailed')),
   });
 
   const duplicateMutation = useMutation({
@@ -101,18 +107,18 @@ function FieldTemplatesTab() {
       setDupModalOpen(false);
       setEditingTemplate(tmpl);
       setEditorOpen(true);
-      message.success('Template duplicated — you can now edit it');
+      message.success(t('settings.templateDuplicated'));
     },
-    onError: () => message.error('Duplicate failed'),
+    onError: () => message.error(t('settings.duplicateFailed')),
   });
 
   const requestMutation = useMutation({
     mutationFn: (templateId: string) => submitRequest({ templateKind: 'field', templateId }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-template-requests'] });
-      message.success('Request submitted! Admins will review your template.');
+      message.success(t('settings.requestSubmitted'));
     },
-    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Request failed'),
+    onError: (e: ApiError) => message.error(e.response?.data?.message || t('settings.requestFailed')),
   });
 
   const handleSave = (name: string, items: FieldTemplateItem[]) => {
@@ -133,29 +139,29 @@ function FieldTemplatesTab() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space>
+      <Space wrap>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingTemplate(null); setEditorOpen(true); }}>
-          Create New
+          {t('settings.createNew')}
         </Button>
         {systemTemplates.length > 0 && (
           <Button icon={<CopyOutlined />} onClick={() => setDupModalOpen(true)}>
-            Duplicate from System
+            {t('settings.duplicateFromSystem')}
           </Button>
         )}
       </Space>
 
       {personalTemplates.length === 0 ? (
-        <Empty description="No personal templates yet. Create one or duplicate from a system template." />
+        <Empty description={t('settings.noPersonalFields')} />
       ) : (
         personalTemplates.map((tmpl) => {
           const req = getRequestStatus(tmpl.id);
           const isPending = req?.status === 'pending';
           const isApproved = req?.status === 'approved';
           const tooltipTitle = isPending
-            ? 'Request already pending review'
+            ? t('settings.requestPending')
             : isApproved
-              ? 'Re-submit (e.g. after editing, or if the system copy was removed)'
-              : 'Request to add to system templates';
+              ? t('settings.requestApprovedResubmit')
+              : t('settings.requestToAdd');
           return (
             <Card
               key={tmpl.id}
@@ -167,9 +173,9 @@ function FieldTemplatesTab() {
                 </Space>
               }
               extra={
-                <Space>
+                <Space wrap>
                   <Button icon={<EditOutlined />} size="small" onClick={() => { setEditingTemplate(tmpl); setEditorOpen(true); }}>
-                    Edit
+                    {t('common.edit')}
                   </Button>
                   <Tooltip title={tooltipTitle}>
                     <Button
@@ -179,16 +185,16 @@ function FieldTemplatesTab() {
                       onClick={() => requestMutation.mutate(tmpl.id)}
                       loading={requestMutation.isPending}
                     >
-                      Request to System
+                      {t('settings.requestToSystem')}
                     </Button>
                   </Tooltip>
-                  <Popconfirm title="Delete this template?" onConfirm={() => deleteMutation.mutate(tmpl.id)}>
-                    <Button icon={<DeleteOutlined />} size="small" danger>Delete</Button>
+                  <Popconfirm title={t('settings.deleteConfirm')} onConfirm={() => deleteMutation.mutate(tmpl.id)}>
+                    <Button icon={<DeleteOutlined />} size="small" danger>{t('common.delete')}</Button>
                   </Popconfirm>
                 </Space>
               }
             >
-              <Typography.Text type="secondary">{tmpl.items?.length ?? 0} fields</Typography.Text>
+              <Typography.Text type="secondary">{t('settings.fieldsCount', { count: tmpl.items?.length ?? 0 })}</Typography.Text>
             </Card>
           );
         })
@@ -215,6 +221,7 @@ function FieldTemplatesTab() {
 // ─── Prompt Templates Tab ─────────────────────────────────────────────────────
 
 function PromptTemplatesTab() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['prompt-templates'],
@@ -236,21 +243,21 @@ function PromptTemplatesTab() {
   const createMutation = useMutation({
     mutationFn: ({ name, content }: { name: string; content: string }) =>
       createPromptTemplate(name, content).then((r) => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['prompt-templates'] }); setEditorOpen(false); message.success('Template created'); },
-    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Create failed'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['prompt-templates'] }); setEditorOpen(false); message.success(t('settings.templateCreated')); },
+    onError: (e: ApiError) => message.error(e.response?.data?.message || t('settings.createFailed')),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, name, content }: { id: string; name: string; content: string }) =>
       updatePromptTemplate(id, name, content).then((r) => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['prompt-templates'] }); setEditorOpen(false); message.success('Template saved'); },
-    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Save failed'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['prompt-templates'] }); setEditorOpen(false); message.success(t('settings.templateSaved')); },
+    onError: (e: ApiError) => message.error(e.response?.data?.message || t('settings.saveFailed')),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deletePromptTemplate(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['prompt-templates'] }); message.success('Template deleted'); },
-    onError: () => message.error('Delete failed'),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['prompt-templates'] }); message.success(t('settings.templateDeleted')); },
+    onError: () => message.error(t('settings.deleteFailed')),
   });
 
   const duplicateMutation = useMutation({
@@ -260,18 +267,18 @@ function PromptTemplatesTab() {
       setDupModalOpen(false);
       setEditingTemplate(tmpl);
       setEditorOpen(true);
-      message.success('Template duplicated — you can now edit it');
+      message.success(t('settings.templateDuplicated'));
     },
-    onError: () => message.error('Duplicate failed'),
+    onError: () => message.error(t('settings.duplicateFailed')),
   });
 
   const requestMutation = useMutation({
     mutationFn: (templateId: string) => submitRequest({ templateKind: 'prompt', templateId }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-template-requests'] });
-      message.success('Request submitted! Admins will review your template.');
+      message.success(t('settings.requestSubmitted'));
     },
-    onError: (e: ApiError) => message.error(e.response?.data?.message || 'Request failed'),
+    onError: (e: ApiError) => message.error(e.response?.data?.message || t('settings.requestFailed')),
   });
 
   const handleSave = (name: string, content: string) => {
@@ -292,29 +299,29 @@ function PromptTemplatesTab() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Space>
+      <Space wrap>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingTemplate(null); setEditorOpen(true); }}>
-          Create New
+          {t('settings.createNew')}
         </Button>
         {systemTemplates.length > 0 && (
           <Button icon={<CopyOutlined />} onClick={() => setDupModalOpen(true)}>
-            Duplicate from System
+            {t('settings.duplicateFromSystem')}
           </Button>
         )}
       </Space>
 
       {personalTemplates.length === 0 ? (
-        <Empty description="No personal prompt templates yet. Create one or duplicate from a system template." />
+        <Empty description={t('settings.noPersonalPrompts')} />
       ) : (
         personalTemplates.map((tmpl) => {
           const req = getRequestStatus(tmpl.id);
           const isPending = req?.status === 'pending';
           const isApproved = req?.status === 'approved';
           const tooltipTitle = isPending
-            ? 'Request already pending review'
+            ? t('settings.requestPending')
             : isApproved
-              ? 'Re-submit (e.g. after editing, or if the system copy was removed)'
-              : 'Request to add to system templates';
+              ? t('settings.requestApprovedResubmit')
+              : t('settings.requestToAdd');
           return (
             <Card
               key={tmpl.id}
@@ -326,9 +333,9 @@ function PromptTemplatesTab() {
                 </Space>
               }
               extra={
-                <Space>
+                <Space wrap>
                   <Button icon={<EditOutlined />} size="small" onClick={() => { setEditingTemplate(tmpl); setEditorOpen(true); }}>
-                    Edit
+                    {t('common.edit')}
                   </Button>
                   <Tooltip title={tooltipTitle}>
                     <Button
@@ -338,11 +345,11 @@ function PromptTemplatesTab() {
                       onClick={() => requestMutation.mutate(tmpl.id)}
                       loading={requestMutation.isPending}
                     >
-                      Request to System
+                      {t('settings.requestToSystem')}
                     </Button>
                   </Tooltip>
-                  <Popconfirm title="Delete this template?" onConfirm={() => deleteMutation.mutate(tmpl.id)}>
-                    <Button icon={<DeleteOutlined />} size="small" danger>Delete</Button>
+                  <Popconfirm title={t('settings.deleteConfirm')} onConfirm={() => deleteMutation.mutate(tmpl.id)}>
+                    <Button icon={<DeleteOutlined />} size="small" danger>{t('common.delete')}</Button>
                   </Popconfirm>
                 </Space>
               }
@@ -376,27 +383,27 @@ function PromptTemplatesTab() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
+  const { t } = useTranslation();
   const tabItems = [
     {
       key: 'fields',
-      label: 'My Field Templates',
+      label: t('settings.myFieldTemplates'),
       children: <FieldTemplatesTab />,
     },
     {
       key: 'prompt',
-      label: 'My Risk Prompt Templates',
+      label: t('settings.myPromptTemplates'),
       children: <PromptTemplatesTab />,
     },
   ];
 
   return (
     <div>
-      <Typography.Title level={4}>Settings</Typography.Title>
+      <Typography.Title level={4}>{t('settings.title')}</Typography.Title>
       <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-        Manage your personal field templates and risk prompt templates. You can use system templates directly or create your own.
+        {t('settings.subtitle')}
       </Typography.Text>
       <Tabs items={tabItems} />
     </div>
   );
 }
-

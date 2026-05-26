@@ -1,10 +1,13 @@
 import React from 'react';
-import { Form, Input, Button, Card, Typography, Alert, Divider } from 'antd';
+import { Form, Input, Button, Card, Typography, Alert, Divider, theme } from 'antd';
 import Icon, { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { login, getEntraEnabled } from '../api/auth';
 import { useAuthStore } from '../stores/authStore';
+import HeaderControls from '../components/HeaderControls';
+import { ssoErrorMessage } from '../utils/ssoErrors';
 import type { ApiError } from '../types';
 
 // Official Microsoft four-square logo (not the Windows glyph).
@@ -17,19 +20,14 @@ const MicrosoftIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-const SSO_ERROR_MESSAGES: Record<string, string> = {
-  state: 'The sign-in request could not be verified. Please try again.',
-  exchange: 'We could not complete sign-in with Microsoft. Please try again.',
-  disabled: 'Your account is disabled. Please contact an administrator.',
-  provider: 'Microsoft reported a sign-in error. Please try again.',
-};
-
 export default function LoginPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const { t } = useTranslation();
+  const { token } = theme.useToken();
   const { setAuth } = useAuthStore();
 
-  const ssoError = params.get('sso_error');
+  const ssoError = ssoErrorMessage(t, params.get('sso_error'));
 
   const entraEnabled = useQuery({
     queryKey: ['entra-enabled'],
@@ -52,33 +50,36 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f2f5' }}>
-      <Card style={{ width: 380 }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: token.colorBgLayout, padding: 16, position: 'relative' }}>
+      <div style={{ position: 'absolute', top: 12, right: 12 }}>
+        <HeaderControls />
+      </div>
+      <Card style={{ width: '100%', maxWidth: 380 }}>
         <Typography.Title level={3} style={{ textAlign: 'center', marginBottom: 24 }}>
-          Amplify - Document Intelligent Platform
+          {t('login.title')}
         </Typography.Title>
         {ssoError && (
-          <Alert message={SSO_ERROR_MESSAGES[ssoError] || 'Sign-in failed. Please try again.'} type="error" style={{ marginBottom: 16 }} />
+          <Alert message={ssoError} type="error" style={{ marginBottom: 16 }} />
         )}
         {mutation.isError && (
-          <Alert message={(mutation.error as ApiError)?.response?.data?.message || 'Login failed'} type="error" style={{ marginBottom: 16 }} />
+          <Alert message={(mutation.error as ApiError)?.response?.data?.message || t('login.loginFailed')} type="error" style={{ marginBottom: 16 }} />
         )}
         <Form onFinish={(v) => mutation.mutate(v)} layout="vertical">
           <Form.Item name="email" rules={[{ required: true, type: 'email' }]}>
-            <Input prefix={<UserOutlined />} placeholder="Email" size="large" />
+            <Input prefix={<UserOutlined />} placeholder={t('login.email')} size="large" />
           </Form.Item>
           <Form.Item name="password" rules={[{ required: true }]}>
-            <Input.Password prefix={<LockOutlined />} placeholder="Password" size="large" />
+            <Input.Password prefix={<LockOutlined />} placeholder={t('login.password')} size="large" />
           </Form.Item>
           <Button type="primary" htmlType="submit" loading={mutation.isPending} block size="large">
-            Sign In
+            {t('login.signIn')}
           </Button>
         </Form>
         {entraEnabled.data && (
           <>
-            <Divider plain style={{ color: '#999' }}>or</Divider>
+            <Divider plain style={{ color: token.colorTextTertiary }}>{t('common.or')}</Divider>
             <Button icon={<Icon component={MicrosoftIcon} />} onClick={signInWithMicrosoft} block size="large">
-              SSO with Entra ID
+              {t('login.ssoEntra')}
             </Button>
           </>
         )}

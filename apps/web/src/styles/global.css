@@ -1,0 +1,21 @@
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  /* Smooth the light/dark transition driven by BodyChrome. */
+  transition: background-color 0.2s ease;
+}
+
+/* Keep wide content (code blocks, generated markdown) scrollable rather than
+   overflowing the viewport on small screens. */
+pre {
+  overflow-x: auto;
+}
+
+img {
+  max-width: 100%;
+}

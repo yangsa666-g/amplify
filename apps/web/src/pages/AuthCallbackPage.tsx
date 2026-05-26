@@ -1,21 +1,18 @@
 import React from 'react';
-import { Spin, Result, Button } from 'antd';
+import { Spin, Result, Button, theme } from 'antd';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { exchangeEntraCode } from '../api/auth';
 import { useAuthStore } from '../stores/authStore';
-
-const ERROR_MESSAGES: Record<string, string> = {
-  state: 'The sign-in request could not be verified. Please try again.',
-  exchange: 'We could not complete sign-in with Microsoft. Please try again.',
-  disabled: 'Your account is disabled. Please contact an administrator.',
-  provider: 'Microsoft reported a sign-in error. Please try again.',
-};
+import { ssoErrorMessage } from '../utils/ssoErrors';
 
 // Lands here after the backend Entra callback redirects with a one-time `code`
 // (or an `sso_error`). Exchanges the code for app tokens, then enters the app.
 export default function AuthCallbackPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const { t } = useTranslation();
+  const { token } = theme.useToken();
   const { setAuth } = useAuthStore();
   const [error, setError] = React.useState<string | null>(null);
   const ran = React.useRef(false);
@@ -26,13 +23,13 @@ export default function AuthCallbackPage() {
 
     const ssoError = params.get('sso_error');
     if (ssoError) {
-      setError(ERROR_MESSAGES[ssoError] || 'Sign-in failed. Please try again.');
+      setError(ssoErrorMessage(t, ssoError));
       return;
     }
 
     const code = params.get('code');
     if (!code) {
-      setError('Missing sign-in code. Please try again.');
+      setError(t('authCallback.missingCode'));
       return;
     }
 
@@ -44,25 +41,29 @@ export default function AuthCallbackPage() {
         setAuth(r.data.user, r.data.accessToken, r.data.refreshToken);
         navigate(target, { replace: true });
       })
-      .catch(() => setError(ERROR_MESSAGES.exchange));
-  }, [params, navigate, setAuth]);
+      .catch(() => setError(t('login.errors.exchange')));
+  }, [params, navigate, setAuth, t]);
+
+  const centered: React.CSSProperties = {
+    minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: token.colorBgLayout, padding: 16,
+  };
 
   if (error) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f2f5' }}>
+      <div style={centered}>
         <Result
           status="error"
-          title="Sign-in failed"
+          title={t('authCallback.signInFailed')}
           subTitle={error}
-          extra={<Button type="primary" onClick={() => navigate('/login', { replace: true })}>Back to login</Button>}
+          extra={<Button type="primary" onClick={() => navigate('/login', { replace: true })}>{t('authCallback.backToLogin')}</Button>}
         />
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f2f5' }}>
-      <Spin size="large" tip="Signing you in…" />
+    <div style={centered}>
+      <Spin size="large" tip={t('authCallback.signingIn')} />
     </div>
   );
 }
