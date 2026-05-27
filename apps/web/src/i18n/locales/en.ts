@@ -193,6 +193,7 @@ const en = {
     diffResult: 'Diff Result — Added: {{added}} | Removed: {{removed}}',
     uploaded: 'Uploaded: {{file}}',
     uploadFailed: 'Upload failed',
+    ocrTook: 'Text extraction took {{time}}',
     comparisonComplete: 'Comparison complete',
     comparisonFailed: 'Comparison failed',
   },
