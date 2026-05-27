@@ -6,7 +6,10 @@ import { FieldTemplatesService } from '../field-templates/field-templates.servic
 import { PromptTemplatesService } from '../prompt-templates/prompt-templates.service';
 import { DocumentsService } from '../documents/documents.service';
 
-function parseRiskAnalysis(text: string): { originalContractDescription: string; riskAnalysis: string } {
+export function parseRiskAnalysis(text: string): {
+  originalContractDescription: string;
+  riskAnalysis: string;
+} {
   // Match section headers like [Original Contract Description] or ## [Original Contract Description]
   const origPattern = /(?:#+\s*)?\[Original Contract Description\]/i;
   const riskPattern = /(?:#+\s*)?\[Risk Analysis\]/i;
@@ -128,9 +131,10 @@ export class AnalysisService {
       throw new BadRequestException('Field template has no fields');
     }
 
-    const fieldPrompt = FIELD_EXTRACTION_PROMPT_TEMPLATE
-      .replace('{fields_json}', fieldsJson)
-      .replace('{contract_text}', contractText);
+    const fieldPrompt = FIELD_EXTRACTION_PROMPT_TEMPLATE.replace(
+      '{fields_json}',
+      fieldsJson,
+    ).replace('{contract_text}', contractText);
 
     // 4. Build risk analysis prompt
     const riskPrompt = promptTemplate.content.replace('{contract_text}', contractText);
@@ -206,7 +210,9 @@ export class AnalysisService {
     if (!job) throw new NotFoundException('Analysis job not found');
 
     if (job.riskAnalysisResult?.resultText) {
-      (job.riskAnalysisResult as any).resultJson = parseRiskAnalysis(job.riskAnalysisResult.resultText);
+      (job.riskAnalysisResult as any).resultJson = parseRiskAnalysis(
+        job.riskAnalysisResult.resultText,
+      );
     }
 
     return job;

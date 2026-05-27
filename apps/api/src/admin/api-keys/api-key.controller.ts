@@ -3,7 +3,8 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { CurrentUser, AuthUser } from '../../auth/decorators/current-user.decorator';
-import { ApiKeyService, ExpiryOption } from './api-key.service';
+import { ApiKeyService } from './api-key.service';
+import { CreateApiKeyDto } from './dto/create-api-key.dto';
 
 @Controller('admin/api-keys')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -17,10 +18,7 @@ export class ApiKeyController {
   }
 
   @Post()
-  create(
-    @CurrentUser() user: AuthUser,
-    @Body() body: { expiry?: ExpiryOption },
-  ) {
+  create(@CurrentUser() user: AuthUser, @Body() body: CreateApiKeyDto) {
     return this.apiKeyService.create(user.userId, body.expiry ?? '1m');
   }
 

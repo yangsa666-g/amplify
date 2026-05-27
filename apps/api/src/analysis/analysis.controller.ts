@@ -1,26 +1,20 @@
 import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, AuthUser } from '../auth/decorators/current-user.decorator';
 import { AnalysisService } from './analysis.service';
-import type { ReasoningEffort } from './azure-openai.service';
+import { RunAnalysisDto } from './dto/run-analysis.dto';
+import { SubmitFeedbackDto } from './dto/submit-feedback.dto';
 
 @Controller('analysis')
 @UseGuards(JwtAuthGuard)
 export class AnalysisController {
   constructor(private analysisService: AnalysisService) {}
 
+  // Each run triggers paid LLM calls — cap how fast a single user can fire them.
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('run')
-  run(
-    @CurrentUser() user: AuthUser,
-    @Body()
-    body: {
-      documentId: string;
-      model: string;
-      fieldTemplateId?: string;
-      promptTemplateId?: string;
-      reasoningEffort?: ReasoningEffort;
-    },
-  ) {
+  run(@CurrentUser() user: AuthUser, @Body() body: RunAnalysisDto) {
     return this.analysisService.run(
       user.userId,
       body.documentId,
@@ -45,7 +39,7 @@ export class AnalysisController {
   submitFeedback(
     @Param('id') id: string,
     @CurrentUser() user: AuthUser,
-    @Body() body: { rating: number; comment?: string },
+    @Body() body: SubmitFeedbackDto,
   ) {
     return this.analysisService.submitFeedback(id, user.userId, body.rating, body.comment);
   }

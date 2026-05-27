@@ -16,12 +16,14 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { Throttle } from '@nestjs/throttler';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { EntraService } from './entra.service';
 import { EntraCodeStore } from './entra-code.store';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser, AuthUser } from './decorators/current-user.decorator';
+import { RefreshDto, LogoutDto, ChangePasswordDto, EntraExchangeDto } from './dto/auth.dto';
 
 const ENTRA_TX_COOKIE = 'entra_tx';
 
@@ -44,6 +46,8 @@ export class AuthController {
   ) {}
 
   // login uses LocalStrategy's req.user (full DB user shape, not JWT payload)
+  // Tight limit to slow credential-stuffing / brute force.
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @UseGuards(AuthGuard('local'))
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -51,16 +55,17 @@ export class AuthController {
     return this.authService.login(req.user);
   }
 
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  async refresh(@Body() body: { refreshToken: string }) {
+  async refresh(@Body() body: RefreshDto) {
     if (!body.refreshToken) throw new UnauthorizedException('Refresh token is required');
     return this.authService.refresh(body.refreshToken);
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  async logout(@Body() body: { refreshToken?: string }) {
+  async logout(@Body() body: LogoutDto) {
     if (body.refreshToken) {
       await this.authService.revokeRefreshToken(body.refreshToken);
     }
@@ -76,10 +81,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
-  async changePassword(
-    @CurrentUser() user: AuthUser,
-    @Body() body: { oldPassword: string; newPassword: string },
-  ) {
+  async changePassword(@CurrentUser() user: AuthUser, @Body() body: ChangePasswordDto) {
     await this.authService.changePassword(user.userId, body.oldPassword, body.newPassword);
     return { message: 'Password changed successfully' };
   }
@@ -150,7 +152,7 @@ export class AuthController {
   // Step 3: the SPA trades the one-time code for the app session tokens.
   @Post('entra/exchange')
   @HttpCode(HttpStatus.OK)
-  entraExchange(@Body() body: { code?: string }) {
+  entraExchange(@Body() body: EntraExchangeDto) {
     const tokens = body?.code ? this.codeStore.consume(body.code) : null;
     if (!tokens) throw new BadRequestException('Invalid or expired code');
     return tokens;
@@ -184,7 +186,9 @@ export class AuthController {
     }
 
     if (process.env.NODE_ENV === 'production') {
-      throw new Error('ENTRA_POST_LOGIN_REDIRECT or ENTRA_REDIRECT_URI must be configured for SSO in production');
+      throw new Error(
+        'ENTRA_POST_LOGIN_REDIRECT or ENTRA_REDIRECT_URI must be configured for SSO in production',
+      );
     }
     return 'http://localhost:3000/auth/callback';
   }

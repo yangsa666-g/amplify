@@ -4,6 +4,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser, AuthUser } from '../auth/decorators/current-user.decorator';
 import { TemplateRequestsService } from './template-requests.service';
+import { SubmitTemplateRequestDto, RejectTemplateRequestDto } from './dto/template-requests.dto';
 
 @Controller()
 @UseGuards(JwtAuthGuard)
@@ -18,7 +19,7 @@ export class TemplateRequestsController {
   }
 
   @Post('template-requests')
-  submit(@CurrentUser() user: AuthUser, @Body() body: { templateKind: 'field' | 'prompt'; templateId: string }) {
+  submit(@CurrentUser() user: AuthUser, @Body() body: SubmitTemplateRequestDto) {
     return this.svc.submit(user.userId, body);
   }
 
@@ -41,7 +42,11 @@ export class TemplateRequestsController {
   @Put('admin/template-requests/:id/reject')
   @UseGuards(RolesGuard)
   @Roles('admin')
-  reject(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: { adminNote?: string }) {
+  reject(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: RejectTemplateRequestDto,
+  ) {
     return this.svc.reject(user.userId, id, body.adminNote);
   }
 }
