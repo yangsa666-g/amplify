@@ -105,9 +105,14 @@ export class AnalysisService {
     promptTemplateId?: string,
     reasoningEffort: ReasoningEffort = 'medium',
   ) {
-    // 1. Load document text
+    // 1. Load document text (and the OCR duration recorded at upload time)
     const contractText = await this.documents.getExtractedText(documentId, userId);
     if (!contractText) throw new BadRequestException('Contract text is empty');
+    const docMeta = await this.prisma.document.findFirst({
+      where: { id: documentId, userId },
+      select: { extractionMs: true },
+    });
+    const ocrMs = docMeta?.extractionMs ?? null;
 
     // 2. Load templates (by ID if provided, otherwise system default)
     const fieldTemplate = fieldTemplateId
@@ -155,12 +160,22 @@ export class AnalysisService {
     });
 
     try {
-      // 6. Field extraction + risk analysis in parallel
+      // 6. Field extraction + risk analysis in parallel, timing each call
+      //    separately (they run concurrently, so these durations overlap).
       const ai = this.selectAI(model);
-      const [rawFieldResult, riskResult] = await Promise.all([
-        ai.chat(model, fieldPrompt, reasoningEffort),
-        ai.chat(model, riskPrompt, reasoningEffort),
+      const timeIt = async <T>(fn: () => Promise<T>): Promise<{ result: T; ms: number }> => {
+        const start = Date.now();
+        const result = await fn();
+        return { result, ms: Date.now() - start };
+      };
+      const [fieldTimed, riskTimed] = await Promise.all([
+        timeIt(() => ai.chat(model, fieldPrompt, reasoningEffort)),
+        timeIt(() => ai.chat(model, riskPrompt, reasoningEffort)),
       ]);
+      const rawFieldResult = fieldTimed.result;
+      const riskResult = riskTimed.result;
+      const fieldExtractionMs = fieldTimed.ms;
+      const riskAnalysisMs = riskTimed.ms;
 
       let fieldExtractionResult: any;
       try {
@@ -180,7 +195,7 @@ export class AnalysisService {
 
       await this.prisma.analysisJob.update({
         where: { id: job.id },
-        data: { status: 'success' },
+        data: { status: 'success', fieldExtractionMs, riskAnalysisMs },
       });
 
       return {
@@ -188,6 +203,7 @@ export class AnalysisService {
         status: 'success',
         fieldExtractionResult,
         riskAnalysisResult: parseRiskAnalysis(riskResult),
+        timings: { ocrMs, fieldExtractionMs, riskAnalysisMs },
       };
     } catch (err: any) {
       await this.prisma.analysisJob.update({
@@ -202,7 +218,7 @@ export class AnalysisService {
     const job = await this.prisma.analysisJob.findFirst({
       where: { id, userId },
       include: {
-        document: { select: { fileName: true } },
+        document: { select: { fileName: true, extractionMs: true } },
         fieldExtractionResult: true,
         riskAnalysisResult: true,
       },

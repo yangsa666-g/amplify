@@ -46,6 +46,12 @@ const zh: typeof en = {
     high: '高',
     xhigh: '极高',
   },
+  timings: {
+    title: '运行耗时',
+    ocr: 'OCR 识别',
+    fieldExtraction: '字段抽取',
+    riskAnalysis: '风险分析',
+  },
   theme: {
     label: '主题',
     light: '浅色',
@@ -140,6 +146,7 @@ const zh: typeof en = {
     noRiskResults: '暂无风险分析结果。',
     recentHistory: '近期记录',
     fileUploaded: '文件已上传并完成文本提取',
+    ocrTook: '文本识别用时 {{time}}',
     uploadFailed: '上传失败',
     analysisComplete: '分析完成',
     analysisFailed: '分析失败',
@@ -154,6 +161,14 @@ const zh: typeof en = {
       finalizing: '即将完成 — 正在整理结果…',
       elapsed: '已用时 {{time}}',
       hint: '通常需要约 30 秒到几分钟，请保持本页面打开。',
+    },
+    uploadProgress: {
+      title: '正在处理文档…',
+      uploading: '正在上传文件…',
+      extracting: '正在识别文本（OCR）…',
+      stillExtracting: '仍在识别 — 扫描件或较大的 PDF 会更慢…',
+      finalizing: '即将完成…',
+      hint: '文本识别（OCR）通常约需 30 秒，请保持本页面打开。',
     },
     columns: {
       file: '文件',

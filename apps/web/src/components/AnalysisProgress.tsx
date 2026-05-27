@@ -1,65 +1,23 @@
-import { useEffect, useState } from 'react';
-import { Card, Progress, Space, Spin, Typography, theme } from 'antd';
-import { useTranslation } from 'react-i18next';
+import TimedProgress, { type ProgressStage } from './TimedProgress';
 
-function formatElapsed(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
+// Field extraction + risk analysis run in parallel and can take a while on
+// high reasoning effort, so the bar eases slowly (tau = 40).
+const STAGES: ProgressStage[] = [
+  { until: 5, key: 'analysis.progress.reading' },
+  { until: 30, key: 'analysis.progress.working' },
+  { until: 75, key: 'analysis.progress.stillWorking' },
+  { until: Infinity, key: 'analysis.progress.finalizing' },
+];
 
-/**
- * Activity feedback for the (synchronous) analysis request. The backend does
- * not report real progress, so this shows honest signals — a live elapsed
- * timer, a rotating description of what's happening, and an asymptotic bar that
- * eases toward (but never reaches) 100% until the request actually resolves.
- */
+/** Progress feedback shown while the synchronous analysis request is in flight. */
 export default function AnalysisProgress({ running }: { running: boolean }) {
-  const { t } = useTranslation();
-  const { token } = theme.useToken();
-  const [elapsed, setElapsed] = useState(0);
-
-  useEffect(() => {
-    if (!running) return;
-    setElapsed(0);
-    const start = Date.now();
-    const id = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
-    return () => clearInterval(id);
-  }, [running]);
-
-  if (!running) return null;
-
-  const stage =
-    elapsed < 5
-      ? t('analysis.progress.reading')
-      : elapsed < 30
-        ? t('analysis.progress.working')
-        : elapsed < 75
-          ? t('analysis.progress.stillWorking')
-          : t('analysis.progress.finalizing');
-
-  // Eases toward ~95% so the bar always moves but never implies completion.
-  const percent = Math.round((1 - Math.exp(-elapsed / 40)) * 95);
-
   return (
-    <Card
-      size="small"
-      style={{ background: token.colorFillQuaternary, borderColor: token.colorBorderSecondary }}
-    >
-      <Space direction="vertical" style={{ width: '100%' }} size={8}>
-        <Space size={10}>
-          <Spin size="small" />
-          <Typography.Text strong>{t('analysis.progress.title')}</Typography.Text>
-          <Typography.Text type="secondary">
-            {t('analysis.progress.elapsed', { time: formatElapsed(elapsed) })}
-          </Typography.Text>
-        </Space>
-        <Progress percent={percent} status="active" showInfo={false} />
-        <Typography.Text>{stage}</Typography.Text>
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          {t('analysis.progress.hint')}
-        </Typography.Text>
-      </Space>
-    </Card>
+    <TimedProgress
+      running={running}
+      titleKey="analysis.progress.title"
+      hintKey="analysis.progress.hint"
+      stages={STAGES}
+      tau={40}
+    />
   );
 }

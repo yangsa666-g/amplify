@@ -57,6 +57,13 @@ export interface Document {
   fileSize: number;
   textExtractionStatus: 'pending' | 'success' | 'failed';
   extractionError?: string | null;
+  extractionMs?: number | null;
+}
+
+export interface RunTimings {
+  ocrMs?: number | null;
+  fieldExtractionMs?: number | null;
+  riskAnalysisMs?: number | null;
 }
 
 export interface AnalysisJob {
@@ -69,7 +76,9 @@ export interface AnalysisJob {
   fieldTemplateId?: string | null;
   promptTemplateId?: string | null;
   createdAt: string;
-  document: { fileName: string };
+  fieldExtractionMs?: number | null;
+  riskAnalysisMs?: number | null;
+  document: { fileName: string; extractionMs?: number | null };
   user?: { id: string; name: string; email: string };
   feedbacks?: Array<{ userId: string; rating: number; comment?: string | null }>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -98,6 +107,7 @@ export interface AnalysisResult {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fieldExtractionResult: any[];
   riskAnalysisResult: { originalContractDescription: string; riskAnalysis: string };
+  timings?: RunTimings;
 }
 
 export interface CompareJob {

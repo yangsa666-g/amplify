@@ -147,6 +147,7 @@ model Document {
   extractedText         String?              @map("extracted_text")
   textExtractionStatus  TextExtractionStatus @default(pending) @map("text_extraction_status")
   extractionError       String?              @map("extraction_error")
+  extractionMs          Int?                 @map("extraction_ms")
   createdAt             DateTime             @default(now()) @map("created_at")
   updatedAt             DateTime             @updatedAt @map("updated_at")
 
@@ -170,6 +171,8 @@ model AnalysisJob {
   promptSnapshotText        String?    @map("prompt_snapshot_text")
   status                    JobStatus  @default(pending)
   errorMessage              String?    @map("error_message")
+  fieldExtractionMs         Int?       @map("field_extraction_ms")
+  riskAnalysisMs            Int?       @map("risk_analysis_ms")
   createdAt                 DateTime   @default(now()) @map("created_at")
   updatedAt                 DateTime   @updatedAt @map("updated_at")
 

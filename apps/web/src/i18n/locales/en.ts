@@ -44,6 +44,12 @@ const en = {
     high: 'High',
     xhigh: 'XHigh',
   },
+  timings: {
+    title: 'Run time',
+    ocr: 'OCR',
+    fieldExtraction: 'Field extraction',
+    riskAnalysis: 'Risk analysis',
+  },
   theme: {
     label: 'Theme',
     light: 'Light',
@@ -139,6 +145,7 @@ const en = {
     noRiskResults: 'No risk analysis results available.',
     recentHistory: 'Recent History',
     fileUploaded: 'File uploaded and text extracted',
+    ocrTook: 'Text extraction took {{time}}',
     uploadFailed: 'Upload failed',
     analysisComplete: 'Analysis complete',
     analysisFailed: 'Analysis failed',
@@ -153,6 +160,14 @@ const en = {
       finalizing: 'Almost done — compiling results…',
       elapsed: 'Elapsed {{time}}',
       hint: 'This usually takes from ~30 seconds to a couple of minutes. Please keep this tab open.',
+    },
+    uploadProgress: {
+      title: 'Processing document…',
+      uploading: 'Uploading file…',
+      extracting: 'Extracting text (OCR)…',
+      stillExtracting: 'Still extracting — scanned or large PDFs take longer…',
+      finalizing: 'Almost done…',
+      hint: 'Text extraction (OCR) usually takes around 30 seconds. Please keep this tab open.',
     },
     columns: {
       file: 'File',

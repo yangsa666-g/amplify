@@ -15,7 +15,14 @@ import {
   Grid,
   theme,
 } from 'antd';
-import { DownloadOutlined, FileTextOutlined, LikeOutlined, DislikeOutlined, LikeFilled, DislikeFilled } from '@ant-design/icons';
+import {
+  DownloadOutlined,
+  FileTextOutlined,
+  LikeOutlined,
+  DislikeOutlined,
+  LikeFilled,
+  DislikeFilled,
+} from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -26,6 +33,7 @@ import { getDocumentText, downloadDocument, downloadTextAsMarkdown } from '../ap
 import { useAuthStore } from '../stores/authStore';
 import { message } from '../utils/message';
 import { statusLabel, effortLabel } from '../utils/labels';
+import RunTimings from './RunTimings';
 import type { AnalysisJob, AnalysisJobFeedback } from '../types';
 
 interface Props {
@@ -164,7 +172,9 @@ function FeedbackTab({ job }: { job: AnalysisJob }) {
       {/* Existing feedback list */}
       {feedbacks.length > 0 && (
         <div>
-          <Typography.Text strong>{t('detail.feedback.all', { count: feedbacks.length })}</Typography.Text>
+          <Typography.Text strong>
+            {t('detail.feedback.all', { count: feedbacks.length })}
+          </Typography.Text>
           <List
             style={{ marginTop: 8 }}
             dataSource={feedbacks}
@@ -180,14 +190,22 @@ function FeedbackTab({ job }: { job: AnalysisJob }) {
                     <Space>
                       <Typography.Text strong>{fb.user.name}</Typography.Text>
                       <Tag color={fb.rating === 1 ? 'green' : 'red'}>
-                        {fb.rating === 1 ? t('detail.feedback.helpful') : t('detail.feedback.notHelpful')}
+                        {fb.rating === 1
+                          ? t('detail.feedback.helpful')
+                          : t('detail.feedback.notHelpful')}
                       </Tag>
                       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                         {new Date(fb.createdAt).toLocaleString()}
                       </Typography.Text>
                     </Space>
                   }
-                  description={fb.comment || <Typography.Text type="secondary">{t('detail.feedback.noComment')}</Typography.Text>}
+                  description={
+                    fb.comment || (
+                      <Typography.Text type="secondary">
+                        {t('detail.feedback.noComment')}
+                      </Typography.Text>
+                    )
+                  }
                 />
               </List.Item>
             )}
@@ -233,7 +251,9 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
         <Space>
           <span>{t('detail.title')}</span>
           {job && (
-            <Tag color={job.status === 'success' ? 'green' : job.status === 'failed' ? 'red' : 'blue'}>
+            <Tag
+              color={job.status === 'success' ? 'green' : job.status === 'failed' ? 'red' : 'blue'}
+            >
               {statusLabel(t, job.status)}
             </Tag>
           )}
@@ -253,15 +273,22 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
         <>
           <Space style={{ marginBottom: 16 }} wrap>
             <Typography.Text strong>{job.document.fileName}</Typography.Text>
-            <Typography.Text type="secondary">{t('detail.model', { model: job.modelName })}</Typography.Text>
+            <Typography.Text type="secondary">
+              {t('detail.model', { model: job.modelName })}
+            </Typography.Text>
             {job.reasoningEffort && job.reasoningEffort !== 'none' && (
-              <Typography.Text type="secondary">{t('detail.effort')} <Tag style={{ marginLeft: 0 }}>{effortLabel(t, job.reasoningEffort)}</Tag></Typography.Text>
+              <Typography.Text type="secondary">
+                {t('detail.effort')}{' '}
+                <Tag style={{ marginLeft: 0 }}>{effortLabel(t, job.reasoningEffort)}</Tag>
+              </Typography.Text>
             )}
             <Typography.Text type="secondary">
               {new Date(job.createdAt).toLocaleString()}
             </Typography.Text>
             {job.user && (
-              <Typography.Text type="secondary">{t('detail.by', { name: job.user.name })}</Typography.Text>
+              <Typography.Text type="secondary">
+                {t('detail.by', { name: job.user.name })}
+              </Typography.Text>
             )}
             <Button
               icon={<DownloadOutlined />}
@@ -271,6 +298,16 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
               {t('detail.downloadOriginal')}
             </Button>
           </Space>
+
+          <div style={{ marginBottom: 16 }}>
+            <RunTimings
+              timings={{
+                ocrMs: detail?.document?.extractionMs,
+                fieldExtractionMs: detail?.fieldExtractionMs,
+                riskAnalysisMs: detail?.riskAnalysisMs,
+              }}
+            />
+          </div>
 
           <Tabs
             defaultActiveKey="fields"
@@ -296,14 +333,13 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
               {
                 key: 'risk',
                 label: t('detail.riskAnalysis'),
-                children:
-                  riskText ? (
-                    <div style={{ maxHeight: 600, overflowY: 'auto', padding: '0 4px' }}>
-                      <Markdown remarkPlugins={[remarkGfm]}>{riskText}</Markdown>
-                    </div>
-                  ) : (
-                    <Alert type="info" message={t('detail.noRiskResults')} />
-                  ),
+                children: riskText ? (
+                  <div style={{ maxHeight: 600, overflowY: 'auto', padding: '0 4px' }}>
+                    <Markdown remarkPlugins={[remarkGfm]}>{riskText}</Markdown>
+                  </div>
+                ) : (
+                  <Alert type="info" message={t('detail.noRiskResults')} />
+                ),
               },
               {
                 key: 'ocr',
