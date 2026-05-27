@@ -197,6 +197,10 @@ const en = {
     comparisonComplete: 'Comparison complete',
     comparisonFailed: 'Comparison failed',
   },
+  compareDetail: {
+    title: 'Comparison Detail',
+    noDiff: 'No diff result is available for this comparison.',
+  },
   history: {
     title: 'My History',
     allUsersTitle: 'All Users History',

@@ -7,15 +7,20 @@ import { useTranslation } from 'react-i18next';
 import { getHistory } from '../api/history';
 import type { AnalysisJob, CompareJob } from '../types';
 import AnalysisDetailDrawer from '../components/AnalysisDetailDrawer';
+import CompareDetailDrawer from '../components/CompareDetailDrawer';
 import { useTextFilter, getFeedbackSummary } from '../utils/historyUtils';
 import { statusLabel, effortLabel } from '../utils/labels';
 
-
 export default function HistoryPage() {
   const { t } = useTranslation();
-  const { data, isLoading } = useQuery({ queryKey: ['history'], queryFn: () => getHistory().then((r) => r.data) });
+  const { data, isLoading } = useQuery({
+    queryKey: ['history'],
+    queryFn: () => getHistory().then((r) => r.data),
+  });
   const [selectedJob, setSelectedJob] = useState<AnalysisJob | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedCompare, setSelectedCompare] = useState<CompareJob | null>(null);
+  const [compareDrawerOpen, setCompareDrawerOpen] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -68,14 +73,17 @@ export default function HistoryPage() {
         { text: t('effort.high'), value: 'high' },
         { text: t('effort.xhigh'), value: 'xhigh' },
       ],
-      onFilter: (value: React.Key | boolean, record: AnalysisJob) => record.reasoningEffort === value,
+      onFilter: (value: React.Key | boolean, record: AnalysisJob) =>
+        record.reasoningEffort === value,
     },
     {
       title: t('history.columns.status'),
       dataIndex: 'status',
       key: 'status',
       render: (s: string) => (
-        <Tag color={s === 'success' ? 'green' : s === 'failed' ? 'red' : 'blue'}>{statusLabel(t, s)}</Tag>
+        <Tag color={s === 'success' ? 'green' : s === 'failed' ? 'red' : 'blue'}>
+          {statusLabel(t, s)}
+        </Tag>
       ),
       filters: [
         { text: t('status.success'), value: 'success' },
@@ -99,7 +107,8 @@ export default function HistoryPage() {
         if (value === 'none') return !fb;
         if (value === 'helpful') return fb?.rating === 1;
         if (value === 'not_helpful') return fb?.rating === -1;
-        if (value === 'comment') return !!fb && (fb.rating === undefined || fb.rating === null) && !!fb.comment;
+        if (value === 'comment')
+          return !!fb && (fb.rating === undefined || fb.rating === null) && !!fb.comment;
         return true;
       },
       render: (_: unknown, record: AnalysisJob) => {
@@ -107,11 +116,16 @@ export default function HistoryPage() {
         if (!fb) return null;
         if (fb.rating === 1) return <Tag color="green">{t('history.feedback.helpful')}</Tag>;
         if (fb.rating === -1) return <Tag color="red">{t('history.feedback.notHelpful')}</Tag>;
-        if (fb.comment) return (
-          <Typography.Text type="secondary" ellipsis style={{ maxWidth: 160, display: 'inline-block' }}>
-            💬 {fb.comment}
-          </Typography.Text>
-        );
+        if (fb.comment)
+          return (
+            <Typography.Text
+              type="secondary"
+              ellipsis
+              style={{ maxWidth: 160, display: 'inline-block' }}
+            >
+              💬 {fb.comment}
+            </Typography.Text>
+          );
         return null;
       },
     },
@@ -120,7 +134,8 @@ export default function HistoryPage() {
       dataIndex: 'createdAt',
       key: 'date',
       render: (d: string) => new Date(d).toLocaleString(),
-      sorter: (a: AnalysisJob, b: AnalysisJob) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      sorter: (a: AnalysisJob, b: AnalysisJob) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
       defaultSortOrder: 'descend' as const,
     },
   ];
@@ -153,7 +168,9 @@ export default function HistoryPage() {
       title: t('history.columns.status'),
       dataIndex: 'status',
       key: 'status',
-      render: (s: string) => <Tag color={s === 'success' ? 'green' : 'red'}>{statusLabel(t, s)}</Tag>,
+      render: (s: string) => (
+        <Tag color={s === 'success' ? 'green' : 'red'}>{statusLabel(t, s)}</Tag>
+      ),
       filters: [
         { text: t('status.success'), value: 'success' },
         { text: t('status.failed'), value: 'failed' },
@@ -167,7 +184,8 @@ export default function HistoryPage() {
       dataIndex: 'createdAt',
       key: 'date',
       render: (d: string) => new Date(d).toLocaleString(),
-      sorter: (a: CompareJob, b: CompareJob) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      sorter: (a: CompareJob, b: CompareJob) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
       defaultSortOrder: 'descend' as const,
     },
   ];
@@ -175,45 +193,59 @@ export default function HistoryPage() {
   return (
     <>
       <Typography.Title level={4}>{t('history.title')}</Typography.Title>
-      <Tabs items={[
-        {
-          key: 'analysis',
-          label: t('history.analysisHistory'),
-          children: (
-            <Table
-              loading={isLoading}
-              dataSource={data?.analysisJobs}
-              columns={analysisColumns}
-              rowKey="id"
-              size="small"
-              scroll={{ x: 'max-content' }}
-              onRow={(record) => ({
-                onClick: () => { setSelectedJob(record as AnalysisJob); setDrawerOpen(true); },
-                style: { cursor: 'pointer' },
-              })}
-            />
-          ),
-        },
-        {
-          key: 'compare',
-          label: t('history.compareHistory'),
-          children: (
-            <Table
-              loading={isLoading}
-              dataSource={data?.compareJobs}
-              columns={compareColumns}
-              rowKey="id"
-              size="small"
-              scroll={{ x: 'max-content' }}
-            />
-          ),
-        },
-      ]} />
+      <Tabs
+        items={[
+          {
+            key: 'analysis',
+            label: t('history.analysisHistory'),
+            children: (
+              <Table
+                loading={isLoading}
+                dataSource={data?.analysisJobs}
+                columns={analysisColumns}
+                rowKey="id"
+                size="small"
+                scroll={{ x: 'max-content' }}
+                onRow={(record) => ({
+                  onClick: () => {
+                    setSelectedJob(record as AnalysisJob);
+                    setDrawerOpen(true);
+                  },
+                  style: { cursor: 'pointer' },
+                })}
+              />
+            ),
+          },
+          {
+            key: 'compare',
+            label: t('history.compareHistory'),
+            children: (
+              <Table
+                loading={isLoading}
+                dataSource={data?.compareJobs}
+                columns={compareColumns}
+                rowKey="id"
+                size="small"
+                scroll={{ x: 'max-content' }}
+                onRow={(record) => ({
+                  onClick: () => {
+                    setSelectedCompare(record as CompareJob);
+                    setCompareDrawerOpen(true);
+                  },
+                  style: { cursor: 'pointer' },
+                })}
+              />
+            ),
+          },
+        ]}
+      />
 
-      <AnalysisDetailDrawer
-        job={selectedJob}
-        open={drawerOpen}
-        onClose={handleClose}
+      <AnalysisDetailDrawer job={selectedJob} open={drawerOpen} onClose={handleClose} />
+
+      <CompareDetailDrawer
+        job={selectedCompare}
+        open={compareDrawerOpen}
+        onClose={() => setCompareDrawerOpen(false)}
       />
     </>
   );

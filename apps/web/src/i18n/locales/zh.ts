@@ -198,6 +198,10 @@ const zh: typeof en = {
     comparisonComplete: '比对完成',
     comparisonFailed: '比对失败',
   },
+  compareDetail: {
+    title: '比对详情',
+    noDiff: '该比对暂无差异结果。',
+  },
   history: {
     title: '我的历史',
     allUsersTitle: '全部用户历史',
