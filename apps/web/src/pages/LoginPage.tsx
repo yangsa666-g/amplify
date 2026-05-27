@@ -49,27 +49,59 @@ export default function LoginPage() {
     window.location.href = `${apiBase}/auth/entra/login`;
   };
 
+  const pageStyle = {
+    '--login-bg': token.colorBgLayout,
+    '--login-card-bg': `${token.colorBgContainer}e6`,
+    '--login-card-border': token.colorBorderSecondary,
+    '--login-primary': token.colorPrimary,
+    '--login-primary-soft': token.colorPrimaryBg,
+    '--login-info-soft': token.colorInfoBg,
+    '--login-success-soft': token.colorSuccessBg,
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: token.colorBgLayout,
+    padding: 16,
+    position: 'relative',
+    overflow: 'hidden',
+  } as React.CSSProperties;
+
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: token.colorBgLayout, padding: 16, position: 'relative' }}>
-      <div style={{ position: 'absolute', top: 12, right: 12 }}>
+    <div className="login-page" style={pageStyle}>
+      <div className="login-page__background" aria-hidden="true">
+        <div className="login-page__aurora" />
+        <div className="login-page__grid" />
+        <div className="login-page__scanline login-page__scanline--one" />
+        <div className="login-page__scanline login-page__scanline--two" />
+      </div>
+      <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 2 }}>
         <HeaderControls />
       </div>
-      <Card style={{ width: '100%', maxWidth: 380 }}>
+      <Card className="login-page__card" style={{ width: '100%', maxWidth: 380 }}>
         <Typography.Title level={3} style={{ textAlign: 'center', marginBottom: 24 }}>
           {t('login.title')}
         </Typography.Title>
-        {ssoError && (
-          <Alert message={ssoError} type="error" style={{ marginBottom: 16 }} />
-        )}
+        {ssoError && <Alert message={ssoError} type="error" style={{ marginBottom: 16 }} />}
         {mutation.isError && (
-          <Alert message={(mutation.error as ApiError)?.response?.data?.message || t('login.loginFailed')} type="error" style={{ marginBottom: 16 }} />
+          <Alert
+            message={
+              (mutation.error as ApiError)?.response?.data?.message || t('login.loginFailed')
+            }
+            type="error"
+            style={{ marginBottom: 16 }}
+          />
         )}
         <Form onFinish={(v) => mutation.mutate(v)} layout="vertical">
           <Form.Item name="email" rules={[{ required: true, type: 'email' }]}>
             <Input prefix={<UserOutlined />} placeholder={t('login.email')} size="large" />
           </Form.Item>
           <Form.Item name="password" rules={[{ required: true }]}>
-            <Input.Password prefix={<LockOutlined />} placeholder={t('login.password')} size="large" />
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder={t('login.password')}
+              size="large"
+            />
           </Form.Item>
           <Button type="primary" htmlType="submit" loading={mutation.isPending} block size="large">
             {t('login.signIn')}
@@ -77,8 +109,15 @@ export default function LoginPage() {
         </Form>
         {entraEnabled.data && (
           <>
-            <Divider plain style={{ color: token.colorTextTertiary }}>{t('common.or')}</Divider>
-            <Button icon={<Icon component={MicrosoftIcon} />} onClick={signInWithMicrosoft} block size="large">
+            <Divider plain style={{ color: token.colorTextTertiary }}>
+              {t('common.or')}
+            </Divider>
+            <Button
+              icon={<Icon component={MicrosoftIcon} />}
+              onClick={signInWithMicrosoft}
+              block
+              size="large"
+            >
               {t('login.ssoEntra')}
             </Button>
           </>
