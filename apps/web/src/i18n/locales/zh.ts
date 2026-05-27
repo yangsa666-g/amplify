@@ -155,6 +155,14 @@ const zh: typeof en = {
       elapsed: '已用时 {{time}}',
       hint: '通常需要约 30 秒到几分钟，请保持本页面打开。',
     },
+    uploadProgress: {
+      title: '正在处理文档…',
+      uploading: '正在上传文件…',
+      extracting: '正在识别文本（OCR）…',
+      stillExtracting: '仍在识别 — 扫描件或较大的 PDF 会更慢…',
+      finalizing: '即将完成…',
+      hint: '文本识别（OCR）通常约需 30 秒，请保持本页面打开。',
+    },
     columns: {
       file: '文件',
       model: '模型',
