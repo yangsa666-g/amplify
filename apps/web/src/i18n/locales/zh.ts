@@ -194,6 +194,7 @@ const zh: typeof en = {
     diffResult: '比对结果 — 新增：{{added}} | 删除：{{removed}}',
     uploaded: '已上传：{{file}}',
     uploadFailed: '上传失败',
+    ocrTook: '文本识别用时 {{time}}',
     comparisonComplete: '比对完成',
     comparisonFailed: '比对失败',
   },
