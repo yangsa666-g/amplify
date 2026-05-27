@@ -44,6 +44,12 @@ const en = {
     high: 'High',
     xhigh: 'XHigh',
   },
+  timings: {
+    title: 'Run time',
+    ocr: 'OCR',
+    fieldExtraction: 'Field extraction',
+    riskAnalysis: 'Risk analysis',
+  },
   theme: {
     label: 'Theme',
     light: 'Light',
@@ -139,6 +145,7 @@ const en = {
     noRiskResults: 'No risk analysis results available.',
     recentHistory: 'Recent History',
     fileUploaded: 'File uploaded and text extracted',
+    ocrTook: 'Text extraction took {{time}}',
     uploadFailed: 'Upload failed',
     analysisComplete: 'Analysis complete',
     analysisFailed: 'Analysis failed',

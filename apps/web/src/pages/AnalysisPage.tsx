@@ -34,6 +34,8 @@ import { listPromptTemplates } from '../api/promptTemplates';
 import { useAnalysisStore } from '../stores/analysisStore';
 import AnalysisProgress from '../components/AnalysisProgress';
 import UploadProgress from '../components/UploadProgress';
+import RunTimings from '../components/RunTimings';
+import { formatDuration } from '../utils/duration';
 import { message } from '../utils/message';
 import { statusLabel, effortLabel } from '../utils/labels';
 import type { FieldTemplate, PromptTemplate, ApiError } from '../types';
@@ -262,6 +264,11 @@ export default function AnalysisPage() {
               file: uploadedDoc.fileName,
               status: uploadedDoc.textExtractionStatus,
             })}
+            description={
+              uploadedDoc.extractionMs != null
+                ? t('analysis.ocrTook', { time: formatDuration(uploadedDoc.extractionMs) })
+                : undefined
+            }
             style={{ marginTop: 8 }}
           />
         )}
@@ -430,6 +437,11 @@ export default function AnalysisPage() {
 
       {result && (
         <Card title={t('analysis.step5')}>
+          {result.timings && (
+            <div style={{ marginBottom: 12 }}>
+              <RunTimings timings={result.timings} />
+            </div>
+          )}
           <Tabs
             items={[
               {

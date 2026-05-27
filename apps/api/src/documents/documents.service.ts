@@ -65,6 +65,7 @@ export class DocumentsService {
     let status: 'success' | 'failed' = 'success';
     let extractionError: string | null = null;
 
+    const extractionStart = Date.now();
     try {
       extractedText = await this.parser.extractText(buffer, file.mimetype, file.originalname);
       if (!extractedText) {
@@ -74,12 +75,16 @@ export class DocumentsService {
     } catch (err: any) {
       status = 'failed';
       extractionError = err?.response?.message ?? err?.message ?? String(err);
-      this.logger.error(`Text extraction failed for document ${doc.id}: ${extractionError}`, err?.stack);
+      this.logger.error(
+        `Text extraction failed for document ${doc.id}: ${extractionError}`,
+        err?.stack,
+      );
     }
+    const extractionMs = Date.now() - extractionStart;
 
     const updated = await this.prisma.document.update({
       where: { id: doc.id },
-      data: { extractedText, textExtractionStatus: status, extractionError },
+      data: { extractedText, textExtractionStatus: status, extractionError, extractionMs },
     });
 
     return {
@@ -88,6 +93,7 @@ export class DocumentsService {
       fileSize: updated.fileSize,
       textExtractionStatus: updated.textExtractionStatus,
       extractionError: updated.extractionError,
+      extractionMs: updated.extractionMs,
     };
   }
 
@@ -100,9 +106,7 @@ export class DocumentsService {
   async getExtractedText(id: string, userId: string): Promise<string> {
     const doc = await this.findOne(id, userId);
     if (doc.textExtractionStatus !== 'success' || !doc.extractedText) {
-      const reason = (doc as any).extractionError
-        ? `: ${(doc as any).extractionError}`
-        : '';
+      const reason = (doc as any).extractionError ? `: ${(doc as any).extractionError}` : '';
       throw new BadRequestException(`Text extraction failed${reason}`);
     }
     return doc.extractedText;
