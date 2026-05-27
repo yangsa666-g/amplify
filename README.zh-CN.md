@@ -89,7 +89,7 @@ pnpm dev           # 同时启动 api（:3001）和 web（:3000）
 | 变量名 | 必填 | 说明 |
 |---|---|---|
 | `DATABASE_URL` | ✅ | PostgreSQL 连接字符串 |
-| `JWT_SECRET` | ✅ | JWT 令牌签名密钥 |
+| `JWT_SECRET` | ✅ | JWT 令牌签名密钥。生产环境必须为强随机字符串 —— **长度 ≥ 16 且不能是占位符**（见下方《启动校验》） |
 | `AZURE_OPENAI_ENDPOINT` | ✅ | Azure OpenAI 端点 URL |
 | `AZURE_OPENAI_API_KEY` | ✅ | Azure OpenAI API 密钥 |
 | `AZURE_OPENAI_MODELS` | ✅ | 已部署模型名称，逗号分隔 |
@@ -105,6 +105,16 @@ pnpm dev           # 同时启动 api（:3001）和 web（:3000）
 | `ENTRA_TENANT_ID` | ❌ | Entra 目录（租户）GUID —— 单租户 |
 | `ENTRA_REDIRECT_URI` | ❌ | 公开回调 URL，例如 `https://<host>/api/auth/entra/callback` |
 | `ENTRA_POST_LOGIN_REDIRECT` | ❌ | 回调后 SPA 落地页 URL，例如 `https://<host>/auth/callback` |
+
+### 启动校验（fail-fast）
+
+API 启动时会校验环境变量：若缺少 `DATABASE_URL` 或 `JWT_SECRET`，将**拒绝启动**——不再有任何不安全的默认值兜底。在生产环境（`NODE_ENV=production`）下，还会额外拒绝属于已知占位符（如 `change-me-in-production`）或长度不足 16 个字符的 `JWT_SECRET`（以及已设置的 `COOKIE_SECRET`）。
+
+密钥配置错误会导致 API 进程在启动时退出。在 nginx 之后（Azure 单容器部署）这会表现为**所有 `/api/*` 路由返回 HTTP 502**，并在 API 日志中打印 `Invalid environment configuration: ...`。可用以下命令生成强随机值：
+
+```bash
+openssl rand -base64 48
+```
 
 ### Microsoft Entra ID 单点登录（可选）
 
@@ -181,6 +191,24 @@ cp .env.azure.example .env.azure
 make azure-build
 make azure-deploy-app
 ```
+
+> **配置来自 App Settings（而非 `.env.azure`）。** 容器并**不会**打包 `.env.azure`；API 从 App Service 的应用设置（环境变量）中读取配置。请确保 `DATABASE_URL`、`JWT_SECRET` 以及 Azure OpenAI / Document Intelligence 的密钥都已在那里设置。
+
+### 故障排查
+
+**部署后 `/api/*` 返回 `502 Bad Gateway`。** 说明 nginx 正常但 NestJS 进程未在监听 —— 几乎都是 API 启动时崩溃所致，最常见的原因是 `JWT_SECRET` 应用设置缺失或过弱（见上方《启动校验》）。查看日志并修正该设置：
+
+```bash
+# 在 API 输出顶部附近查找 "Invalid environment configuration"
+az webapp log tail -n <app-name> -g <resource-group>
+
+# 设置强密钥并重启
+az webapp config appsettings set -n <app-name> -g <resource-group> \
+  --settings JWT_SECRET="$(openssl rand -base64 48)"
+az webapp restart -n <app-name> -g <resource-group>
+```
+
+注意：轮换 `JWT_SECRET` 会使现有的访问令牌 / 刷新令牌全部失效，用户需要重新登录。
 
 ## API 概览
 

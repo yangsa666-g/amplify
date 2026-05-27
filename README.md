@@ -89,7 +89,7 @@ Copy `.env.example` to `.env` and fill in the values.
 | Variable | Required | Description |
 |---|---|---|
 | `DATABASE_URL` | ✅ | PostgreSQL connection string |
-| `JWT_SECRET` | ✅ | Secret for signing JWT tokens |
+| `JWT_SECRET` | ✅ | Secret for signing JWT tokens. In production must be a strong random string — **≥ 16 chars and not a placeholder** (see _Startup validation_ below) |
 | `AZURE_OPENAI_ENDPOINT` | ✅ | Azure OpenAI endpoint URL |
 | `AZURE_OPENAI_API_KEY` | ✅ | Azure OpenAI API key |
 | `AZURE_OPENAI_MODELS` | ✅ | Comma-separated list of deployed model names |
@@ -105,6 +105,16 @@ Copy `.env.example` to `.env` and fill in the values.
 | `ENTRA_TENANT_ID` | ❌ | Entra directory (tenant) GUID — single-tenant |
 | `ENTRA_REDIRECT_URI` | ❌ | Public callback URL, e.g. `https://<host>/api/auth/entra/callback` |
 | `ENTRA_POST_LOGIN_REDIRECT` | ❌ | SPA landing URL after callback, e.g. `https://<host>/auth/callback` |
+
+### Startup validation (fail-fast)
+
+On boot the API validates its environment and **refuses to start** if `DATABASE_URL` or `JWT_SECRET` is missing — there is no insecure default fallback. In production (`NODE_ENV=production`) it additionally rejects a `JWT_SECRET` (and `COOKIE_SECRET`, if set) that is a known placeholder (e.g. `change-me-in-production`) or shorter than 16 characters.
+
+A misconfigured secret makes the API process exit on startup. Behind nginx (the Azure single-container setup) this surfaces as **HTTP 502 on every `/api/*` route**, with `Invalid environment configuration: ...` in the API logs. Generate a strong value with:
+
+```bash
+openssl rand -base64 48
+```
 
 ### Microsoft Entra ID SSO (optional)
 
@@ -182,6 +192,24 @@ cp .env.azure.example .env.azure
 make azure-build
 make azure-deploy-app
 ```
+
+> **App settings (not `.env.azure`).** The container does **not** bundle `.env.azure`; the API reads its configuration from the App Service application settings (environment variables). Make sure `DATABASE_URL`, `JWT_SECRET`, and the Azure OpenAI / Document Intelligence keys are all set there.
+
+### Troubleshooting
+
+**`502 Bad Gateway` on `/api/*` after a deploy.** nginx is up but the NestJS process isn't listening — almost always because the API crashed on startup. The most common cause is a missing or weak `JWT_SECRET` app setting (see [Startup validation](#startup-validation-fail-fast)). Inspect the logs and fix the setting:
+
+```bash
+# Look for "Invalid environment configuration" near the top of the API output
+az webapp log tail -n <app-name> -g <resource-group>
+
+# Set a strong secret and restart
+az webapp config appsettings set -n <app-name> -g <resource-group> \
+  --settings JWT_SECRET="$(openssl rand -base64 48)"
+az webapp restart -n <app-name> -g <resource-group>
+```
+
+Note: rotating `JWT_SECRET` invalidates existing access/refresh tokens, so users will need to log in again.
 
 ## API Overview
 
