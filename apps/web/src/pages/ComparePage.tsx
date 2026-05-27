@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import { Upload, Button, Card, Radio, Typography, Alert, Space } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import { useMutation } from '@tanstack/react-query';
@@ -10,17 +9,16 @@ import UploadProgress from '../components/UploadProgress';
 import { formatDuration } from '../utils/duration';
 import { message } from '../utils/message';
 import { useIsDark } from '../hooks/useIsDark';
-import type { Document, CompareResult, ApiError } from '../types';
+import { useCompareStore } from '../stores/compareStore';
+import type { ApiError } from '../types';
 
 const { Dragger } = Upload;
 
 export default function ComparePage() {
   const { t } = useTranslation();
   const isDark = useIsDark();
-  const [oldDoc, setOldDoc] = useState<Document | null>(null);
-  const [newDoc, setNewDoc] = useState<Document | null>(null);
-  const [diffMode, setDiffMode] = useState<'side_by_side' | 'unified'>('side_by_side');
-  const [result, setResult] = useState<CompareResult | null>(null);
+  const { oldDoc, newDoc, diffMode, result, setOldDoc, setNewDoc, setDiffMode, setResult } =
+    useCompareStore();
 
   const oldUpload = useMutation({
     mutationFn: (file: File) => uploadDocument(file).then((r) => r.data),
