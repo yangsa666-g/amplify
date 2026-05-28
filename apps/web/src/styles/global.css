@@ -20,6 +20,110 @@ img {
   max-width: 100%;
 }
 
+.compare-upload-card .ant-card-body {
+  overflow: hidden;
+}
+
+.compare-upload-grid {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+}
+
+.compare-upload-panel {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.compare-upload-title {
+  display: block;
+  margin-bottom: 10px;
+  min-width: 0;
+}
+
+.compare-upload-dragger.ant-upload-wrapper {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.compare-upload-dragger .ant-upload.ant-upload-drag {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.compare-upload-dragger .ant-upload.ant-upload-drag .ant-upload-btn {
+  min-height: 136px;
+  padding: 18px 12px;
+}
+
+.compare-upload-dragger .ant-upload-drag-icon {
+  margin-bottom: 10px;
+}
+
+.compare-upload-dragger .ant-upload-drag-icon .anticon {
+  font-size: 34px;
+}
+
+.compare-upload-copy {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.compare-upload-panel .ant-alert {
+  min-width: 0;
+}
+
+.compare-upload-panel .ant-alert-content {
+  min-width: 0;
+}
+
+.compare-upload-panel .ant-alert-message,
+.compare-upload-panel .ant-alert-description {
+  overflow-wrap: anywhere;
+}
+
+.compare-actions {
+  margin-top: 16px;
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 575px) {
+  .compare-upload-card .ant-card-body {
+    padding: 12px;
+  }
+
+  .compare-upload-grid {
+    gap: 12px;
+  }
+
+  .compare-upload-panel {
+    padding: 10px;
+  }
+
+  .compare-upload-dragger .ant-upload.ant-upload-drag .ant-upload-btn {
+    min-height: 120px;
+    padding: 14px 10px;
+  }
+
+  .compare-actions .ant-radio-group {
+    display: flex;
+    width: 100%;
+  }
+
+  .compare-actions .ant-radio-button-wrapper {
+    flex: 1;
+    min-width: 0;
+    padding-inline: 8px;
+    text-align: center;
+  }
+}
+
 .login-page {
   isolation: isolate;
 }

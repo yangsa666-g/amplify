@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import ReactDiffViewer from 'react-diff-viewer-continued';
 import { useIsDark } from '../hooks/useIsDark';
 import { statusLabel } from '../utils/labels';
+import { formatDateTime } from '../utils/format';
 import type { CompareJob } from '../types';
 
 interface Props {
@@ -17,7 +18,7 @@ interface Props {
  * and works for both "my history" and the admin "all history" view.
  */
 export default function CompareDetailDrawer({ job, open, onClose }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const isDark = useIsDark();
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
@@ -62,7 +63,7 @@ export default function CompareDetailDrawer({ job, open, onClose }: Props) {
               {job.diffMode === 'unified' ? t('compare.unified') : t('compare.sideBySide')}
             </Tag>
             <Typography.Text type="secondary">
-              {new Date(job.createdAt).toLocaleString()}
+              {formatDateTime(job.createdAt, i18n.language)}
             </Typography.Text>
             {job.user && (
               <Typography.Text type="secondary">

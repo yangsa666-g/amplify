@@ -33,6 +33,7 @@ import { getDocumentText, downloadDocument, downloadTextAsMarkdown } from '../ap
 import { useAuthStore } from '../stores/authStore';
 import { message } from '../utils/message';
 import { statusLabel, effortLabel } from '../utils/labels';
+import { formatDateTime } from '../utils/format';
 import RunTimings from './RunTimings';
 import type { AnalysisJob, AnalysisJobFeedback } from '../types';
 
@@ -81,7 +82,7 @@ function buildFieldColumns(t: TFunction) {
 }
 
 function FeedbackTab({ job }: { job: AnalysisJob }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const [comment, setComment] = useState('');
@@ -195,7 +196,7 @@ function FeedbackTab({ job }: { job: AnalysisJob }) {
                           : t('detail.feedback.notHelpful')}
                       </Tag>
                       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                        {new Date(fb.createdAt).toLocaleString()}
+                        {formatDateTime(fb.createdAt, i18n.language)}
                       </Typography.Text>
                     </Space>
                   }
@@ -217,7 +218,7 @@ function FeedbackTab({ job }: { job: AnalysisJob }) {
 }
 
 export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { token } = theme.useToken();
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
@@ -283,7 +284,7 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
               </Typography.Text>
             )}
             <Typography.Text type="secondary">
-              {new Date(job.createdAt).toLocaleString()}
+              {formatDateTime(job.createdAt, i18n.language)}
             </Typography.Text>
             {job.user && (
               <Typography.Text type="secondary">
