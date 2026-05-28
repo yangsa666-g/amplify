@@ -1,25 +1,54 @@
 import React, { useState } from 'react';
 import {
-  Tabs, Typography, Button, Card, Space, Tag, Popconfirm, Modal, Spin, Select, Empty, Tooltip,
+  Tabs,
+  Typography,
+  Button,
+  Card,
+  Space,
+  Tag,
+  Popconfirm,
+  Modal,
+  Spin,
+  Select,
+  Empty,
+  Tooltip,
 } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined, SendOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  CopyOutlined,
+  SendOutlined,
+} from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { FieldTemplate, FieldTemplateItem, PromptTemplate, ApiError } from '../types';
 import {
-  listFieldTemplates, createFieldTemplate, updateFieldTemplate, deleteFieldTemplate, duplicateFieldTemplate,
+  listFieldTemplates,
+  createFieldTemplate,
+  updateFieldTemplate,
+  deleteFieldTemplate,
+  duplicateFieldTemplate,
 } from '../api/fieldTemplates';
 import {
-  listPromptTemplates, createPromptTemplate, updatePromptTemplate, deletePromptTemplate, duplicatePromptTemplate,
+  listPromptTemplates,
+  createPromptTemplate,
+  updatePromptTemplate,
+  deletePromptTemplate,
+  duplicatePromptTemplate,
 } from '../api/promptTemplates';
 import { getMyRequests, submitRequest } from '../api/templateRequests';
 import { FieldTemplateEditorModal, PromptEditorModal } from '../components/TemplateEditorModals';
 import { message } from '../utils/message';
+import { templateDisplayName } from '../utils/templateLabels';
 
 // ─── Duplicate From System Modal ──────────────────────────────────────────────
 
 function DuplicateSelectModal({
-  open, options, onSelect, onCancel,
+  open,
+  options,
+  onSelect,
+  onCancel,
 }: {
   open: boolean;
   options: { id: string; name: string }[];
@@ -33,7 +62,11 @@ function DuplicateSelectModal({
       open={open}
       title={t('settings.duplicateModalTitle')}
       onCancel={onCancel}
-      onOk={() => { if (selected) { onSelect(selected); } }}
+      onOk={() => {
+        if (selected) {
+          onSelect(selected);
+        }
+      }}
       okButtonProps={{ disabled: !selected }}
       okText={t('settings.duplicateAndEdit')}
       cancelText={t('common.cancel')}
@@ -43,7 +76,7 @@ function DuplicateSelectModal({
         placeholder={t('settings.duplicateSelect')}
         value={selected}
         onChange={setSelected}
-        options={options.map((o) => ({ label: o.name, value: o.id }))}
+        options={options.map((o) => ({ label: templateDisplayName(t, o.name), value: o.id }))}
       />
     </Modal>
   );
@@ -83,20 +116,31 @@ function FieldTemplatesTab() {
   const createMutation = useMutation({
     mutationFn: ({ name, items }: { name: string; items: FieldTemplateItem[] }) =>
       createFieldTemplate(name, items).then((r) => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['field-templates'] }); setEditorOpen(false); message.success(t('settings.templateCreated')); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['field-templates'] });
+      setEditorOpen(false);
+      message.success(t('settings.templateCreated'));
+    },
     onError: () => message.error(t('settings.createFailed')),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, name, items }: { id: string; name: string; items: FieldTemplateItem[] }) =>
       updateFieldTemplate(id, name, items).then((r) => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['field-templates'] }); setEditorOpen(false); message.success(t('settings.templateSaved')); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['field-templates'] });
+      setEditorOpen(false);
+      message.success(t('settings.templateSaved'));
+    },
     onError: () => message.error(t('settings.saveFailed')),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteFieldTemplate(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['field-templates'] }); message.success(t('settings.templateDeleted')); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['field-templates'] });
+      message.success(t('settings.templateDeleted'));
+    },
     onError: () => message.error(t('settings.deleteFailed')),
   });
 
@@ -118,7 +162,8 @@ function FieldTemplatesTab() {
       qc.invalidateQueries({ queryKey: ['my-template-requests'] });
       message.success(t('settings.requestSubmitted'));
     },
-    onError: (e: ApiError) => message.error(e.response?.data?.message || t('settings.requestFailed')),
+    onError: (e: ApiError) =>
+      message.error(e.response?.data?.message || t('settings.requestFailed')),
   });
 
   const handleSave = (name: string, items: FieldTemplateItem[]) => {
@@ -140,7 +185,14 @@ function FieldTemplatesTab() {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Space wrap>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingTemplate(null); setEditorOpen(true); }}>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => {
+            setEditingTemplate(null);
+            setEditorOpen(true);
+          }}
+        >
           {t('settings.createNew')}
         </Button>
         {systemTemplates.length > 0 && (
@@ -168,13 +220,20 @@ function FieldTemplatesTab() {
               size="small"
               title={
                 <Space>
-                  {tmpl.name}
+                  {templateDisplayName(t, tmpl.name)}
                   {req && <RequestStatusTag status={req.status} />}
                 </Space>
               }
               extra={
                 <Space wrap>
-                  <Button icon={<EditOutlined />} size="small" onClick={() => { setEditingTemplate(tmpl); setEditorOpen(true); }}>
+                  <Button
+                    icon={<EditOutlined />}
+                    size="small"
+                    onClick={() => {
+                      setEditingTemplate(tmpl);
+                      setEditorOpen(true);
+                    }}
+                  >
                     {t('common.edit')}
                   </Button>
                   <Tooltip title={tooltipTitle}>
@@ -188,13 +247,20 @@ function FieldTemplatesTab() {
                       {t('settings.requestToSystem')}
                     </Button>
                   </Tooltip>
-                  <Popconfirm title={t('settings.deleteConfirm')} onConfirm={() => deleteMutation.mutate(tmpl.id)}>
-                    <Button icon={<DeleteOutlined />} size="small" danger>{t('common.delete')}</Button>
+                  <Popconfirm
+                    title={t('settings.deleteConfirm')}
+                    onConfirm={() => deleteMutation.mutate(tmpl.id)}
+                  >
+                    <Button icon={<DeleteOutlined />} size="small" danger>
+                      {t('common.delete')}
+                    </Button>
                   </Popconfirm>
                 </Space>
               }
             >
-              <Typography.Text type="secondary">{t('settings.fieldsCount', { count: tmpl.items?.length ?? 0 })}</Typography.Text>
+              <Typography.Text type="secondary">
+                {t('settings.fieldsCount', { count: tmpl.items?.length ?? 0 })}
+              </Typography.Text>
             </Card>
           );
         })
@@ -202,7 +268,9 @@ function FieldTemplatesTab() {
 
       <FieldTemplateEditorModal
         open={editorOpen}
-        initialData={editingTemplate ? { name: editingTemplate.name, items: editingTemplate.items } : null}
+        initialData={
+          editingTemplate ? { name: editingTemplate.name, items: editingTemplate.items } : null
+        }
         onSave={handleSave}
         onCancel={() => setEditorOpen(false)}
         saving={createMutation.isPending || updateMutation.isPending}
@@ -243,20 +311,32 @@ function PromptTemplatesTab() {
   const createMutation = useMutation({
     mutationFn: ({ name, content }: { name: string; content: string }) =>
       createPromptTemplate(name, content).then((r) => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['prompt-templates'] }); setEditorOpen(false); message.success(t('settings.templateCreated')); },
-    onError: (e: ApiError) => message.error(e.response?.data?.message || t('settings.createFailed')),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['prompt-templates'] });
+      setEditorOpen(false);
+      message.success(t('settings.templateCreated'));
+    },
+    onError: (e: ApiError) =>
+      message.error(e.response?.data?.message || t('settings.createFailed')),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, name, content }: { id: string; name: string; content: string }) =>
       updatePromptTemplate(id, name, content).then((r) => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['prompt-templates'] }); setEditorOpen(false); message.success(t('settings.templateSaved')); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['prompt-templates'] });
+      setEditorOpen(false);
+      message.success(t('settings.templateSaved'));
+    },
     onError: (e: ApiError) => message.error(e.response?.data?.message || t('settings.saveFailed')),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deletePromptTemplate(id),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['prompt-templates'] }); message.success(t('settings.templateDeleted')); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['prompt-templates'] });
+      message.success(t('settings.templateDeleted'));
+    },
     onError: () => message.error(t('settings.deleteFailed')),
   });
 
@@ -278,7 +358,8 @@ function PromptTemplatesTab() {
       qc.invalidateQueries({ queryKey: ['my-template-requests'] });
       message.success(t('settings.requestSubmitted'));
     },
-    onError: (e: ApiError) => message.error(e.response?.data?.message || t('settings.requestFailed')),
+    onError: (e: ApiError) =>
+      message.error(e.response?.data?.message || t('settings.requestFailed')),
   });
 
   const handleSave = (name: string, content: string) => {
@@ -300,7 +381,14 @@ function PromptTemplatesTab() {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Space wrap>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingTemplate(null); setEditorOpen(true); }}>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => {
+            setEditingTemplate(null);
+            setEditorOpen(true);
+          }}
+        >
           {t('settings.createNew')}
         </Button>
         {systemTemplates.length > 0 && (
@@ -328,13 +416,20 @@ function PromptTemplatesTab() {
               size="small"
               title={
                 <Space>
-                  {tmpl.name}
+                  {templateDisplayName(t, tmpl.name)}
                   {req && <RequestStatusTag status={req.status} />}
                 </Space>
               }
               extra={
                 <Space wrap>
-                  <Button icon={<EditOutlined />} size="small" onClick={() => { setEditingTemplate(tmpl); setEditorOpen(true); }}>
+                  <Button
+                    icon={<EditOutlined />}
+                    size="small"
+                    onClick={() => {
+                      setEditingTemplate(tmpl);
+                      setEditorOpen(true);
+                    }}
+                  >
                     {t('common.edit')}
                   </Button>
                   <Tooltip title={tooltipTitle}>
@@ -348,14 +443,24 @@ function PromptTemplatesTab() {
                       {t('settings.requestToSystem')}
                     </Button>
                   </Tooltip>
-                  <Popconfirm title={t('settings.deleteConfirm')} onConfirm={() => deleteMutation.mutate(tmpl.id)}>
-                    <Button icon={<DeleteOutlined />} size="small" danger>{t('common.delete')}</Button>
+                  <Popconfirm
+                    title={t('settings.deleteConfirm')}
+                    onConfirm={() => deleteMutation.mutate(tmpl.id)}
+                  >
+                    <Button icon={<DeleteOutlined />} size="small" danger>
+                      {t('common.delete')}
+                    </Button>
                   </Popconfirm>
                 </Space>
               }
             >
-              <Typography.Text type="secondary" ellipsis style={{ display: 'block', maxWidth: 500 }}>
-                {tmpl.content.substring(0, 120)}{tmpl.content.length > 120 ? '…' : ''}
+              <Typography.Text
+                type="secondary"
+                ellipsis
+                style={{ display: 'block', maxWidth: 500 }}
+              >
+                {tmpl.content.substring(0, 120)}
+                {tmpl.content.length > 120 ? '…' : ''}
               </Typography.Text>
             </Card>
           );
@@ -364,7 +469,9 @@ function PromptTemplatesTab() {
 
       <PromptEditorModal
         open={editorOpen}
-        initialData={editingTemplate ? { name: editingTemplate.name, content: editingTemplate.content } : null}
+        initialData={
+          editingTemplate ? { name: editingTemplate.name, content: editingTemplate.content } : null
+        }
         onSave={handleSave}
         onCancel={() => setEditorOpen(false)}
         saving={createMutation.isPending || updateMutation.isPending}

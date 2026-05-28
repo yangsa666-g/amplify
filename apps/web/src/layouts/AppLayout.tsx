@@ -1,10 +1,34 @@
 import React, { useState } from 'react';
-import { Layout, Menu, Avatar, Dropdown, Typography, Divider, Badge, List, Popover, Button, Spin, Drawer, Grid, theme } from 'antd';
 import {
-  FileTextOutlined, DiffOutlined, HistoryOutlined,
-  SettingOutlined, UserOutlined, LogoutOutlined,
-  DashboardOutlined, TeamOutlined, UnorderedListOutlined, ToolOutlined,
-  BellOutlined, CheckOutlined, MenuOutlined,
+  Layout,
+  Menu,
+  Avatar,
+  Dropdown,
+  Typography,
+  Divider,
+  Badge,
+  List,
+  Popover,
+  Button,
+  Spin,
+  Drawer,
+  Grid,
+  theme,
+} from 'antd';
+import {
+  FileTextOutlined,
+  DiffOutlined,
+  HistoryOutlined,
+  SettingOutlined,
+  UserOutlined,
+  LogoutOutlined,
+  DashboardOutlined,
+  TeamOutlined,
+  UnorderedListOutlined,
+  ToolOutlined,
+  BellOutlined,
+  CheckOutlined,
+  MenuOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -21,6 +45,7 @@ const SIDER_BG = '#001529';
 
 function NotificationBell() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const { token } = theme.useToken();
   const [open, setOpen] = useState(false);
@@ -59,33 +84,73 @@ function NotificationBell() {
     return '📋';
   };
 
+  const openNotificationTarget = (n: Notification) => {
+    if (!n.isRead) markReadMutation.mutate(n.id);
+    setOpen(false);
+    if (n.type === 'template_request_submitted') {
+      navigate('/admin/settings?tab=requests');
+    } else {
+      navigate('/settings');
+    }
+  };
+
   const content = (
     <div style={{ width: 'min(360px, 80vw)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 8,
+        }}
+      >
         <Typography.Text strong>{t('notifications.title')}</Typography.Text>
         {(countData?.count ?? 0) > 0 && (
-          <Button size="small" type="link" onClick={() => markAllMutation.mutate()} loading={markAllMutation.isPending}>
+          <Button
+            size="small"
+            type="link"
+            onClick={() => markAllMutation.mutate()}
+            loading={markAllMutation.isPending}
+          >
             {t('notifications.markAllRead')}
           </Button>
         )}
       </div>
       {isLoading ? (
-        <div style={{ textAlign: 'center', padding: 20 }}><Spin /></div>
+        <div style={{ textAlign: 'center', padding: 20 }}>
+          <Spin />
+        </div>
       ) : notifications.length === 0 ? (
-        <Typography.Text type="secondary" style={{ display: 'block', textAlign: 'center', padding: '16px 0' }}>{t('notifications.empty')}</Typography.Text>
+        <Typography.Text
+          type="secondary"
+          style={{ display: 'block', textAlign: 'center', padding: '16px 0' }}
+        >
+          {t('notifications.empty')}
+        </Typography.Text>
       ) : (
         <List
           dataSource={notifications.slice(0, 6)}
           renderItem={(n) => (
             <List.Item
-              style={{ padding: '8px 4px', background: n.isRead ? undefined : token.colorSuccessBg, borderRadius: 4 }}
+              onClick={() => openNotificationTarget(n)}
+              style={{
+                padding: '8px 4px',
+                background: n.isRead ? undefined : token.colorSuccessBg,
+                borderRadius: 4,
+                cursor: 'pointer',
+              }}
               extra={
                 !n.isRead && (
                   <Button
                     size="small"
                     type="text"
                     icon={<CheckOutlined />}
-                    onClick={() => markReadMutation.mutate(n.id)}
+                    aria-label={t('notifications.markRead')}
+                    title={t('notifications.markRead')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      markReadMutation.mutate(n.id);
+                    }}
                   />
                 )
               }
@@ -93,7 +158,11 @@ function NotificationBell() {
               <List.Item.Meta
                 avatar={<span style={{ fontSize: 18 }}>{typeIcon(n.type)}</span>}
                 title={<Typography.Text strong={!n.isRead}>{n.title}</Typography.Text>}
-                description={<Typography.Text type="secondary" style={{ fontSize: 12 }}>{n.body}</Typography.Text>}
+                description={
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    {n.body}
+                  </Typography.Text>
+                }
               />
             </List.Item>
           )}
@@ -108,7 +177,10 @@ function NotificationBell() {
       content={content}
       trigger="click"
       open={open}
-      onOpenChange={(v) => { setOpen(v); if (v) qc.invalidateQueries({ queryKey: ['notifications'] }); }}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (v) qc.invalidateQueries({ queryKey: ['notifications'] });
+      }}
       placement="bottomRight"
     >
       <Badge count={countData?.count ?? 0} size="small" style={{ cursor: 'pointer' }}>
@@ -132,7 +204,9 @@ export default function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const handleLogout = async () => {
-    try { await logout(refreshToken); } catch {}
+    try {
+      await logout(refreshToken);
+    } catch {}
     clearAuth();
     navigate('/login');
   };
@@ -155,7 +229,12 @@ export default function AppLayout() {
 
   const userMenu = {
     items: [
-      { key: 'profile', icon: <UserOutlined />, label: t('nav.profile'), onClick: () => navigate('/profile') },
+      {
+        key: 'profile',
+        icon: <UserOutlined />,
+        label: t('nav.profile'),
+        onClick: () => navigate('/profile'),
+      },
       { key: 'logout', icon: <LogoutOutlined />, label: t('nav.logout'), onClick: handleLogout },
     ],
   };
@@ -168,7 +247,18 @@ export default function AppLayout() {
   // Sidebar contents (logo + menus), shared between the desktop Sider and the mobile Drawer.
   const sideNav = (showCollapsedLogo: boolean) => (
     <>
-      <div style={{ padding: '20px 16px', color: '#fff', fontWeight: 700, fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>
+      <div
+        style={{
+          padding: '20px 16px',
+          color: '#fff',
+          fontWeight: 700,
+          fontSize: 15,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          textAlign: 'center',
+        }}
+      >
         {showCollapsedLogo ? t('common.appName').charAt(0) : t('common.appName')}
       </div>
       <Menu
@@ -181,7 +271,15 @@ export default function AppLayout() {
       {isAdmin && (
         <>
           <Divider style={{ borderColor: 'rgba(255,255,255,0.15)', margin: '8px 0' }} />
-          <div style={{ padding: '4px 16px 8px', color: 'rgba(255,255,255,0.45)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 }}>
+          <div
+            style={{
+              padding: '4px 16px 8px',
+              color: 'rgba(255,255,255,0.45)',
+              fontSize: 11,
+              textTransform: 'uppercase',
+              letterSpacing: 1,
+            }}
+          >
             {t('nav.admin')}
           </div>
           <Menu
@@ -230,13 +328,20 @@ export default function AppLayout() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
             {isMobile && (
               <>
-                <Button type="text" icon={<MenuOutlined />} onClick={() => setDrawerOpen(true)} aria-label="Menu" />
-                <Typography.Text strong style={{ fontSize: 16 }}>{t('common.appName')}</Typography.Text>
+                <Button
+                  type="text"
+                  icon={<MenuOutlined />}
+                  onClick={() => setDrawerOpen(true)}
+                  aria-label="Menu"
+                />
+                <Typography.Text strong style={{ fontSize: 16 }}>
+                  {t('common.appName')}
+                </Typography.Text>
               </>
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 16 }}>
-            <HeaderControls />
+            <HeaderControls compact={isMobile} />
             <NotificationBell />
             <Dropdown menu={userMenu} placement="bottomRight">
               <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>

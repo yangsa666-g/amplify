@@ -13,6 +13,8 @@ import {
   Space,
   Collapse,
   theme,
+  Grid,
+  Tooltip,
 } from 'antd';
 import {
   InboxOutlined,
@@ -21,7 +23,7 @@ import {
   EditOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import Markdown from 'react-markdown';
@@ -36,8 +38,10 @@ import AnalysisProgress from '../components/AnalysisProgress';
 import UploadProgress from '../components/UploadProgress';
 import RunTimings from '../components/RunTimings';
 import { formatDuration } from '../utils/duration';
+import { formatDateTime } from '../utils/format';
 import { message } from '../utils/message';
 import { statusLabel, effortLabel } from '../utils/labels';
+import { templateDisplayName } from '../utils/templateLabels';
 import type { FieldTemplate, PromptTemplate, ApiError } from '../types';
 
 const { Dragger } = Upload;
@@ -54,8 +58,8 @@ function buildTemplateOptions(templates: (FieldTemplate | PromptTemplate)[], t: 
       label: t('analysis.systemTemplates'),
       options: system.map((tmpl) => ({
         label: (tmpl as FieldTemplate).isDefault
-          ? t('analysis.defaultSuffix', { name: tmpl.name })
-          : tmpl.name,
+          ? t('analysis.defaultSuffix', { name: templateDisplayName(t, tmpl.name) })
+          : templateDisplayName(t, tmpl.name),
         value: tmpl.id,
       })),
     });
@@ -63,7 +67,10 @@ function buildTemplateOptions(templates: (FieldTemplate | PromptTemplate)[], t: 
   if (personal.length > 0) {
     opts.push({
       label: t('analysis.myTemplates'),
-      options: personal.map((tmpl) => ({ label: tmpl.name, value: tmpl.id })),
+      options: personal.map((tmpl) => ({
+        label: templateDisplayName(t, tmpl.name),
+        value: tmpl.id,
+      })),
     });
   }
   return opts;
@@ -71,8 +78,10 @@ function buildTemplateOptions(templates: (FieldTemplate | PromptTemplate)[], t: 
 
 export default function AnalysisPage() {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { token } = theme.useToken();
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
   const {
     uploadedDoc,
     selectedModel,
@@ -97,11 +106,19 @@ export default function AnalysisPage() {
     queryKey: ['models'],
     queryFn: () => getModels().then((r) => r.data),
   });
-  const { data: fieldTemplates = [] } = useQuery({
+  const {
+    data: fieldTemplates = [],
+    isLoading: fieldTemplatesLoading,
+    isError: fieldTemplatesError,
+  } = useQuery({
     queryKey: ['field-templates'],
     queryFn: () => listFieldTemplates().then((r) => r.data),
   });
-  const { data: promptTemplates = [] } = useQuery({
+  const {
+    data: promptTemplates = [],
+    isLoading: promptTemplatesLoading,
+    isError: promptTemplatesError,
+  } = useQuery({
     queryKey: ['prompt-templates'],
     queryFn: () => listPromptTemplates().then((r) => r.data),
   });
@@ -207,7 +224,7 @@ export default function AnalysisPage() {
       title: t('analysis.columns.created'),
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (d: string) => new Date(d).toLocaleString(),
+      render: (d: string) => formatDateTime(d, i18n.language),
     },
   ];
 
@@ -232,6 +249,16 @@ export default function AnalysisPage() {
 
   const fieldTemplateOptions = buildTemplateOptions(fieldTemplates, t);
   const promptTemplateOptions = buildTemplateOptions(promptTemplates, t);
+  const runDisabledReason =
+    !uploadedDoc || uploadedDoc.textExtractionStatus !== 'success'
+      ? t('analysis.runDisabledUpload')
+      : !selectedModel
+        ? t('analysis.runDisabledModel')
+        : !selectedFieldTemplateId
+          ? t('analysis.runDisabledFieldTemplate')
+          : !selectedPromptTemplateId
+            ? t('analysis.runDisabledPromptTemplate')
+            : undefined;
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -262,7 +289,7 @@ export default function AnalysisPage() {
             type="success"
             message={t('analysis.uploadedExtraction', {
               file: uploadedDoc.fileName,
-              status: uploadedDoc.textExtractionStatus,
+              status: statusLabel(t, uploadedDoc.textExtractionStatus),
             })}
             description={
               uploadedDoc.extractionMs != null
@@ -332,7 +359,10 @@ export default function AnalysisPage() {
         <Space direction="vertical" style={{ width: '100%' }}>
           <Typography.Text type="secondary">
             {t('analysis.fieldTemplateHint')}{' '}
-            <Trans i18nKey="analysis.manageInSettings" components={{ 1: <a href="/settings" /> }} />
+            <Trans
+              i18nKey="analysis.manageInSettings"
+              components={{ 1: <Link to="/settings" /> }}
+            />
           </Typography.Text>
           <Select
             style={{ width: '100%', maxWidth: 480 }}
@@ -343,8 +373,15 @@ export default function AnalysisPage() {
               localStorage.setItem(LAST_FIELD_TEMPLATE_KEY, id);
             }}
             options={fieldTemplateOptions}
-            loading={fieldTemplates.length === 0}
+            loading={fieldTemplatesLoading}
+            disabled={fieldTemplatesLoading || fieldTemplatesError}
           />
+          {fieldTemplatesError && (
+            <Alert type="error" showIcon message={t('analysis.fieldTemplatesUnavailable')} />
+          )}
+          {!fieldTemplatesLoading && !fieldTemplatesError && fieldTemplates.length === 0 && (
+            <Alert type="warning" showIcon message={t('analysis.noFieldTemplates')} />
+          )}
         </Space>
       </Card>
 
@@ -359,7 +396,10 @@ export default function AnalysisPage() {
         <Space direction="vertical" style={{ width: '100%' }}>
           <Typography.Text type="secondary">
             {t('analysis.promptTemplateHint')}{' '}
-            <Trans i18nKey="analysis.manageInSettings" components={{ 1: <a href="/settings" /> }} />
+            <Trans
+              i18nKey="analysis.manageInSettings"
+              components={{ 1: <Link to="/settings" /> }}
+            />
           </Typography.Text>
           <Select
             style={{ width: '100%', maxWidth: 480 }}
@@ -370,26 +410,39 @@ export default function AnalysisPage() {
               localStorage.setItem(LAST_PROMPT_TEMPLATE_KEY, id);
             }}
             options={promptTemplateOptions}
-            loading={promptTemplates.length === 0}
+            loading={promptTemplatesLoading}
+            disabled={promptTemplatesLoading || promptTemplatesError}
           />
+          {promptTemplatesError && (
+            <Alert type="error" showIcon message={t('analysis.promptTemplatesUnavailable')} />
+          )}
+          {!promptTemplatesLoading && !promptTemplatesError && promptTemplates.length === 0 && (
+            <Alert type="warning" showIcon message={t('analysis.noPromptTemplates')} />
+          )}
         </Space>
       </Card>
 
       <Card title={t('analysis.step4')}>
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
-          <Space align="end" wrap size={24}>
-            <Space direction="vertical" size={4}>
+          <Space
+            align={isMobile ? 'start' : 'end'}
+            direction={isMobile ? 'vertical' : 'horizontal'}
+            wrap={!isMobile}
+            size={24}
+            style={{ width: '100%' }}
+          >
+            <Space direction="vertical" size={4} style={{ width: isMobile ? '100%' : undefined }}>
               <Typography.Text strong>{t('analysis.model')}</Typography.Text>
               <Select
                 placeholder={t('analysis.selectModel')}
-                style={{ width: 220 }}
+                style={{ width: isMobile ? '100%' : 220 }}
                 value={selectedModel || undefined}
                 onChange={setSelectedModel}
                 disabled={analysisMutation.isPending}
                 options={models.map((m) => ({ label: m.label, value: m.name }))}
               />
             </Space>
-            <Space direction="vertical" size={4}>
+            <Space direction="vertical" size={4} style={{ width: isMobile ? '100%' : undefined }}>
               <Space size={6}>
                 <Typography.Text strong>{t('effort.label')}</Typography.Text>
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
@@ -398,7 +451,7 @@ export default function AnalysisPage() {
               </Space>
               <Select
                 placeholder={t('analysis.selectEffort')}
-                style={{ width: 210 }}
+                style={{ width: isMobile ? '100%' : 210 }}
                 value={selectedReasoningEffort}
                 onChange={setSelectedReasoningEffort}
                 disabled={analysisMutation.isPending}
@@ -411,16 +464,24 @@ export default function AnalysisPage() {
                 ]}
               />
             </Space>
-            <Button
-              type="primary"
-              loading={analysisMutation.isPending}
-              disabled={
-                !uploadedDoc || !selectedModel || uploadedDoc.textExtractionStatus !== 'success'
-              }
-              onClick={() => analysisMutation.mutate()}
-            >
-              {t('analysis.runAnalysis')}
-            </Button>
+            <Tooltip title={runDisabledReason}>
+              <span
+                style={{
+                  display: isMobile ? 'block' : 'inline-block',
+                  width: isMobile ? '100%' : undefined,
+                }}
+              >
+                <Button
+                  type="primary"
+                  loading={analysisMutation.isPending}
+                  disabled={!!runDisabledReason}
+                  onClick={() => analysisMutation.mutate()}
+                  block={isMobile}
+                >
+                  {t('analysis.runAnalysis')}
+                </Button>
+              </span>
+            </Tooltip>
           </Space>
           <AnalysisProgress running={analysisMutation.isPending} />
           {analysisMutation.isError && (

@@ -10,9 +10,10 @@ import AnalysisDetailDrawer from '../components/AnalysisDetailDrawer';
 import CompareDetailDrawer from '../components/CompareDetailDrawer';
 import { useTextFilter, getFeedbackSummary } from '../utils/historyUtils';
 import { statusLabel, effortLabel } from '../utils/labels';
+import { formatDateTime } from '../utils/format';
 
 export default function HistoryPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { data, isLoading } = useQuery({
     queryKey: ['history'],
     queryFn: () => getHistory().then((r) => r.data),
@@ -133,7 +134,7 @@ export default function HistoryPage() {
       title: t('history.columns.date'),
       dataIndex: 'createdAt',
       key: 'date',
-      render: (d: string) => new Date(d).toLocaleString(),
+      render: (d: string) => formatDateTime(d, i18n.language),
       sorter: (a: AnalysisJob, b: AnalysisJob) =>
         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
       defaultSortOrder: 'descend' as const,
@@ -183,7 +184,7 @@ export default function HistoryPage() {
       title: t('history.columns.date'),
       dataIndex: 'createdAt',
       key: 'date',
-      render: (d: string) => new Date(d).toLocaleString(),
+      render: (d: string) => formatDateTime(d, i18n.language),
       sorter: (a: CompareJob, b: CompareJob) =>
         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
       defaultSortOrder: 'descend' as const,
