@@ -285,6 +285,12 @@ azure-acr-login: ## Log in to Azure Container Registry
 .PHONY: azure-build
 azure-build: ## Build Docker image in ACR (remote build, no local Docker needed)
 	@echo "$(BOLD)Building image in ACR...$(RESET)"
+	@# Git's fsmonitor daemon leaves a UNIX socket at .git/fsmonitor--daemon.ipc.
+	@# `az acr build`'s tar packer descends into .git despite the .dockerignore
+	@# entry and aborts with "tarfile: unsupported type" on socket/FIFO files.
+	@# Stop the daemon and drop any stray special files before uploading.
+	@git fsmonitor--daemon stop >/dev/null 2>&1 || true
+	@find .git \( -type s -o -type p \) -delete 2>/dev/null || true
 	az acr build \
 	  --subscription $(AZURE_SUBSCRIPTION) \
 	  --registry $(AZURE_ACR_LOGIN_SERVER) \
