@@ -4,12 +4,14 @@ import Anthropic, { APIConnectionTimeoutError, APIError } from '@anthropic-ai/sd
 import type { Message, ContentBlock } from '@anthropic-ai/sdk/resources/messages';
 import type { ReasoningEffort } from './azure-openai.service';
 
-// Anthropic extended thinking budget tokens mapped from ReasoningEffort
-const THINKING_BUDGET: Record<Exclude<ReasoningEffort, 'none'>, number> = {
-  low: 2048,
-  medium: 8192,
-  high: 16000,
-  xhigh: 32000,
+// Response cap per effort level. Adaptive thinking decides its own internal
+// budget; we just need max_tokens large enough to fit reasoning + the
+// long-form contract analysis the API returns at each effort level.
+const MAX_TOKENS: Record<Exclude<ReasoningEffort, 'none'>, number> = {
+  low: 10240,
+  medium: 16384,
+  high: 24192,
+  xhigh: 40192,
 };
 
 @Injectable()
@@ -56,7 +58,11 @@ export class AnthropicService {
     return block?.type === 'text' ? block.text : '';
   }
 
-  async chat(model: string, prompt: string, reasoningEffort: ReasoningEffort = 'medium'): Promise<string> {
+  async chat(
+    model: string,
+    prompt: string,
+    reasoningEffort: ReasoningEffort = 'medium',
+  ): Promise<string> {
     if (!this.isConfigured()) {
       throw new BadGatewayException('Anthropic is not configured');
     }
@@ -65,22 +71,25 @@ export class AnthropicService {
       let response: Message;
 
       if (reasoningEffort !== 'none') {
-        // Use extended thinking when reasoning is requested
-        const budgetTokens = THINKING_BUDGET[reasoningEffort];
-        response = await client.messages.create({
+        // Newer Claude models (opus 4.6+, 4.7+) reject the legacy
+        // `thinking.type=enabled` form with HTTP 400. Use adaptive thinking
+        // plus `output_config.effort` — the path the API now requires, and
+        // which the SDK also recommends for older thinking-capable models.
+        response = (await client.messages.create({
           model,
-          max_tokens: budgetTokens + 8192,
-          thinking: { type: 'enabled', budget_tokens: budgetTokens },
+          max_tokens: MAX_TOKENS[reasoningEffort],
+          thinking: { type: 'adaptive' },
+          output_config: { effort: reasoningEffort },
           messages: [{ role: 'user', content: prompt }],
           stream: false,
-        }) as Message;
+        })) as Message;
       } else {
-        response = await client.messages.create({
+        response = (await client.messages.create({
           model,
           max_tokens: 8192,
           messages: [{ role: 'user', content: prompt }],
           stream: false,
-        }) as Message;
+        })) as Message;
       }
 
       return this.extractText(response.content);
