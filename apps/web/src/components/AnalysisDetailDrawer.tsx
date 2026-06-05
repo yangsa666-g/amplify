@@ -17,6 +17,7 @@ import {
 import {
   DownloadOutlined,
   FileTextOutlined,
+  LinkOutlined,
   LikeOutlined,
   DislikeOutlined,
   LikeFilled,
@@ -311,6 +312,26 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
               onClick={() => downloadDocument(job.documentId, job.document.fileName)}
             >
               {t('detail.downloadOriginal')}
+            </Button>
+          </Space>
+
+          <Space style={{ marginBottom: 16 }} size={4} wrap>
+            <Typography.Text type="secondary">{t('common.resultId')}:</Typography.Text>
+            <Typography.Text copyable={{ text: job.id }} code style={{ fontSize: 12 }}>
+              {job.id}
+            </Typography.Text>
+            <Button
+              icon={<LinkOutlined />}
+              size="small"
+              type="text"
+              onClick={() => {
+                navigator.clipboard?.writeText(
+                  `${window.location.origin}${window.location.pathname}?jobId=${job.id}`,
+                );
+                message.success(t('common.linkCopied'));
+              }}
+            >
+              {t('common.copyLink')}
             </Button>
           </Space>
 

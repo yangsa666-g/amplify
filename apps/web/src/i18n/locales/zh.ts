@@ -31,6 +31,9 @@ const zh: typeof en = {
     copy: '复制',
     copied: '已复制到剪贴板',
     more: '更多',
+    resultId: '结果 ID',
+    copyLink: '复制链接',
+    linkCopied: '链接已复制到剪贴板',
   },
   templateNames: {
     defaultContractFields: '默认合同字段',
@@ -228,6 +231,7 @@ const zh: typeof en = {
     analysisHistory: '分析历史',
     compareHistory: '比对历史',
     columns: {
+      id: 'ID',
       user: '用户',
       file: '文件',
       oldFile: '旧文件',

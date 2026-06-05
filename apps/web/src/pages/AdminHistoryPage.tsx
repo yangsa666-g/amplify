@@ -44,12 +44,30 @@ export default function AdminHistoryPage() {
     .filter(Boolean)
     .map((m) => ({ text: m, value: m }));
 
+  const idFilter = useTextFilter(['id']);
   const userFilter = useTextFilter(['user', 'name']);
   const fileFilter = useTextFilter(['document', 'fileName']);
   const oldFileFilter = useTextFilter(['oldDocument', 'fileName']);
   const newFileFilter = useTextFilter(['newDocument', 'fileName']);
 
   const analysisColumns: TableColumnsType<AnalysisJob> = [
+    {
+      title: t('history.columns.id'),
+      dataIndex: 'id',
+      key: 'id',
+      width: 150,
+      onCell: () => ({ onClick: (e: React.MouseEvent) => e.stopPropagation() }),
+      render: (id: string) => (
+        <Typography.Text
+          copyable={{ text: id }}
+          ellipsis
+          style={{ fontSize: 12, maxWidth: 110, display: 'inline-block', verticalAlign: 'middle' }}
+        >
+          {id}
+        </Typography.Text>
+      ),
+      ...idFilter,
+    },
     {
       title: t('history.columns.user'),
       dataIndex: ['user', 'name'],
