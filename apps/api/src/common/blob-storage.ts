@@ -58,7 +58,13 @@ export async function streamBlobToResponse(
   const props = await blockBlobClient.getProperties();
   const downloadResponse = await blockBlobClient.download(0);
 
-  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+  // RFC 5987/6266: keep an ASCII fallback in `filename` and the real UTF-8
+  // name in `filename*` so non-English names (e.g. Chinese) download intact.
+  const asciiFallback = fileName.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+  );
   res.setHeader('Content-Type', props.contentType || 'application/octet-stream');
   if (props.contentLength !== undefined) {
     res.setHeader('Content-Length', props.contentLength);

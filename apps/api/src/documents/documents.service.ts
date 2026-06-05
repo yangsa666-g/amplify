@@ -9,6 +9,18 @@ import * as crypto from 'crypto';
 
 const MAX_SIZE_MB = parseInt(process.env.MAX_UPLOAD_SIZE_MB || '20', 10);
 
+/**
+ * Multer/busboy decode multipart filenames as latin1 by default, which turns
+ * UTF-8 names (e.g. Chinese characters) into mojibake. Re-interpret the raw
+ * bytes as UTF-8. Pure-ASCII names are unaffected; if the re-decode yields a
+ * replacement character that wasn't already present, the name probably wasn't
+ * UTF-8, so we keep the original.
+ */
+function decodeOriginalName(name: string): string {
+  const decoded = Buffer.from(name, 'latin1').toString('utf8');
+  return decoded.includes('�') && !name.includes('�') ? name : decoded;
+}
+
 @Injectable()
 export class DocumentsService {
   private readonly logger = new Logger(DocumentsService.name);
@@ -23,7 +35,9 @@ export class DocumentsService {
       throw new BadRequestException(`File exceeds ${MAX_SIZE_MB}MB limit`);
     }
 
-    if (!this.parser.isSupported(file.mimetype, file.originalname)) {
+    const originalName = decodeOriginalName(file.originalname);
+
+    if (!this.parser.isSupported(file.mimetype, originalName)) {
       throw new BadRequestException('Unsupported file type. Supported: PDF, DOCX, TXT');
     }
 
@@ -39,12 +53,12 @@ export class DocumentsService {
     // Persist the file
     let storagePath: string;
     if (isAzureStorageConfigured()) {
-      storagePath = await uploadBlob(userId, file.originalname, buffer, file.mimetype);
+      storagePath = await uploadBlob(userId, originalName, buffer, file.mimetype);
       this.logger.log(`Uploaded to Azure Blob: ${storagePath}`);
     } else {
       // Local dev: write to disk
       const dir = getUploadDir();
-      const filename = `${crypto.randomBytes(8).toString('hex')}${path.extname(file.originalname)}`;
+      const filename = `${crypto.randomBytes(8).toString('hex')}${path.extname(originalName)}`;
       storagePath = path.join(dir, filename);
       fs.writeFileSync(storagePath, buffer);
       this.logger.log(`Saved locally: ${storagePath}`);
@@ -53,7 +67,7 @@ export class DocumentsService {
     const doc = await this.prisma.document.create({
       data: {
         userId,
-        fileName: file.originalname,
+        fileName: originalName,
         fileType: file.mimetype,
         fileSize: file.size,
         storagePath,
@@ -67,7 +81,7 @@ export class DocumentsService {
 
     const extractionStart = Date.now();
     try {
-      extractedText = await this.parser.extractText(buffer, file.mimetype, file.originalname);
+      extractedText = await this.parser.extractText(buffer, file.mimetype, originalName);
       if (!extractedText) {
         status = 'failed';
         extractionError = 'Extraction returned empty content';
