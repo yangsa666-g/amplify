@@ -32,7 +32,7 @@ export class AnalysisController {
 
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.analysisService.findOne(id, user.userId);
+    return this.analysisService.findOne(id, user.userId, user.role);
   }
 
   @Post(':id/feedback')
