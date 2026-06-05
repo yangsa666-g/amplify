@@ -4,7 +4,7 @@ import type { TableColumnsType } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { getHistory } from '../api/history';
+import { getAllHistory } from '../api/history';
 import type { AnalysisJob, CompareJob } from '../types';
 import AnalysisDetailDrawer from '../components/AnalysisDetailDrawer';
 import CompareDetailDrawer from '../components/CompareDetailDrawer';
@@ -16,7 +16,7 @@ export default function AdminHistoryPage() {
   const { t, i18n } = useTranslation();
   const { data, isLoading } = useQuery({
     queryKey: ['admin-history'],
-    queryFn: () => getHistory().then((r) => r.data),
+    queryFn: () => getAllHistory().then((r) => r.data),
   });
   const [selectedJob, setSelectedJob] = useState<AnalysisJob | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
