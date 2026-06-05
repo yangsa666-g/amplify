@@ -511,6 +511,16 @@ export default function AnalysisPage() {
 
       {result && (
         <Card title={t('analysis.step5')}>
+          <Space style={{ marginBottom: 12 }} size={4} wrap>
+            <Typography.Text type="secondary">{t('common.resultId')}:</Typography.Text>
+            <Typography.Text
+              copyable={{ text: result.analysisJobId }}
+              code
+              style={{ fontSize: 12 }}
+            >
+              {result.analysisJobId}
+            </Typography.Text>
+          </Space>
           {result.timings && (
             <div style={{ marginBottom: 12 }}>
               <RunTimings timings={result.timings} />

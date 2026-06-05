@@ -29,6 +29,9 @@ const en = {
     copy: 'Copy',
     copied: 'Copied to clipboard',
     more: 'More',
+    resultId: 'Result ID',
+    copyLink: 'Copy link',
+    linkCopied: 'Link copied to clipboard',
   },
   templateNames: {
     defaultContractFields: 'Default Contract Fields',
@@ -229,6 +232,7 @@ const en = {
     analysisHistory: 'Analysis History',
     compareHistory: 'Compare History',
     columns: {
+      id: 'ID',
       user: 'User',
       file: 'File',
       oldFile: 'Old File',
