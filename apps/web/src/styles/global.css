@@ -124,6 +124,55 @@ img {
   }
 }
 
+/* Always-visible scrollbars. macOS hides overlay scrollbars until the user
+   scrolls, so a wide field table or a tall result pane gives no hint that it
+   can scroll. Apply .always-scroll to a scroll container (or to an antd Table,
+   whose inner .ant-table-content/.ant-table-body does the scrolling) to keep
+   the bars visible whenever content overflows. Grey tones read fine on both
+   the light and dark themes.
+
+   NOTE: we deliberately style only via ::-webkit-scrollbar and force
+   scrollbar-color back to `auto`. In Chromium/Edge a non-auto standard
+   `scrollbar-width`/`scrollbar-color` neither forces a persistent bar on
+   macOS overlay mode NOR coexists with ::-webkit-scrollbar (it disables it).
+   antd sets `scrollbar-color` on .ant-table, which is inherited by the scroll
+   container — so we must reset it to re-enable the webkit styling. */
+.always-scroll,
+.always-scroll .ant-table-content,
+.always-scroll .ant-table-body {
+  scrollbar-color: auto;
+}
+
+.always-scroll::-webkit-scrollbar,
+.always-scroll .ant-table-content::-webkit-scrollbar,
+.always-scroll .ant-table-body::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.always-scroll::-webkit-scrollbar-track,
+.always-scroll .ant-table-content::-webkit-scrollbar-track,
+.always-scroll .ant-table-body::-webkit-scrollbar-track {
+  background: rgba(128, 128, 128, 0.12);
+  border-radius: 8px;
+}
+
+.always-scroll::-webkit-scrollbar-thumb,
+.always-scroll .ant-table-content::-webkit-scrollbar-thumb,
+.always-scroll .ant-table-body::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.5);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.always-scroll::-webkit-scrollbar-thumb:hover,
+.always-scroll .ant-table-content::-webkit-scrollbar-thumb:hover,
+.always-scroll .ant-table-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 128, 128, 0.7);
+  background-clip: padding-box;
+}
+
 .login-page {
   isolation: isolate;
 }

@@ -320,6 +320,7 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
                 children:
                   fieldResults.length > 0 ? (
                     <Table
+                      className="always-scroll"
                       dataSource={fieldResults}
                       columns={buildFieldColumns(t)}
                       rowKey={(row, idx) => row.field ?? String(idx)}
@@ -335,7 +336,10 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
                 key: 'risk',
                 label: t('detail.riskAnalysis'),
                 children: riskText ? (
-                  <div style={{ maxHeight: 600, overflowY: 'auto', padding: '0 4px' }}>
+                  <div
+                    className="always-scroll"
+                    style={{ maxHeight: 600, overflow: 'auto', padding: '0 4px' }}
+                  >
                     <Markdown remarkPlugins={[remarkGfm]}>{riskText}</Markdown>
                   </div>
                 ) : (
@@ -363,9 +367,10 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
                       {t('detail.downloadMarkdown')}
                     </Button>
                     <div
+                      className="always-scroll"
                       style={{
                         maxHeight: 560,
-                        overflowY: 'auto',
+                        overflow: 'auto',
                         padding: '0 4px',
                         fontSize: 13,
                         lineHeight: 1.7,
