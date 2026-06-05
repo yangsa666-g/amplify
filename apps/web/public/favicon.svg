@@ -1,0 +1,14 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ampTile" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4096ff" />
+      <stop offset="0.55" stop-color="#1677ff" />
+      <stop offset="1" stop-color="#0958d9" />
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="11" fill="url(#ampTile)" />
+  <g fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 24 L24 13 L36 24" />
+    <path d="M16 35 L24 26 L32 35" />
+  </g>
+</svg>
