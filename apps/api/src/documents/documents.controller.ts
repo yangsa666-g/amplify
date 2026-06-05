@@ -34,13 +34,13 @@ export class DocumentsController {
 
   @Get(':id/text')
   async getText(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    const text = await this.documentsService.getExtractedText(id, user.userId);
+    const text = await this.documentsService.getExtractedText(id, user.userId, user.role);
     return { text };
   }
 
   @Get(':id/download')
   async download(@Param('id') id: string, @CurrentUser() user: AuthUser, @Res() res: any) {
-    await this.documentsService.downloadToResponse(id, user.userId, res);
+    await this.documentsService.downloadToResponse(id, user.userId, res, user.role);
   }
 
   @Get(':id')

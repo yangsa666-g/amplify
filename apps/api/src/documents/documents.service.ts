@@ -97,14 +97,17 @@ export class DocumentsService {
     };
   }
 
-  async findOne(id: string, userId: string) {
-    const doc = await this.prisma.document.findFirst({ where: { id, userId } });
+  async findOne(id: string, userId: string, role?: string) {
+    const isAdmin = role === 'admin';
+    const doc = await this.prisma.document.findFirst({
+      where: isAdmin ? { id } : { id, userId },
+    });
     if (!doc) throw new NotFoundException('Document not found');
     return doc;
   }
 
-  async getExtractedText(id: string, userId: string): Promise<string> {
-    const doc = await this.findOne(id, userId);
+  async getExtractedText(id: string, userId: string, role?: string): Promise<string> {
+    const doc = await this.findOne(id, userId, role);
     if (doc.textExtractionStatus !== 'success' || !doc.extractedText) {
       const reason = (doc as any).extractionError ? `: ${(doc as any).extractionError}` : '';
       throw new BadRequestException(`Text extraction failed${reason}`);
@@ -112,8 +115,8 @@ export class DocumentsService {
     return doc.extractedText;
   }
 
-  async downloadToResponse(id: string, userId: string, res: any): Promise<void> {
-    const doc = await this.findOne(id, userId);
+  async downloadToResponse(id: string, userId: string, res: any, role?: string): Promise<void> {
+    const doc = await this.findOne(id, userId, role);
     if (isAzureStorageConfigured()) {
       await streamBlobToResponse(doc.storagePath, doc.fileName, res);
     } else {

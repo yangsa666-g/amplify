@@ -214,9 +214,10 @@ export class AnalysisService {
     }
   }
 
-  async findOne(id: string, userId: string) {
+  async findOne(id: string, userId: string, role?: string) {
+    const isAdmin = role === 'admin';
     const job = await this.prisma.analysisJob.findFirst({
-      where: { id, userId },
+      where: isAdmin ? { id } : { id, userId },
       include: {
         document: { select: { fileName: true, extractionMs: true } },
         fieldExtractionResult: true,
