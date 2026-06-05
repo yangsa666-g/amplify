@@ -328,9 +328,10 @@ export default function AnalysisPage() {
                 <Spin />
               ) : (
                 <div
+                  className="always-scroll"
                   style={{
                     maxHeight: 480,
-                    overflowY: 'auto',
+                    overflow: 'auto',
                     padding: '0 4px',
                     fontSize: 13,
                     lineHeight: 1.7,
@@ -510,6 +511,7 @@ export default function AnalysisPage() {
                 label: t('analysis.fieldExtraction'),
                 children: Array.isArray(result.fieldExtractionResult) ? (
                   <Table
+                    className="always-scroll"
                     dataSource={result.fieldExtractionResult}
                     columns={fieldColumns}
                     rowKey={(row, idx) => row.field ?? String(idx)}
@@ -525,7 +527,10 @@ export default function AnalysisPage() {
                 key: 'risk',
                 label: t('analysis.riskAnalysis'),
                 children: (
-                  <div style={{ maxHeight: 500, overflowY: 'auto', padding: '0 4px' }}>
+                  <div
+                    className="always-scroll"
+                    style={{ maxHeight: 500, overflow: 'auto', padding: '0 4px' }}
+                  >
                     {result.riskAnalysisResult.originalContractDescription && (
                       <>
                         <Typography.Title level={5} style={{ marginTop: 0 }}>
@@ -567,6 +572,7 @@ export default function AnalysisPage() {
 
       <Card title={t('analysis.recentHistory')}>
         <Table
+          className="always-scroll"
           dataSource={recent}
           columns={recentColumns}
           rowKey="id"
