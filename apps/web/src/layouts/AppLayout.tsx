@@ -37,6 +37,7 @@ import { useAuthStore } from '../stores/authStore';
 import { logout } from '../api/auth';
 import { getNotifications, getUnreadCount, markRead, markAllRead } from '../api/notifications';
 import HeaderControls from '../components/HeaderControls';
+import Logo from '../components/Logo';
 import type { Notification } from '../types';
 
 const { Sider, Content, Header } = Layout;
@@ -249,17 +250,28 @@ export default function AppLayout() {
     <>
       <div
         style={{
-          padding: '20px 16px',
-          color: '#fff',
-          fontWeight: 700,
-          fontSize: 15,
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          textAlign: 'center',
+          padding: '18px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
         }}
       >
-        {showCollapsedLogo ? t('common.appName').charAt(0) : t('common.appName')}
+        <Logo size={28} style={{ flexShrink: 0 }} />
+        {!showCollapsedLogo && (
+          <span
+            style={{
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: 18,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {t('common.appName')}
+          </span>
+        )}
       </div>
       <Menu
         theme="dark"
@@ -334,6 +346,7 @@ export default function AppLayout() {
                   onClick={() => setDrawerOpen(true)}
                   aria-label="Menu"
                 />
+                <Logo size={24} style={{ flexShrink: 0 }} />
                 <Typography.Text strong style={{ fontSize: 16 }}>
                   {t('common.appName')}
                 </Typography.Text>

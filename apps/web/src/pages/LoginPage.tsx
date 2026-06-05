@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { login, getEntraEnabled } from '../api/auth';
 import { useAuthStore } from '../stores/authStore';
 import HeaderControls from '../components/HeaderControls';
+import Logo from '../components/Logo';
 import { ssoErrorMessage } from '../utils/ssoErrors';
 import type { ApiError } from '../types';
 
@@ -74,14 +75,31 @@ export default function LoginPage() {
         <div className="login-page__grid" />
         <div className="login-page__scanline login-page__scanline--one" />
         <div className="login-page__scanline login-page__scanline--two" />
+        <div className="login-page__chevron login-page__chevron--1" />
+        <div className="login-page__chevron login-page__chevron--2" />
+        <div className="login-page__chevron login-page__chevron--3" />
+        <div className="login-page__chevron login-page__chevron--4" />
+        <div className="login-page__chevron login-page__chevron--5" />
+        <div className="login-page__chevron login-page__chevron--6" />
       </div>
       <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 2 }}>
         <HeaderControls />
       </div>
       <Card className="login-page__card" style={{ width: '100%', maxWidth: 380 }}>
-        <Typography.Title level={3} style={{ textAlign: 'center', marginBottom: 24 }}>
-          {t('login.title')}
-        </Typography.Title>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 12,
+            marginBottom: 20,
+          }}
+        >
+          <Logo size={44} />
+          <Typography.Title level={3} style={{ margin: 0 }}>
+            {t('common.appName')}
+          </Typography.Title>
+        </div>
         {ssoError && <Alert message={ssoError} type="error" style={{ marginBottom: 16 }} />}
         {mutation.isError && (
           <Alert
