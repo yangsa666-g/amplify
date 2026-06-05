@@ -5,30 +5,51 @@ import { PrismaService } from '../prisma/prisma.service';
 export class HistoryService {
   constructor(private prisma: PrismaService) {}
 
-  async getRecent(userId: string, role: string) {
-    const isAdmin = role === 'admin';
+  /** Current user's own recent history (used by the "My History" page). */
+  async getRecent(userId: string) {
     const [analysisJobs, compareJobs] = await Promise.all([
       this.prisma.analysisJob.findMany({
-        where: isAdmin ? undefined : { userId },
+        where: { userId },
         orderBy: { createdAt: 'desc' },
-        take: isAdmin ? undefined : 10,
+        take: 10,
         include: {
           document: { select: { fileName: true } },
           feedbacks: {
-            where: isAdmin ? undefined : { userId },
+            where: { userId },
             select: { userId: true, rating: true, comment: true },
           },
-          ...(isAdmin ? { user: { select: { id: true, name: true, email: true } } } : {}),
         },
       }),
       this.prisma.compareJob.findMany({
-        where: isAdmin ? undefined : { userId },
+        where: { userId },
         orderBy: { createdAt: 'desc' },
-        take: isAdmin ? undefined : 10,
+        take: 10,
         include: {
           oldDocument: { select: { fileName: true } },
           newDocument: { select: { fileName: true } },
-          ...(isAdmin ? { user: { select: { id: true, name: true, email: true } } } : {}),
+        },
+      }),
+    ]);
+    return { analysisJobs, compareJobs };
+  }
+
+  /** Every user's history (admin-only, used by the "All History" page). */
+  async getAllForAdmin() {
+    const [analysisJobs, compareJobs] = await Promise.all([
+      this.prisma.analysisJob.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: {
+          document: { select: { fileName: true } },
+          feedbacks: { select: { userId: true, rating: true, comment: true } },
+          user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+      this.prisma.compareJob.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: {
+          oldDocument: { select: { fileName: true } },
+          newDocument: { select: { fileName: true } },
+          user: { select: { id: true, name: true, email: true } },
         },
       }),
     ]);
