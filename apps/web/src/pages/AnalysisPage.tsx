@@ -49,6 +49,10 @@ const { Dragger } = Upload;
 const LAST_FIELD_TEMPLATE_KEY = 'lastFieldTemplateId';
 const LAST_PROMPT_TEMPLATE_KEY = 'lastPromptTemplateId';
 
+// Let long cell values wrap onto multiple lines (and preserve newlines in JSON
+// values) instead of forcing the column to grow wide on a single line.
+const wrapCellStyle: React.CSSProperties = { whiteSpace: 'pre-wrap', wordBreak: 'break-word' };
+
 function buildTemplateOptions(templates: (FieldTemplate | PromptTemplate)[], t: TFunction) {
   const system = templates.filter((t) => t.scope === 'system');
   const personal = templates.filter((t) => t.scope === 'personal');
@@ -229,11 +233,19 @@ export default function AnalysisPage() {
   ];
 
   const fieldColumns = [
-    { title: t('analysis.columns.field'), dataIndex: 'field', key: 'field', width: 160 },
+    {
+      title: t('analysis.columns.field'),
+      dataIndex: 'field',
+      key: 'field',
+      width: 160,
+      onCell: () => ({ style: wrapCellStyle }),
+    },
     {
       title: t('analysis.columns.value'),
       dataIndex: 'extracted_value',
       key: 'value',
+      width: 420,
+      onCell: () => ({ style: wrapCellStyle }),
       render: (v: unknown) => {
         if (v === null || v === undefined)
           return (
@@ -517,7 +529,7 @@ export default function AnalysisPage() {
                     rowKey={(row, idx) => row.field ?? String(idx)}
                     pagination={false}
                     size="small"
-                    scroll={{ x: 'max-content' }}
+                    scroll={{ x: 680 }}
                   />
                 ) : (
                   <Alert type="warning" message={t('analysis.fieldResultBadFormat')} />

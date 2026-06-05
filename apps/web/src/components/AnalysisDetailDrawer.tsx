@@ -12,7 +12,6 @@ import {
   Input,
   List,
   Avatar,
-  Grid,
   theme,
 } from 'antd';
 import {
@@ -43,13 +42,26 @@ interface Props {
   onClose: () => void;
 }
 
+// Let long cell values wrap onto multiple lines (and preserve any newlines in
+// JSON values) instead of forcing the column to grow wide on a single line.
+const wrapCellStyle: React.CSSProperties = { whiteSpace: 'pre-wrap', wordBreak: 'break-word' };
+const wrapCell = () => ({ style: wrapCellStyle });
+
 function buildFieldColumns(t: TFunction) {
   return [
-    { title: t('detail.columns.field'), dataIndex: 'field', key: 'field', width: 180 },
+    {
+      title: t('detail.columns.field'),
+      dataIndex: 'field',
+      key: 'field',
+      width: 180,
+      onCell: wrapCell,
+    },
     {
       title: t('detail.columns.value'),
       dataIndex: 'extracted_value',
       key: 'value',
+      width: 340,
+      onCell: wrapCell,
       render: (v: unknown) => {
         if (v === null || v === undefined)
           return <Typography.Text type="secondary">{t('detail.columns.notFound')}</Typography.Text>;
@@ -58,11 +70,13 @@ function buildFieldColumns(t: TFunction) {
         return String(v);
       },
     },
-    { title: t('detail.columns.confidence'), dataIndex: 'confidence', key: 'conf', width: 100 },
+    { title: t('detail.columns.confidence'), dataIndex: 'confidence', key: 'conf', width: 110 },
     {
       title: t('detail.columns.evidence'),
       dataIndex: 'evidence',
       key: 'evidence',
+      width: 380,
+      onCell: wrapCell,
       render: (v: unknown) =>
         v ? (
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
@@ -76,6 +90,8 @@ function buildFieldColumns(t: TFunction) {
       title: t('detail.columns.comments'),
       dataIndex: 'comments',
       key: 'comments',
+      width: 260,
+      onCell: wrapCell,
       render: (v: unknown) => v || '—',
     },
   ];
@@ -220,8 +236,6 @@ function FeedbackTab({ job }: { job: AnalysisJob }) {
 export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
   const { t, i18n } = useTranslation();
   const { token } = theme.useToken();
-  const screens = Grid.useBreakpoint();
-  const isMobile = !screens.md;
   const [ocrTabActive, setOcrTabActive] = useState(false);
 
   const { data: detail, isLoading: detailLoading } = useQuery({
@@ -265,7 +279,7 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
         setOcrTabActive(false);
         onClose();
       }}
-      width={isMobile ? '100%' : 900}
+      width="100%"
       destroyOnClose
     >
       {!job ? null : detailLoading ? (
@@ -326,7 +340,7 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
                       rowKey={(row, idx) => row.field ?? String(idx)}
                       pagination={false}
                       size="small"
-                      scroll={{ x: 'max-content' }}
+                      scroll={{ x: 1270 }}
                     />
                   ) : (
                     <Alert type="info" message={t('detail.noFieldResults')} />
