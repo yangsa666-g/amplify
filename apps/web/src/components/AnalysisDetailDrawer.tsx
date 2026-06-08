@@ -287,62 +287,108 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
         <Spin style={{ display: 'block', marginTop: 80 }} />
       ) : (
         <>
-          <Space style={{ marginBottom: 16 }} wrap>
-            <Typography.Text strong>{job.document.fileName}</Typography.Text>
-            <Typography.Text type="secondary">
-              {t('detail.model', { model: job.modelName })}
-            </Typography.Text>
-            {job.reasoningEffort && job.reasoningEffort !== 'none' && (
-              <Typography.Text type="secondary">
-                {t('detail.effort')}{' '}
-                <Tag style={{ marginLeft: 0 }}>{effortLabel(t, job.reasoningEffort)}</Tag>
-              </Typography.Text>
-            )}
-            <Typography.Text type="secondary">
-              {formatDateTime(job.createdAt, i18n.language)}
-            </Typography.Text>
-            {job.user && (
-              <Typography.Text type="secondary">
-                {t('detail.by', { name: job.user.name })}
-              </Typography.Text>
-            )}
-            <Button
-              icon={<DownloadOutlined />}
-              size="small"
-              onClick={() => downloadDocument(job.documentId, job.document.fileName)}
-            >
-              {t('detail.downloadOriginal')}
-            </Button>
-          </Space>
+          <div
+            className="analysis-detail-summary"
+            style={
+              {
+                '--analysis-detail-border': token.colorBorderSecondary,
+                '--analysis-detail-muted': token.colorTextSecondary,
+                '--analysis-detail-text': token.colorText,
+              } as React.CSSProperties
+            }
+          >
+            <div className="analysis-detail-summary__top">
+              <div className="analysis-detail-summary__document">
+                <FileTextOutlined className="analysis-detail-summary__document-icon" />
+                <Typography.Text strong className="analysis-detail-summary__file-name">
+                  {job.document.fileName}
+                </Typography.Text>
+              </div>
 
-          <Space style={{ marginBottom: 16 }} size={4} wrap>
-            <Typography.Text type="secondary">{t('common.resultId')}:</Typography.Text>
-            <Typography.Text copyable={{ text: job.id }} code style={{ fontSize: 12 }}>
-              {job.id}
-            </Typography.Text>
-            <Button
-              icon={<LinkOutlined />}
-              size="small"
-              type="text"
-              onClick={() => {
-                navigator.clipboard?.writeText(
-                  `${window.location.origin}${window.location.pathname}?jobId=${job.id}`,
-                );
-                message.success(t('common.linkCopied'));
-              }}
-            >
-              {t('common.copyLink')}
-            </Button>
-          </Space>
+              <Space className="analysis-detail-summary__actions" size={8} wrap>
+                <Button
+                  icon={<DownloadOutlined />}
+                  size="small"
+                  onClick={() => downloadDocument(job.documentId, job.document.fileName)}
+                >
+                  {t('detail.downloadOriginal')}
+                </Button>
+                <Button
+                  icon={<LinkOutlined />}
+                  size="small"
+                  type="text"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(
+                      `${window.location.origin}${window.location.pathname}?jobId=${job.id}`,
+                    );
+                    message.success(t('common.linkCopied'));
+                  }}
+                >
+                  {t('common.copyLink')}
+                </Button>
+              </Space>
+            </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <RunTimings
-              timings={{
-                ocrMs: detail?.document?.extractionMs,
-                fieldExtractionMs: detail?.fieldExtractionMs,
-                riskAnalysisMs: detail?.riskAnalysisMs,
-              }}
-            />
+            <div className="analysis-detail-summary__meta" aria-label={t('detail.metaInfo')}>
+              <div className="analysis-detail-summary__meta-item">
+                <Typography.Text type="secondary" className="analysis-detail-summary__meta-label">
+                  {t('detail.modelLabel')}
+                </Typography.Text>
+                <Typography.Text className="analysis-detail-summary__meta-value">
+                  {job.modelName}
+                </Typography.Text>
+              </div>
+              {job.reasoningEffort && job.reasoningEffort !== 'none' && (
+                <div className="analysis-detail-summary__meta-item">
+                  <Typography.Text type="secondary" className="analysis-detail-summary__meta-label">
+                    {t('detail.effortLabel')}
+                  </Typography.Text>
+                  <Tag className="analysis-detail-summary__effort-tag">
+                    {effortLabel(t, job.reasoningEffort)}
+                  </Tag>
+                </div>
+              )}
+              <div className="analysis-detail-summary__meta-item">
+                <Typography.Text type="secondary" className="analysis-detail-summary__meta-label">
+                  {t('detail.createdAt')}
+                </Typography.Text>
+                <Typography.Text className="analysis-detail-summary__meta-value">
+                  {formatDateTime(job.createdAt, i18n.language)}
+                </Typography.Text>
+              </div>
+              {job.user && (
+                <div className="analysis-detail-summary__meta-item">
+                  <Typography.Text type="secondary" className="analysis-detail-summary__meta-label">
+                    {t('detail.createdBy')}
+                  </Typography.Text>
+                  <Typography.Text className="analysis-detail-summary__meta-value">
+                    {job.user.name}
+                  </Typography.Text>
+                </div>
+              )}
+              <div className="analysis-detail-summary__meta-item analysis-detail-summary__result-id">
+                <Typography.Text type="secondary" className="analysis-detail-summary__meta-label">
+                  {t('common.resultId')}
+                </Typography.Text>
+                <Typography.Text
+                  className="analysis-detail-summary__id-value"
+                  copyable={{ text: job.id }}
+                  code
+                >
+                  {job.id}
+                </Typography.Text>
+              </div>
+            </div>
+
+            <div className="analysis-detail-summary__timings">
+              <RunTimings
+                timings={{
+                  ocrMs: detail?.document?.extractionMs,
+                  fieldExtractionMs: detail?.fieldExtractionMs,
+                  riskAnalysisMs: detail?.riskAnalysisMs,
+                }}
+              />
+            </div>
           </div>
 
           <Tabs
