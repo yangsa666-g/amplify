@@ -14,7 +14,9 @@ import {
   Drawer,
   Grid,
   theme,
+  message,
 } from 'antd';
+import type { MenuProps } from 'antd';
 import {
   FileTextOutlined,
   DiffOutlined,
@@ -29,14 +31,20 @@ import {
   BellOutlined,
   CheckOutlined,
   MenuOutlined,
+  DownloadOutlined,
+  GlobalOutlined,
+  BulbOutlined,
+  BulbFilled,
+  DesktopOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../stores/authStore';
+import { useUiStore, type ThemeMode } from '../stores/uiStore';
 import { logout } from '../api/auth';
 import { getNotifications, getUnreadCount, markRead, markAllRead } from '../api/notifications';
-import HeaderControls from '../components/HeaderControls';
+import { usePwaInstallPrompt } from '../pwa/usePwaInstallPrompt';
 import Logo from '../components/Logo';
 import type { Notification } from '../types';
 
@@ -194,15 +202,24 @@ function NotificationBell() {
 export default function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { token } = theme.useToken();
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
 
   const { user, clearAuth, refreshToken } = useAuthStore();
+  const themeMode = useUiStore((s) => s.themeMode);
+  const setThemeMode = useUiStore((s) => s.setThemeMode);
+  const { canInstall, promptInstall } = usePwaInstallPrompt();
+  const lang = i18n.language.startsWith('zh') ? 'zh' : 'en';
   const isAdmin = user?.role === 'admin';
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const installApp = async () => {
+    const outcome = await promptInstall();
+    if (outcome === 'accepted') message.success(t('pwa.installAccepted'));
+  };
 
   const handleLogout = async () => {
     try {
@@ -228,16 +245,57 @@ export default function AppLayout() {
       ]
     : [];
 
-  const userMenu = {
-    items: [
-      {
-        key: 'profile',
-        icon: <UserOutlined />,
-        label: t('nav.profile'),
-        onClick: () => navigate('/profile'),
-      },
-      { key: 'logout', icon: <LogoutOutlined />, label: t('nav.logout'), onClick: handleLogout },
-    ],
+  const userDropdownItems: MenuProps['items'] = [
+    {
+      key: 'profile',
+      icon: <UserOutlined />,
+      label: t('nav.profile'),
+    },
+    ...(canInstall
+      ? [
+          {
+            key: 'pwa:install',
+            icon: <DownloadOutlined />,
+            label: t('pwa.install'),
+          },
+        ]
+      : []),
+    { type: 'divider' },
+    {
+      key: 'theme-group',
+      type: 'group',
+      label: t('theme.label'),
+      children: [
+        { key: 'theme:light', icon: <BulbOutlined />, label: t('theme.light') },
+        { key: 'theme:dark', icon: <BulbFilled />, label: t('theme.dark') },
+        { key: 'theme:system', icon: <DesktopOutlined />, label: t('theme.system') },
+      ],
+    },
+    { type: 'divider' },
+    {
+      key: 'language-group',
+      type: 'group',
+      label: t('language.label'),
+      children: [
+        { key: 'lang:en', icon: <GlobalOutlined />, label: t('language.en') },
+        { key: 'lang:zh', icon: <GlobalOutlined />, label: t('language.zh') },
+      ],
+    },
+    { type: 'divider' },
+    { key: 'logout', icon: <LogoutOutlined />, label: t('nav.logout'), danger: true },
+  ];
+
+  const userMenu: MenuProps = {
+    selectable: true,
+    selectedKeys: [`theme:${themeMode}`, `lang:${lang}`],
+    items: userDropdownItems,
+    onClick: ({ key }) => {
+      if (key === 'profile') navigate('/profile');
+      if (key === 'logout') void handleLogout();
+      if (key === 'pwa:install') void installApp();
+      if (key.startsWith('theme:')) setThemeMode(key.slice(6) as ThemeMode);
+      if (key.startsWith('lang:')) void i18n.changeLanguage(key.slice(5));
+    },
   };
 
   const handleNav = (key: string) => {
@@ -354,10 +412,13 @@ export default function AppLayout() {
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 16 }}>
-            <HeaderControls compact={isMobile} />
             <NotificationBell />
-            <Dropdown menu={userMenu} placement="bottomRight">
-              <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
+              <div
+                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+                aria-label={t('nav.profile')}
+                title={t('nav.profile')}
+              >
                 <Avatar icon={<UserOutlined />} />
                 {!isMobile && <Typography.Text>{user?.name || user?.email}</Typography.Text>}
               </div>
