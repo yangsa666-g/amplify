@@ -10,3 +10,6 @@ uploads/
 # .claude config (settings.json, commands, skills) can still be committed.
 .claude/worktrees/
 .claude/settings.local.json
+
+# macOS
+.DS_Store
