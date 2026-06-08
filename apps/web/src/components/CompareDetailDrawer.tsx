@@ -1,4 +1,4 @@
-import { Drawer, Typography, Space, Tag, Alert, Grid } from 'antd';
+import { Drawer, Typography, Space, Tag, Alert } from 'antd';
 import { useTranslation } from 'react-i18next';
 import ReactDiffViewer from 'react-diff-viewer-continued';
 import { useIsDark } from '../hooks/useIsDark';
@@ -20,8 +20,6 @@ interface Props {
 export default function CompareDetailDrawer({ job, open, onClose }: Props) {
   const { t, i18n } = useTranslation();
   const isDark = useIsDark();
-  const screens = Grid.useBreakpoint();
-  const isMobile = !screens.md;
 
   const chunks = job?.diffResultJson?.chunks ?? [];
   const oldText = chunks
@@ -50,7 +48,7 @@ export default function CompareDetailDrawer({ job, open, onClose }: Props) {
       }
       open={open}
       onClose={onClose}
-      width={isMobile ? '100%' : 1000}
+      width="100%"
       destroyOnClose
     >
       {!job ? null : (
