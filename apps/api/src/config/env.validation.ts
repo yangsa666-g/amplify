@@ -40,6 +40,14 @@ export function validateEnv(env: Record<string, unknown>): Record<string, unknow
     errors.push('JWT_SECRET is required (no insecure default is provided).');
   }
 
+  const auditRetentionDays = asString(env.AUDIT_LOG_RETENTION_DAYS);
+  if (auditRetentionDays) {
+    const parsed = Number(auditRetentionDays);
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 3650) {
+      errors.push('AUDIT_LOG_RETENTION_DAYS must be an integer between 1 and 3650.');
+    }
+  }
+
   // ─── Stricter checks in production ───────────────────────────────────────────
   if (prod) {
     if (jwtSecret && WEAK_SECRETS.has(jwtSecret.toLowerCase())) {

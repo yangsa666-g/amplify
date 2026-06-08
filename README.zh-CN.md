@@ -100,6 +100,7 @@ pnpm dev           # 同时启动 api（:3001）和 web（:3000）
 | `SEED_ADMIN_EMAIL` | ❌ | 初始化管理员账号邮箱 |
 | `SEED_ADMIN_PASSWORD` | ❌ | 初始化管理员账号密码 |
 | `MAX_UPLOAD_SIZE_MB` | ❌ | 最大上传文件大小，单位 MB（默认 20） |
+| `AUDIT_LOG_RETENTION_DAYS` | ❌ | 审计日志自动清理前的保留天数（默认 180，有效范围：1-3650） |
 | `ENTRA_CLIENT_ID` | ❌ | Entra 应用（客户端）ID。留空则完全禁用 SSO |
 | `ENTRA_CLIENT_SECRET` | ❌ | Entra 客户端密钥（启用 SSO 时必填） |
 | `ENTRA_TENANT_ID` | ❌ | Entra 目录（租户）GUID —— 单租户 |

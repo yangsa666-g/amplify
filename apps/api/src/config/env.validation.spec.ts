@@ -40,4 +40,16 @@ describe('validateEnv', () => {
       }),
     ).not.toThrow();
   });
+
+  it('accepts a valid audit log retention value', () => {
+    expect(() =>
+      validateEnv({ ...base, NODE_ENV: 'development', AUDIT_LOG_RETENTION_DAYS: '180' }),
+    ).not.toThrow();
+  });
+
+  it('rejects an invalid audit log retention value', () => {
+    expect(() =>
+      validateEnv({ ...base, NODE_ENV: 'development', AUDIT_LOG_RETENTION_DAYS: 'forever' }),
+    ).toThrow(/AUDIT_LOG_RETENTION_DAYS/);
+  });
 });
