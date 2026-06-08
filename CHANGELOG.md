@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/shidafu666/amplify/compare/v0.1.0...v0.2.0) (2026-06-08)
+
+
+### Features
+
+* **web:** add PWA install support ([70f15ee](https://github.com/shidafu666/amplify/commit/70f15eee32f68162cea734a3d8abf166682116e5))
+* **web:** add PWA install support ([68b442b](https://github.com/shidafu666/amplify/commit/68b442b6f03933f9775cc02f026337a2fd8a2f43))
+
 ## 0.1.0 (2026-06-08)
 
 
