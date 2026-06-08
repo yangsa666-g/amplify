@@ -70,6 +70,10 @@ const en = {
     en: 'English',
     zh: '中文',
   },
+  pwa: {
+    install: 'Install app',
+    installAccepted: 'Install started',
+  },
   nav: {
     analysis: 'Contract Analysis',
     compare: 'Contract Compare',

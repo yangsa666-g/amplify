@@ -1,14 +1,17 @@
 import type { ReactNode } from 'react';
-import { Dropdown, Button } from 'antd';
+import { Dropdown, Button, message } from 'antd';
+import type { MenuProps } from 'antd';
 import {
   GlobalOutlined,
   BulbOutlined,
   BulbFilled,
   DesktopOutlined,
   MoreOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useUiStore, type ThemeMode } from '../stores/uiStore';
+import { usePwaInstallPrompt } from '../pwa/usePwaInstallPrompt';
 
 const themeIcon: Record<ThemeMode, ReactNode> = {
   light: <BulbOutlined />,
@@ -21,25 +24,40 @@ export default function HeaderControls({ compact = false }: { compact?: boolean 
   const { t, i18n } = useTranslation();
   const themeMode = useUiStore((s) => s.themeMode);
   const setThemeMode = useUiStore((s) => s.setThemeMode);
+  const { canInstall, promptInstall } = usePwaInstallPrompt();
   const lang = i18n.language.startsWith('zh') ? 'zh' : 'en';
 
+  const installApp = async () => {
+    const outcome = await promptInstall();
+    if (outcome === 'accepted') message.success(t('pwa.installAccepted'));
+  };
+
   if (compact) {
+    const items: MenuProps['items'] = [
+      ...(canInstall
+        ? [
+            { key: 'pwa:install', icon: <DownloadOutlined />, label: t('pwa.install') },
+            { type: 'divider' as const },
+          ]
+        : []),
+      { key: 'theme', type: 'group', label: t('theme.label') },
+      { key: 'theme:light', icon: <BulbOutlined />, label: t('theme.light') },
+      { key: 'theme:dark', icon: <BulbFilled />, label: t('theme.dark') },
+      { key: 'theme:system', icon: <DesktopOutlined />, label: t('theme.system') },
+      { type: 'divider' },
+      { key: 'language', type: 'group', label: t('language.label') },
+      { key: 'lang:en', icon: <GlobalOutlined />, label: t('language.en') },
+      { key: 'lang:zh', icon: <GlobalOutlined />, label: t('language.zh') },
+    ];
+
     return (
       <Dropdown
         trigger={['click']}
         menu={{
           selectedKeys: [`theme:${themeMode}`, `lang:${lang}`],
-          items: [
-            { key: 'theme', type: 'group', label: t('theme.label') },
-            { key: 'theme:light', icon: <BulbOutlined />, label: t('theme.light') },
-            { key: 'theme:dark', icon: <BulbFilled />, label: t('theme.dark') },
-            { key: 'theme:system', icon: <DesktopOutlined />, label: t('theme.system') },
-            { type: 'divider' },
-            { key: 'language', type: 'group', label: t('language.label') },
-            { key: 'lang:en', icon: <GlobalOutlined />, label: t('language.en') },
-            { key: 'lang:zh', icon: <GlobalOutlined />, label: t('language.zh') },
-          ],
+          items,
           onClick: ({ key }) => {
+            if (key === 'pwa:install') void installApp();
             if (key.startsWith('theme:')) setThemeMode(key.slice(6) as ThemeMode);
             if (key.startsWith('lang:')) void i18n.changeLanguage(key.slice(5));
           },
@@ -57,6 +75,15 @@ export default function HeaderControls({ compact = false }: { compact?: boolean 
 
   return (
     <>
+      {canInstall && (
+        <Button
+          type="text"
+          icon={<DownloadOutlined />}
+          aria-label={t('pwa.install')}
+          title={t('pwa.install')}
+          onClick={() => void installApp()}
+        />
+      )}
       <Dropdown
         trigger={['click']}
         menu={{

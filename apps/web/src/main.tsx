@@ -4,6 +4,7 @@ import App from './App';
 import './i18n';
 import 'antd/dist/reset.css';
 import './styles/global.css';
+import { registerServiceWorker } from './pwa/registerServiceWorker';
 
 async function enableMocking() {
   if (!import.meta.env.DEV || import.meta.env.VITE_ENABLE_MOCKS !== 'true') return;
@@ -18,4 +19,5 @@ enableMocking().then(() => {
       <App />
     </React.StrictMode>,
   );
+  registerServiceWorker();
 });
