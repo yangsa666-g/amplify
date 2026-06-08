@@ -27,6 +27,7 @@ export default function LoginPage() {
   const { t } = useTranslation();
   const { token } = theme.useToken();
   const { setAuth } = useAuthStore();
+  const mocksEnabled = import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCKS === 'true';
 
   const ssoError = ssoErrorMessage(t, params.get('sso_error'));
 
@@ -48,6 +49,22 @@ export default function LoginPage() {
   const signInWithMicrosoft = () => {
     const apiBase = import.meta.env.VITE_API_BASE_URL || '/api';
     window.location.href = `${apiBase}/auth/entra/login`;
+  };
+
+  const devSignIn = () => {
+    setAuth(
+      {
+        id: 'mock-user-admin',
+        email: 'dev@example.com',
+        name: 'Dev Admin',
+        role: 'admin',
+        authProvider: 'local',
+        status: 'active',
+      },
+      'mock-access-token',
+      'mock-refresh-token',
+    );
+    navigate('/history?jobId=mock-analysis-success');
   };
 
   const pageStyle = {
@@ -125,6 +142,11 @@ export default function LoginPage() {
             {t('login.signIn')}
           </Button>
         </Form>
+        {mocksEnabled && (
+          <Button onClick={devSignIn} block size="large" style={{ marginTop: 12 }}>
+            {t('login.devSignIn')}
+          </Button>
+        )}
         {entraEnabled.data && (
           <>
             <Divider plain style={{ color: token.colorTextTertiary }}>

@@ -98,6 +98,7 @@ const zh: typeof en = {
     email: '邮箱',
     password: '密码',
     signIn: '登录',
+    devSignIn: '开发登录',
     ssoEntra: '使用 Entra ID 单点登录',
     loginFailed: '登录失败',
     signInFailedGeneric: '登录失败，请重试。',
