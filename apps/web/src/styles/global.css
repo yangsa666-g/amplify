@@ -20,6 +20,102 @@ img {
   max-width: 100%;
 }
 
+.analysis-detail-summary {
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--analysis-detail-border);
+}
+
+.analysis-detail-summary__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.analysis-detail-summary__document {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.analysis-detail-summary__document-icon {
+  flex: 0 0 auto;
+  color: var(--analysis-detail-muted);
+  font-size: 18px;
+}
+
+.analysis-detail-summary__file-name {
+  min-width: 0;
+  color: var(--analysis-detail-text);
+  font-size: 16px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.analysis-detail-summary__actions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+.analysis-detail-summary__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 0;
+  margin-top: 10px;
+  min-width: 0;
+}
+
+.analysis-detail-summary__meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  line-height: 1.5;
+}
+
+.analysis-detail-summary__meta-item + .analysis-detail-summary__meta-item {
+  margin-inline-start: 14px;
+  padding-inline-start: 14px;
+  border-inline-start: 1px solid var(--analysis-detail-border);
+}
+
+.analysis-detail-summary__meta-label {
+  flex: 0 0 auto;
+  font-size: 12px;
+}
+
+.analysis-detail-summary__meta-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.analysis-detail-summary__effort-tag {
+  margin-inline-end: 0;
+}
+
+.analysis-detail-summary__result-id {
+  flex: 1 1 320px;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.analysis-detail-summary__id-value {
+  min-width: 0;
+  max-width: 100%;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.analysis-detail-summary__timings {
+  margin-top: 10px;
+}
+
 .compare-upload-card .ant-card-body {
   overflow: hidden;
 }
@@ -94,6 +190,31 @@ img {
 }
 
 @media (max-width: 575px) {
+  .analysis-detail-summary {
+    padding-bottom: 12px;
+  }
+
+  .analysis-detail-summary__top {
+    display: grid;
+    gap: 10px;
+  }
+
+  .analysis-detail-summary__actions {
+    justify-content: flex-start;
+  }
+
+  .analysis-detail-summary__meta {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .analysis-detail-summary__meta-item + .analysis-detail-summary__meta-item {
+    margin-inline-start: 0;
+    padding-inline-start: 0;
+    border-inline-start: 0;
+  }
+
   .compare-upload-card .ant-card-body {
     padding: 12px;
   }
