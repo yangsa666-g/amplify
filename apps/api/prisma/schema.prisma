@@ -84,6 +84,7 @@ model User {
   reviewedRequests TemplateRequest[] @relation("ReviewedBy")
   refreshTokens   RefreshToken[]
   apiKeys         ApiKey[]
+  auditLogs       AuditLog[]
 
   @@map("users")
 }
@@ -304,4 +305,29 @@ model ApiKey {
   creator User @relation(fields: [createdBy], references: [id], onDelete: Cascade)
 
   @@map("api_keys")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?  @map("user_id")
+  action     String
+  method     String
+  path       String
+  targetType String?  @map("target_type")
+  targetId   String?  @map("target_id")
+  statusCode Int      @map("status_code")
+  durationMs Int?     @map("duration_ms")
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([method, createdAt])
+  @@index([statusCode, createdAt])
+  @@map("audit_logs")
 }

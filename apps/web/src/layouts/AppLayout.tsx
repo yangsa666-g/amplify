@@ -37,6 +37,7 @@ import {
   BulbFilled,
   DesktopOutlined,
   DownOutlined,
+  AuditOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -242,6 +243,7 @@ export default function AppLayout() {
         { key: '/admin/dashboard', icon: <DashboardOutlined />, label: t('nav.dashboard') },
         { key: '/admin/users', icon: <TeamOutlined />, label: t('nav.users') },
         { key: '/admin/history', icon: <UnorderedListOutlined />, label: t('nav.allHistory') },
+        { key: '/admin/audit', icon: <AuditOutlined />, label: t('nav.audit') },
         { key: '/admin/settings', icon: <ToolOutlined />, label: t('nav.systemSettings') },
       ]
     : [];

@@ -26,6 +26,7 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
 const AdminUsersPage = lazy(() => import('./pages/AdminUsersPage'));
 const AdminHistoryPage = lazy(() => import('./pages/AdminHistoryPage'));
+const AdminAuditPage = lazy(() => import('./pages/AdminAuditPage'));
 const AdminSystemSettingsPage = lazy(() => import('./pages/AdminSystemSettingsPage'));
 
 const queryClient = new QueryClient({
@@ -127,6 +128,16 @@ function AppRoutes() {
                   <AdminRoute>
                     <ErrorBoundary>
                       <AdminHistoryPage />
+                    </ErrorBoundary>
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="admin/audit"
+                element={
+                  <AdminRoute>
+                    <ErrorBoundary>
+                      <AdminAuditPage />
                     </ErrorBoundary>
                   </AdminRoute>
                 }

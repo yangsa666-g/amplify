@@ -200,3 +200,27 @@ export interface Notification {
   requestId?: string | null;
   createdAt: string;
 }
+
+export interface AuditLog {
+  id: string;
+  userId?: string | null;
+  action: string;
+  method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE' | string;
+  path: string;
+  targetType?: string | null;
+  targetId?: string | null;
+  statusCode: number;
+  durationMs?: number | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  metadata?: Record<string, unknown> | null;
+  createdAt: string;
+  user?: Pick<User, 'id' | 'name' | 'email' | 'role'> | null;
+}
+
+export interface AuditLogResponse {
+  items: AuditLog[];
+  total: number;
+  page: number;
+  pageSize: number;
+}

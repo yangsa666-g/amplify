@@ -18,6 +18,7 @@ import { AdminModule } from './admin/admin.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { TemplateRequestsModule } from './template-requests/template-requests.module';
 import { ExternalApiModule } from './external-api/external-api.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { ExternalApiModule } from './external-api/external-api.module';
     NotificationsModule,
     TemplateRequestsModule,
     ExternalApiModule,
+    AuditModule,
   ],
   controllers: [AppController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

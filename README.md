@@ -100,6 +100,7 @@ Copy `.env.example` to `.env` and fill in the values.
 | `SEED_ADMIN_EMAIL` | ❌ | Admin account email for initial seed |
 | `SEED_ADMIN_PASSWORD` | ❌ | Admin account password for initial seed |
 | `MAX_UPLOAD_SIZE_MB` | ❌ | Max upload file size in MB (default: 20) |
+| `AUDIT_LOG_RETENTION_DAYS` | ❌ | Days to retain admin audit logs before automatic cleanup (default: 180, valid range: 1-3650) |
 | `ENTRA_CLIENT_ID` | ❌ | Entra app (client) ID. Blank disables SSO entirely |
 | `ENTRA_CLIENT_SECRET` | ❌ | Entra client secret (required when SSO is enabled) |
 | `ENTRA_TENANT_ID` | ❌ | Entra directory (tenant) GUID — single-tenant |
