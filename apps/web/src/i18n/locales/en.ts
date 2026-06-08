@@ -96,6 +96,7 @@ const en = {
     email: 'Email',
     password: 'Password',
     signIn: 'Sign In',
+    devSignIn: 'Dev Login',
     ssoEntra: 'SSO with Entra ID',
     loginFailed: 'Login failed',
     signInFailedGeneric: 'Sign-in failed. Please try again.',
