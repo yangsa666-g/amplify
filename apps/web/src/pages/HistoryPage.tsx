@@ -22,7 +22,7 @@ export default function HistoryPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedCompare, setSelectedCompare] = useState<CompareJob | null>(null);
   const [compareDrawerOpen, setCompareDrawerOpen] = useState(false);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -35,8 +35,23 @@ export default function HistoryPage() {
     }
   }, [searchParams, data]);
 
+  useEffect(() => {
+    const compareId = searchParams.get('compareId');
+    if (!compareId || !data?.compareJobs) return;
+    const job = data.compareJobs.find((j) => j.id === compareId);
+    if (job) {
+      setSelectedCompare(job as CompareJob);
+      setCompareDrawerOpen(true);
+    }
+  }, [searchParams, data]);
+
   const handleClose = () => {
     setDrawerOpen(false);
+    navigate('/history', { replace: true });
+  };
+
+  const handleCompareClose = () => {
+    setCompareDrawerOpen(false);
     navigate('/history', { replace: true });
   };
 
@@ -211,6 +226,7 @@ export default function HistoryPage() {
                   onClick: () => {
                     setSelectedJob(record as AnalysisJob);
                     setDrawerOpen(true);
+                    setSearchParams({ jobId: record.id }, { replace: true });
                   },
                   style: { cursor: 'pointer' },
                 })}
@@ -232,6 +248,7 @@ export default function HistoryPage() {
                   onClick: () => {
                     setSelectedCompare(record as CompareJob);
                     setCompareDrawerOpen(true);
+                    setSearchParams({ compareId: record.id }, { replace: true });
                   },
                   style: { cursor: 'pointer' },
                 })}
@@ -246,7 +263,7 @@ export default function HistoryPage() {
       <CompareDetailDrawer
         job={selectedCompare}
         open={compareDrawerOpen}
-        onClose={() => setCompareDrawerOpen(false)}
+        onClose={handleCompareClose}
       />
     </>
   );
