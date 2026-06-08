@@ -51,7 +51,7 @@ const en = {
     low: 'Low',
     medium: 'Medium',
     high: 'High',
-    xhigh: 'XHigh',
+    xhigh: 'Extra High',
   },
   timings: {
     title: 'Run time',
