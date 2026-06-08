@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/shidafu666/amplify/compare/v0.2.0...v0.3.0) (2026-06-08)
+
+
+### Features
+
+* add admin audit logs ([39c62b6](https://github.com/shidafu666/amplify/commit/39c62b6a0b6c075b819f448ccd98d9af88232d75))
+
 ## [0.2.0](https://github.com/shidafu666/amplify/compare/v0.1.0...v0.2.0) (2026-06-08)
 
 
