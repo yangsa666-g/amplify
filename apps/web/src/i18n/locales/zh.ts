@@ -72,6 +72,10 @@ const zh: typeof en = {
     en: 'English',
     zh: '中文',
   },
+  pwa: {
+    install: '安装应用',
+    installAccepted: '已开始安装',
+  },
   nav: {
     analysis: '合同分析',
     compare: '合同比对',
