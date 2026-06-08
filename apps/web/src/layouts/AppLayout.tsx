@@ -36,6 +36,7 @@ import {
   BulbOutlined,
   BulbFilled,
   DesktopOutlined,
+  DownOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -414,14 +415,23 @@ export default function AppLayout() {
           <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 16 }}>
             <NotificationBell />
             <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
-              <div
-                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+              <Button
+                type="text"
                 aria-label={t('nav.profile')}
                 title={t('nav.profile')}
+                style={{
+                  height: 40,
+                  padding: isMobile ? '0 6px' : '0 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  borderRadius: 8,
+                }}
               >
                 <Avatar icon={<UserOutlined />} />
                 {!isMobile && <Typography.Text>{user?.name || user?.email}</Typography.Text>}
-              </div>
+                <DownOutlined style={{ fontSize: 10, color: token.colorTextTertiary }} />
+              </Button>
             </Dropdown>
           </div>
         </Header>
