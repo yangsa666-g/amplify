@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/shidafu666/amplify/compare/v0.3.0...v0.4.0) (2026-06-09)
+
+
+### Features
+
+* **web:** redesign admin dashboard ([248f64f](https://github.com/shidafu666/amplify/commit/248f64f61700c6d80e40edee3be90c2f1726a74b))
+
 ## [0.3.0](https://github.com/shidafu666/amplify/compare/v0.2.0...v0.3.0) (2026-06-08)
 
 
