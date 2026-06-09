@@ -208,6 +208,7 @@ export default function AppLayout() {
   const { token } = theme.useToken();
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
+  const isAdminDashboard = location.pathname === '/admin/dashboard';
 
   const { user, clearAuth, refreshToken } = useAuthStore();
   const themeMode = useUiStore((s) => s.themeMode);
@@ -440,9 +441,9 @@ export default function AppLayout() {
         <Content
           style={{
             margin: isMobile ? 8 : 24,
-            background: token.colorBgContainer,
-            padding: isMobile ? 12 : 24,
-            borderRadius: 8,
+            background: isAdminDashboard ? 'transparent' : token.colorBgContainer,
+            padding: isAdminDashboard ? 0 : isMobile ? 12 : 24,
+            borderRadius: isAdminDashboard ? 0 : 8,
             minHeight: 280,
           }}
         >
