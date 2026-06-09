@@ -20,7 +20,7 @@ export class AzureOpenAIService {
   }
 
   private get timeoutMs() {
-    return parseInt(this.config.get<string>('AZURE_OPENAI_TIMEOUT_MS', '120000'), 10);
+    return parseInt(this.config.get<string>('AZURE_OPENAI_TIMEOUT_MS', '300000'), 10);
   }
 
   private get apiVersion() {
@@ -42,7 +42,11 @@ export class AzureOpenAIService {
     return effort;
   }
 
-  async chat(model: string, prompt: string, reasoningEffort: ReasoningEffort = DEFAULT_REASONING_EFFORT): Promise<string> {
+  async chat(
+    model: string,
+    prompt: string,
+    reasoningEffort: ReasoningEffort = DEFAULT_REASONING_EFFORT,
+  ): Promise<string> {
     if (!this.endpoint || !this.apiKey) {
       throw new BadGatewayException('Azure OpenAI is not configured');
     }
