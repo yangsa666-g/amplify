@@ -27,7 +27,7 @@ export class AnthropicService {
   }
 
   private get timeoutMs() {
-    return parseInt(this.config.get<string>('AZURE_OPENAI_TIMEOUT_MS', '120000'), 10);
+    return parseInt(this.config.get<string>('AZURE_OPENAI_TIMEOUT_MS', '300000'), 10);
   }
 
   isConfigured(): boolean {
