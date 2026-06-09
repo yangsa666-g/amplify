@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Input, Space, Popconfirm, Spin, Typography } from 'antd';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTranslation, Trans } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import { message } from '../utils/message';
 import type { PromptTemplate, ApiError } from '../types';
 
@@ -13,7 +13,13 @@ interface Props {
   showName?: boolean;
 }
 
-export default function PromptEditor({ queryKey, fetchFn, saveFn, resetFn, showName = true }: Props) {
+export default function PromptEditor({
+  queryKey,
+  fetchFn,
+  saveFn,
+  resetFn,
+  showName = true,
+}: Props) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey, queryFn: () => fetchFn().then((r) => r.data) });
@@ -57,16 +63,21 @@ export default function PromptEditor({ queryKey, fetchFn, saveFn, resetFn, showN
           style={{ maxWidth: 400 }}
         />
       )}
-      <Typography.Text type="secondary">
-        <Trans i18nKey="templateEditor.mustContain" values={{ token: '{contract_text}' }} components={{ 1: <code /> }} />
-      </Typography.Text>
+      <Typography.Text type="secondary">{t('templateEditor.promptGuidance')}</Typography.Text>
       <Input.TextArea rows={12} value={content} onChange={(e) => setContent(e.target.value)} />
       <Space wrap>
-        <Button type="primary" loading={saveMutation.isPending} onClick={() => saveMutation.mutate()}>
+        <Button
+          type="primary"
+          loading={saveMutation.isPending}
+          onClick={() => saveMutation.mutate()}
+        >
           {t('common.save')}
         </Button>
         {resetFn && (
-          <Popconfirm title={t('templateEditor.resetConfirm')} onConfirm={() => resetMutation.mutate()}>
+          <Popconfirm
+            title={t('templateEditor.resetConfirm')}
+            onConfirm={() => resetMutation.mutate()}
+          >
             <Button>{t('templateEditor.resetToDefault')}</Button>
           </Popconfirm>
         )}

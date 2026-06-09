@@ -255,7 +255,12 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
   const fieldResults: any[] = Array.isArray(detail?.fieldExtractionResult?.resultJson)
     ? detail.fieldExtractionResult.resultJson
     : [];
+  const riskResult = detail?.riskAnalysisResult?.resultJson;
   const riskText: string = detail?.riskAnalysisResult?.resultText ?? '';
+  const hasParsedRisk = !!riskResult;
+  const hasStructuredRiskContent = !!(
+    riskResult?.originalContractDescription || riskResult?.riskAnalysis
+  );
 
   const handleTabChange = (key: string) => {
     if (key === 'ocr') setOcrTabActive(true);
@@ -416,16 +421,49 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
               {
                 key: 'risk',
                 label: t('detail.riskAnalysis'),
-                children: riskText ? (
-                  <div
-                    className="always-scroll"
-                    style={{ maxHeight: 600, overflow: 'auto', padding: '0 4px' }}
-                  >
-                    <Markdown remarkPlugins={[remarkGfm]}>{riskText}</Markdown>
-                  </div>
-                ) : (
-                  <Alert type="info" message={t('detail.noRiskResults')} />
-                ),
+                children:
+                  hasStructuredRiskContent || (!hasParsedRisk && riskText) ? (
+                    <div
+                      className="always-scroll"
+                      style={{ maxHeight: 600, overflow: 'auto', padding: '0 4px' }}
+                    >
+                      {hasParsedRisk ? (
+                        <>
+                          {riskResult?.originalContractDescription && (
+                            <>
+                              <Typography.Title level={5} style={{ marginTop: 0 }}>
+                                {t('analysis.originalContractDescription')}
+                              </Typography.Title>
+                              <Markdown remarkPlugins={[remarkGfm]}>
+                                {riskResult.originalContractDescription}
+                              </Markdown>
+                              <hr
+                                style={{
+                                  margin: '16px 0',
+                                  border: 'none',
+                                  borderTop: `1px solid ${token.colorBorderSecondary}`,
+                                }}
+                              />
+                            </>
+                          )}
+                          {riskResult?.riskAnalysis && (
+                            <>
+                              <Typography.Title level={5} style={{ marginTop: 0 }}>
+                                {t('detail.riskAnalysis')}
+                              </Typography.Title>
+                              <Markdown remarkPlugins={[remarkGfm]}>
+                                {riskResult.riskAnalysis}
+                              </Markdown>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <Markdown remarkPlugins={[remarkGfm]}>{riskText}</Markdown>
+                      )}
+                    </div>
+                  ) : (
+                    <Alert type="info" message={t('detail.noRiskResults')} />
+                  ),
               },
               {
                 key: 'ocr',

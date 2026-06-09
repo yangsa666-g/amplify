@@ -342,6 +342,8 @@ const en = {
     description: 'Description',
     addField: 'Add Field',
     mustContain: 'Must contain <1>{{token}}</1>',
+    promptGuidance:
+      'Write the analysis guidance only. The API adds the contract text and returns Original Contract Description and Risk Analysis as separate sections automatically.',
     nameRequired: 'Enter a template name.',
     fieldNameRequired: 'Enter a field name.',
     fieldRequired: 'Add at least one field.',

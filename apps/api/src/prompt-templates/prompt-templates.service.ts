@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -6,8 +11,8 @@ export class PromptTemplatesService {
   constructor(private prisma: PrismaService) {}
 
   private validate(content: string) {
-    if (!content.includes('{contract_text}')) {
-      throw new BadRequestException('Prompt must contain the placeholder {contract_text}');
+    if (!content.trim()) {
+      throw new BadRequestException('Prompt content cannot be empty');
     }
   }
 
@@ -49,10 +54,21 @@ export class PromptTemplatesService {
   }
 
   /** Create a new personal template */
-  async createUserTemplate(userId: string, data: { name: string; content: string }, templateType = 'risk_analysis') {
+  async createUserTemplate(
+    userId: string,
+    data: { name: string; content: string },
+    templateType = 'risk_analysis',
+  ) {
     this.validate(data.content);
     return this.prisma.promptTemplate.create({
-      data: { userId, name: data.name, content: data.content, templateType: templateType as any, isDefault: false, isSystem: false },
+      data: {
+        userId,
+        name: data.name,
+        content: data.content,
+        templateType: templateType as any,
+        isDefault: false,
+        isSystem: false,
+      },
     });
   }
 
@@ -60,16 +76,21 @@ export class PromptTemplatesService {
   async updateUserTemplate(userId: string, id: string, data: { name: string; content: string }) {
     const existing = await this.prisma.promptTemplate.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Prompt template not found');
-    if (existing.isSystem || existing.userId !== userId) throw new ForbiddenException('Cannot edit this template');
+    if (existing.isSystem || existing.userId !== userId)
+      throw new ForbiddenException('Cannot edit this template');
     this.validate(data.content);
-    return this.prisma.promptTemplate.update({ where: { id }, data: { name: data.name, content: data.content } });
+    return this.prisma.promptTemplate.update({
+      where: { id },
+      data: { name: data.name, content: data.content },
+    });
   }
 
   /** Delete a personal template owned by this user */
   async deleteUserTemplate(userId: string, id: string) {
     const existing = await this.prisma.promptTemplate.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Prompt template not found');
-    if (existing.isSystem || existing.userId !== userId) throw new ForbiddenException('Cannot delete this template');
+    if (existing.isSystem || existing.userId !== userId)
+      throw new ForbiddenException('Cannot delete this template');
     await this.prisma.promptTemplate.delete({ where: { id } });
     return { deleted: true };
   }
@@ -77,7 +98,8 @@ export class PromptTemplatesService {
   /** Duplicate a system template into the user's personal templates */
   async duplicateSystemTemplate(userId: string, systemId: string) {
     const system = await this.prisma.promptTemplate.findUnique({ where: { id: systemId } });
-    if (!system || !system.isSystem) throw new NotFoundException('System prompt template not found');
+    if (!system || !system.isSystem)
+      throw new NotFoundException('System prompt template not found');
     const created = await this.prisma.promptTemplate.create({
       data: {
         userId,
@@ -102,10 +124,19 @@ export class PromptTemplatesService {
   }
 
   /** Create a new system template */
-  async createSystemTemplate(data: { name: string; content: string }, templateType = 'risk_analysis') {
+  async createSystemTemplate(
+    data: { name: string; content: string },
+    templateType = 'risk_analysis',
+  ) {
     this.validate(data.content);
     return this.prisma.promptTemplate.create({
-      data: { name: data.name, content: data.content, templateType: templateType as any, isSystem: true, isDefault: false },
+      data: {
+        name: data.name,
+        content: data.content,
+        templateType: templateType as any,
+        isSystem: true,
+        isDefault: false,
+      },
     });
   }
 
@@ -114,7 +145,10 @@ export class PromptTemplatesService {
     const existing = await this.prisma.promptTemplate.findUnique({ where: { id } });
     if (!existing || !existing.isSystem) throw new NotFoundException('System template not found');
     this.validate(data.content);
-    return this.prisma.promptTemplate.update({ where: { id }, data: { name: data.name, content: data.content } });
+    return this.prisma.promptTemplate.update({
+      where: { id },
+      data: { name: data.name, content: data.content },
+    });
   }
 
   /** Delete a system template */
@@ -129,7 +163,10 @@ export class PromptTemplatesService {
   async setSystemDefault(id: string, templateType = 'risk_analysis') {
     const existing = await this.prisma.promptTemplate.findUnique({ where: { id } });
     if (!existing || !existing.isSystem) throw new NotFoundException('System template not found');
-    await this.prisma.promptTemplate.updateMany({ where: { isSystem: true, isDefault: true, templateType: templateType as any }, data: { isDefault: false } });
+    await this.prisma.promptTemplate.updateMany({
+      where: { isSystem: true, isDefault: true, templateType: templateType as any },
+      data: { isDefault: false },
+    });
     return this.prisma.promptTemplate.update({ where: { id }, data: { isDefault: true } });
   }
 }

@@ -2,6 +2,23 @@ import { describe, it, expect } from 'vitest';
 import { parseRiskAnalysis } from './analysis.service';
 
 describe('parseRiskAnalysis', () => {
+  it('prefers structured JSON output', () => {
+    const text = JSON.stringify({
+      originalContractDescription: 'This is a services agreement.',
+      riskAnalysis: 'Payment timing is unfavorable.',
+    });
+    const result = parseRiskAnalysis(text);
+    expect(result.originalContractDescription).toBe('This is a services agreement.');
+    expect(result.riskAnalysis).toBe('Payment timing is unfavorable.');
+  });
+
+  it('extracts structured JSON from a fenced response', () => {
+    const text = '```json\n{"originalContractDescription":"Desc","riskAnalysis":"Risk"}\n```';
+    const result = parseRiskAnalysis(text);
+    expect(result.originalContractDescription).toBe('Desc');
+    expect(result.riskAnalysis).toBe('Risk');
+  });
+
   it('splits both sections when headers appear in order', () => {
     const text =
       '[Original Contract Description]\nThis is a lease agreement.\n[Risk Analysis]\nClause 5 is risky.';

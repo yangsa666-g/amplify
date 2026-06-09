@@ -1,10 +1,8 @@
 import React from 'react';
 import { Modal, Input, Button, Space, Typography, Form, Empty } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import { useTranslation, Trans } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import type { FieldTemplateItem } from '../types';
-
-const CONTRACT_TEXT_TOKEN = '{contract_text}';
 
 // ─── Field Template Editor Modal ─────────────────────────────────────────────
 
@@ -197,27 +195,12 @@ export function PromptEditorModal({
         >
           <Input style={{ maxWidth: 400 }} />
         </Form.Item>
-        <Typography.Text type="secondary">
-          <Trans
-            i18nKey="templateEditor.mustContain"
-            values={{ token: CONTRACT_TEXT_TOKEN }}
-            components={{ 1: <code /> }}
-          />
-        </Typography.Text>
+        <Typography.Text type="secondary">{t('templateEditor.promptGuidance')}</Typography.Text>
         <Form.Item
           name="content"
           style={{ marginTop: 8, marginBottom: 0 }}
           rules={[
             { required: true, whitespace: true, message: t('templateEditor.promptRequired') },
-            {
-              validator: async (_, value?: string) => {
-                if (value && !value.includes(CONTRACT_TEXT_TOKEN)) {
-                  throw new Error(
-                    t('templateEditor.promptTokenRequired', { token: CONTRACT_TEXT_TOKEN }),
-                  );
-                }
-              },
-            },
           ]}
         >
           <Input.TextArea rows={12} />
