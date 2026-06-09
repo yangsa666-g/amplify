@@ -340,6 +340,8 @@ const zh: typeof en = {
     description: '描述',
     addField: '添加字段',
     mustContain: '必须包含 <1>{{token}}</1>',
+    promptGuidance:
+      '只需要填写风险分析偏好和规则。API 会自动加入合同文本，并将“合同原文描述”和“风险分析”分段返回。',
     nameRequired: '请输入模板名称。',
     fieldNameRequired: '请输入字段名称。',
     fieldRequired: '请至少添加一个字段。',
