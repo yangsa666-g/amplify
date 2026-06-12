@@ -123,7 +123,7 @@ export default function AdminAuditPage() {
       statusCode: values.statusCode,
       from: values.range?.[0]?.startOf('day').toISOString(),
       to: values.range?.[1]?.endOf('day').toISOString(),
-      sortOrder: query.sortOrder ?? 'desc',
+      sortOrder: query.sortOrder,
       page: 1,
       pageSize: query.pageSize ?? 20,
     });
@@ -141,7 +141,12 @@ export default function AdminAuditPage() {
       ...current,
       page: pagination.current ?? 1,
       pageSize: pagination.pageSize ?? 20,
-      sortOrder: activeSorter.order === 'ascend' ? 'asc' : 'desc',
+      sortOrder:
+        activeSorter.order === 'ascend'
+          ? 'asc'
+          : activeSorter.order === 'descend'
+            ? 'desc'
+            : undefined,
     }));
   };
 
@@ -160,7 +165,8 @@ export default function AdminAuditPage() {
       width: 180,
       render: (value: string) => formatDateTime(value, i18n.language),
       sorter: true,
-      sortOrder: query.sortOrder === 'asc' ? 'ascend' : 'descend',
+      sortOrder:
+        query.sortOrder === 'asc' ? 'ascend' : query.sortOrder === 'desc' ? 'descend' : undefined,
     },
     {
       title: t('admin.audit.colUser'),

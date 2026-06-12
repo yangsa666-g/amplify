@@ -33,7 +33,7 @@ export class AuditQueryDto {
 
   @IsOptional()
   @IsIn(['asc', 'desc'])
-  sortOrder: 'asc' | 'desc' = 'desc';
+  sortOrder?: 'asc' | 'desc';
 
   @IsOptional()
   @Type(() => Number)
