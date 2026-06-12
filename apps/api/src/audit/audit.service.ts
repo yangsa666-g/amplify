@@ -81,7 +81,7 @@ export class AuditService implements OnModuleInit, OnModuleDestroy {
             select: { id: true, name: true, email: true, role: true },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: query.sortOrder ?? 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

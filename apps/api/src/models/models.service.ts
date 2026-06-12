@@ -7,14 +7,21 @@ export class ModelsService {
 
   getModels() {
     const parseList = (raw: string) =>
-      raw.split(',').map((m) => m.trim()).filter(Boolean);
+      raw
+        .split(',')
+        .map((m) => m.trim())
+        .filter(Boolean);
 
     const azureModels = parseList(
       this.config.get<string>('AZURE_OPENAI_MODELS', 'gpt-5.4,gpt-5.4-mini'),
-    ).map((name) => ({ name, label: name }));
+    ).map((name) => ({ name, label: name, provider: 'openai' }));
 
     const anthropicRaw = this.config.get<string>('ANTHROPIC_MODELS', '');
-    const anthropicModels = parseList(anthropicRaw).map((name) => ({ name, label: name }));
+    const anthropicModels = parseList(anthropicRaw).map((name) => ({
+      name,
+      label: name,
+      provider: 'claude',
+    }));
 
     return [...azureModels, ...anthropicModels];
   }

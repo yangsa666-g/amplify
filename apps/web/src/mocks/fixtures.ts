@@ -23,9 +23,9 @@ export const mockUser: User = {
 };
 
 export const mockModels: Model[] = [
-  { name: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' },
-  { name: 'gpt-5.4', label: 'GPT-5.4' },
-  { name: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' },
+  { name: 'gpt-5.4-mini', label: 'GPT-5.4 Mini', provider: 'openai' },
+  { name: 'gpt-5.4', label: 'GPT-5.4', provider: 'openai' },
+  { name: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5', provider: 'claude' },
 ];
 
 export const mockFieldTemplates: FieldTemplate[] = [

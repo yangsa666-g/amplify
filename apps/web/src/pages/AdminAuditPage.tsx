@@ -15,7 +15,7 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import type { TableColumnsType, TablePaginationConfig } from 'antd';
+import type { TableColumnsType, TableProps } from 'antd';
 import { SearchOutlined, ReloadOutlined, ClearOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -62,7 +62,11 @@ export default function AdminAuditPage() {
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
   const [form] = Form.useForm<AuditFilterValues>();
-  const [query, setQuery] = useState<AdminAuditQuery>({ page: 1, pageSize: 20 });
+  const [query, setQuery] = useState<AdminAuditQuery>({
+    page: 1,
+    pageSize: 20,
+    sortOrder: 'desc',
+  });
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
   const { data, isLoading, isFetching } = useQuery({
@@ -119,6 +123,7 @@ export default function AdminAuditPage() {
       statusCode: values.statusCode,
       from: values.range?.[0]?.startOf('day').toISOString(),
       to: values.range?.[1]?.endOf('day').toISOString(),
+      sortOrder: query.sortOrder ?? 'desc',
       page: 1,
       pageSize: query.pageSize ?? 20,
     });
@@ -126,14 +131,17 @@ export default function AdminAuditPage() {
 
   const resetFilters = () => {
     form.resetFields();
-    setQuery({ page: 1, pageSize: query.pageSize ?? 20 });
+    setQuery({ page: 1, pageSize: query.pageSize ?? 20, sortOrder: 'desc' });
   };
 
-  const handleTableChange = (pagination: TablePaginationConfig) => {
+  const handleTableChange: TableProps<AuditLog>['onChange'] = (pagination, _filters, sorter) => {
+    const activeSorter = Array.isArray(sorter) ? sorter[0] : sorter;
+
     setQuery((current) => ({
       ...current,
       page: pagination.current ?? 1,
       pageSize: pagination.pageSize ?? 20,
+      sortOrder: activeSorter.order === 'ascend' ? 'asc' : 'desc',
     }));
   };
 
@@ -151,6 +159,8 @@ export default function AdminAuditPage() {
       key: 'createdAt',
       width: 180,
       render: (value: string) => formatDateTime(value, i18n.language),
+      sorter: true,
+      sortOrder: query.sortOrder === 'asc' ? 'ascend' : 'descend',
     },
     {
       title: t('admin.audit.colUser'),

@@ -15,6 +15,7 @@ export interface User {
 export interface Model {
   name: string;
   label: string;
+  provider?: 'openai' | 'claude';
 }
 
 export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'xhigh';
