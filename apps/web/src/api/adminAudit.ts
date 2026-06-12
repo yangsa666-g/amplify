@@ -9,6 +9,7 @@ export interface AdminAuditQuery {
   statusCode?: number;
   from?: string;
   to?: string;
+  sortOrder?: 'asc' | 'desc';
   page?: number;
   pageSize?: number;
 }
