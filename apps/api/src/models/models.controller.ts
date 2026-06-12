@@ -3,7 +3,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ModelsService } from './models.service';
-import { UpdateModelCatalogDto } from './dto/model-catalog.dto';
+import { ReorderModelCatalogDto, UpdateModelCatalogDto } from './dto/model-catalog.dto';
 
 @Controller('models')
 @UseGuards(JwtAuthGuard)
@@ -25,6 +25,11 @@ export class AdminModelsController {
   @Get()
   getAdminModels() {
     return this.modelsService.getAdminModels();
+  }
+
+  @Patch('order')
+  reorderModels(@Body() body: ReorderModelCatalogDto) {
+    return this.modelsService.reorderAdminModels(body);
   }
 
   @Patch(':modelName')

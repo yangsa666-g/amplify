@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Typography,
   Tabs,
@@ -30,6 +30,7 @@ import {
   CopyOutlined,
   EyeOutlined,
   SaveOutlined,
+  HolderOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation, Trans } from 'react-i18next';
@@ -60,7 +61,7 @@ import { getAdminRequests, approveRequest, rejectRequest } from '../api/template
 import { FieldTemplateEditorModal, PromptEditorModal } from '../components/TemplateEditorModals';
 import type { ExpiryOption, ApiKeyInfo } from '../api/apiKeys';
 import { getApiKey, createApiKey, deleteApiKey } from '../api/apiKeys';
-import { getAdminModels, updateAdminModel } from '../api/models';
+import { getAdminModels, reorderAdminModels, updateAdminModel } from '../api/models';
 import { message } from '../utils/message';
 import { formatDate, formatDateTime } from '../utils/format';
 import { templateDisplayName } from '../utils/templateLabels';
@@ -795,10 +796,29 @@ function ModelsTab() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [drafts, setDrafts] = useState<Record<string, ModelDraft>>({});
+  const [localOrder, setLocalOrder] = useState<string[]>([]);
+  const [draggedModelName, setDraggedModelName] = useState<string | null>(null);
+
   const { data: models = [], isLoading } = useQuery({
     queryKey: ['admin-models'],
     queryFn: () => getAdminModels().then((r) => r.data),
   });
+
+  useEffect(() => {
+    setLocalOrder(models.map((model) => model.name));
+  }, [models]);
+
+  const orderedModels = useMemo(() => {
+    if (localOrder.length === 0) return models;
+    const modelsByName = new Map(models.map((model) => [model.name, model]));
+    return [
+      ...localOrder.flatMap((modelName) => {
+        const model = modelsByName.get(modelName);
+        return model ? [model] : [];
+      }),
+      ...models.filter((model) => !localOrder.includes(model.name)),
+    ];
+  }, [localOrder, models]);
 
   const saveMutation = useMutation({
     mutationFn: ({ modelName, data }: { modelName: string; data: ModelDraft }) =>
@@ -815,6 +835,22 @@ function ModelsTab() {
     },
     onError: (e: ApiError) =>
       message.error(e.response?.data?.message || t('admin.system.models.saveFailed')),
+  });
+
+  const reorderMutation = useMutation({
+    mutationFn: (modelNames: string[]) =>
+      reorderAdminModels(
+        modelNames.map((modelName, index) => ({ modelName, sortOrder: (index + 1) * 10 })),
+      ).then((r) => r.data),
+    onSuccess: (data) => {
+      qc.setQueryData(['admin-models'], data);
+      qc.invalidateQueries({ queryKey: ['models'] });
+      message.success(t('admin.system.models.orderSaved'));
+    },
+    onError: (e: ApiError) => {
+      setLocalOrder(models.map((model) => model.name));
+      message.error(e.response?.data?.message || t('admin.system.models.orderFailed'));
+    },
   });
 
   const defaultMutation = useMutation({
@@ -839,6 +875,22 @@ function ModelsTab() {
   const valueFor = <K extends keyof ModelDraft>(record: Model, key: K) =>
     drafts[record.name]?.[key] ?? record[key];
 
+  const moveModel = (targetModelName: string) => {
+    if (!draggedModelName || draggedModelName === targetModelName) return;
+
+    const currentOrder = localOrder.length ? localOrder : models.map((model) => model.name);
+    const fromIndex = currentOrder.indexOf(draggedModelName);
+    const toIndex = currentOrder.indexOf(targetModelName);
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const nextOrder = [...currentOrder];
+    const [moved] = nextOrder.splice(fromIndex, 1);
+    nextOrder.splice(toIndex, 0, moved);
+    setLocalOrder(nextOrder);
+    setDraggedModelName(null);
+    reorderMutation.mutate(nextOrder);
+  };
+
   if (isLoading) return <Spin />;
 
   return (
@@ -847,10 +899,41 @@ function ModelsTab() {
       <Table
         size="small"
         rowKey="name"
-        dataSource={models}
+        dataSource={orderedModels}
         pagination={false}
         scroll={{ x: 'max-content' }}
+        onRow={(record) => ({
+          onDragOver: (event) => event.preventDefault(),
+          onDrop: () => moveModel(record.name),
+          onMouseUp: () => moveModel(record.name),
+        })}
         columns={[
+          {
+            title: '',
+            key: 'drag',
+            width: 48,
+            render: (_: unknown, record: Model) => (
+              <Tooltip title={t('admin.system.models.dragToReorder')}>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<HolderOutlined />}
+                  draggable
+                  style={{ cursor: 'grab' }}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    setDraggedModelName(record.name);
+                  }}
+                  onDragStart={(event) => {
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', record.name);
+                    setDraggedModelName(record.name);
+                  }}
+                  onDragEnd={() => setDraggedModelName(null)}
+                />
+              </Tooltip>
+            ),
+          },
           {
             title: t('admin.system.models.model'),
             dataIndex: 'name',

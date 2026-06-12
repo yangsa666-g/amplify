@@ -501,9 +501,12 @@ const zh: typeof en = {
         sortOrder: '排序',
         actions: '操作',
         reasoning: '推理',
+        dragToReorder: '拖拽调整顺序',
         setDefault: '设为默认',
         saved: '模型已保存',
         saveFailed: '保存模型失败',
+        orderSaved: '模型顺序已保存',
+        orderFailed: '保存模型顺序失败',
         defaultUpdated: '默认模型已更新',
       },
       requests: {

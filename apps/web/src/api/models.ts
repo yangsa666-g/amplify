@@ -10,3 +10,6 @@ export const getAdminModels = () => client.get<Model[]>('/admin/models');
 
 export const updateAdminModel = (modelName: string, data: ModelCatalogUpdate) =>
   client.patch<Model>(`/admin/models/${encodeURIComponent(modelName)}`, data);
+
+export const reorderAdminModels = (models: Array<{ modelName: string; sortOrder: number }>) =>
+  client.patch<Model[]>('/admin/models/order', { models });

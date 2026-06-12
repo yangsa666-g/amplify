@@ -8,7 +8,7 @@ import {
   type ModelProvider,
   type ReasoningEffort,
 } from './model-registry';
-import { UpdateModelCatalogDto } from './dto/model-catalog.dto';
+import { ReorderModelCatalogDto, UpdateModelCatalogDto } from './dto/model-catalog.dto';
 
 @Injectable()
 export class ModelsService {
@@ -159,5 +159,34 @@ export class ModelsService {
     }
 
     return (await this.getAdminModels()).find((item) => item.name === modelName);
+  }
+
+  async reorderAdminModels(input: ReorderModelCatalogDto) {
+    const configuredModelNames = new Set(this.configuredModels().map((model) => model.name));
+    const orderItems = input.models.map((item) => {
+      if (!configuredModelNames.has(item.modelName)) {
+        throw new BadRequestException(`Model is not configured: ${item.modelName}`);
+      }
+      return {
+        modelName: item.modelName,
+        sortOrder: item.sortOrder,
+      };
+    });
+
+    await this.prisma.$transaction(
+      orderItems.map((item) =>
+        this.prisma.modelCatalogSetting.upsert({
+          where: { modelName: item.modelName },
+          create: {
+            modelName: item.modelName,
+            enabled: true,
+            sortOrder: item.sortOrder,
+          },
+          update: { sortOrder: item.sortOrder },
+        }),
+      ),
+    );
+
+    return this.getAdminModels();
   }
 }

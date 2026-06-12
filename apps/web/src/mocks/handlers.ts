@@ -75,6 +75,22 @@ export const handlers = [
     ),
   ),
   http.get(api('/admin/models'), () => HttpResponse.json(mockModelCatalog)),
+  http.patch(api('/admin/models/order'), async ({ request }) => {
+    const body = (await request.json()) as {
+      models: Array<{ modelName: string; sortOrder: number }>;
+    };
+    const orderByName = new Map(body.models.map((item) => [item.modelName, item.sortOrder]));
+    mockModelCatalog = mockModelCatalog
+      .map((item) => ({
+        ...item,
+        sortOrder: orderByName.get(item.name) ?? item.sortOrder,
+      }))
+      .sort((a, b) => {
+        return (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.label.localeCompare(b.label);
+      });
+    writeMockModelCatalog();
+    return HttpResponse.json(mockModelCatalog);
+  }),
   http.patch(api('/admin/models/:modelName'), async ({ params, request }) => {
     const modelName = decodeURIComponent(String(params.modelName));
     const body = (await request.json()) as Partial<(typeof mockModelCatalog)[number]>;

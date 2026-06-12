@@ -504,9 +504,12 @@ const en = {
         sortOrder: 'Sort',
         actions: 'Actions',
         reasoning: 'Reasoning',
+        dragToReorder: 'Drag to reorder',
         setDefault: 'Set Default',
         saved: 'Model saved',
         saveFailed: 'Failed to save model',
+        orderSaved: 'Model order saved',
+        orderFailed: 'Failed to save model order',
         defaultUpdated: 'Default model updated',
       },
       requests: {
