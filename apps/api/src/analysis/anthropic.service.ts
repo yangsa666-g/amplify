@@ -2,7 +2,7 @@ import { Injectable, BadGatewayException, RequestTimeoutException } from '@nestj
 import { ConfigService } from '@nestjs/config';
 import Anthropic, { APIConnectionTimeoutError, APIError } from '@anthropic-ai/sdk';
 import type { Message, ContentBlock } from '@anthropic-ai/sdk/resources/messages';
-import type { ReasoningEffort } from './azure-openai.service';
+import type { ReasoningEffort } from '../models/model-registry';
 
 // Response cap per effort level. Adaptive thinking decides its own internal
 // budget; we just need max_tokens large enough to fit reasoning + the

@@ -16,6 +16,13 @@ export interface Model {
   name: string;
   label: string;
   provider?: 'openai' | 'claude';
+  icon?: 'openai' | 'claude';
+  enabled?: boolean;
+  isDefault?: boolean;
+  supportsReasoning?: boolean;
+  reasoningEfforts?: ReasoningEffort[];
+  defaultReasoningEffort?: ReasoningEffort;
+  sortOrder?: number;
 }
 
 export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'xhigh';

@@ -6,9 +6,10 @@ import { AnthropicService } from './anthropic.service';
 import { FieldTemplatesModule } from '../field-templates/field-templates.module';
 import { PromptTemplatesModule } from '../prompt-templates/prompt-templates.module';
 import { DocumentsModule } from '../documents/documents.module';
+import { ModelsModule } from '../models/models.module';
 
 @Module({
-  imports: [FieldTemplatesModule, PromptTemplatesModule, DocumentsModule],
+  imports: [FieldTemplatesModule, PromptTemplatesModule, DocumentsModule, ModelsModule],
   controllers: [AnalysisController],
   providers: [AnalysisService, AzureOpenAIService, AnthropicService],
   exports: [AnalysisService],

@@ -23,9 +23,42 @@ export const mockUser: User = {
 };
 
 export const mockModels: Model[] = [
-  { name: 'gpt-5.4-mini', label: 'GPT-5.4 Mini', provider: 'openai' },
-  { name: 'gpt-5.4', label: 'GPT-5.4', provider: 'openai' },
-  { name: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5', provider: 'claude' },
+  {
+    name: 'gpt-5.4-mini',
+    label: 'GPT-5.4 Mini',
+    provider: 'openai',
+    icon: 'openai',
+    enabled: true,
+    isDefault: true,
+    supportsReasoning: true,
+    reasoningEfforts: ['none', 'low', 'medium', 'high', 'xhigh'],
+    defaultReasoningEffort: 'medium',
+    sortOrder: 10,
+  },
+  {
+    name: 'gpt-5.4',
+    label: 'GPT-5.4',
+    provider: 'openai',
+    icon: 'openai',
+    enabled: true,
+    isDefault: false,
+    supportsReasoning: true,
+    reasoningEfforts: ['none', 'low', 'medium', 'high', 'xhigh'],
+    defaultReasoningEffort: 'medium',
+    sortOrder: 10,
+  },
+  {
+    name: 'claude-sonnet-4-5',
+    label: 'Claude Sonnet 4.5',
+    provider: 'claude',
+    icon: 'claude',
+    enabled: true,
+    isDefault: false,
+    supportsReasoning: true,
+    reasoningEfforts: ['none', 'low', 'medium', 'high', 'xhigh'],
+    defaultReasoningEffort: 'medium',
+    sortOrder: 20,
+  },
 ];
 
 export const mockFieldTemplates: FieldTemplate[] = [
