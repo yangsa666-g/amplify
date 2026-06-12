@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Typography,
   Tabs,
@@ -798,6 +798,9 @@ function ModelsTab() {
   const [drafts, setDrafts] = useState<Record<string, ModelDraft>>({});
   const [localOrder, setLocalOrder] = useState<string[]>([]);
   const [draggedModelName, setDraggedModelName] = useState<string | null>(null);
+  const activeDragModelRef = useRef<string | null>(null);
+  const dragStartOrderRef = useRef<string[]>([]);
+  const dragCurrentOrderRef = useRef<string[]>([]);
 
   const { data: models = [], isLoading } = useQuery({
     queryKey: ['admin-models'],
@@ -805,7 +808,10 @@ function ModelsTab() {
   });
 
   useEffect(() => {
-    setLocalOrder(models.map((model) => model.name));
+    if (activeDragModelRef.current) return;
+    const modelNames = models.map((model) => model.name);
+    setLocalOrder(modelNames);
+    dragCurrentOrderRef.current = modelNames;
   }, [models]);
 
   const orderedModels = useMemo(() => {
@@ -875,21 +881,76 @@ function ModelsTab() {
   const valueFor = <K extends keyof ModelDraft>(record: Model, key: K) =>
     drafts[record.name]?.[key] ?? record[key];
 
-  const moveModel = (targetModelName: string) => {
-    if (!draggedModelName || draggedModelName === targetModelName) return;
+  const beginDrag = useCallback(
+    (modelName: string) => {
+      const currentOrder = localOrder.length ? localOrder : models.map((model) => model.name);
+      activeDragModelRef.current = modelName;
+      dragStartOrderRef.current = currentOrder;
+      dragCurrentOrderRef.current = currentOrder;
+      setDraggedModelName(modelName);
+    },
+    [localOrder, models],
+  );
 
-    const currentOrder = localOrder.length ? localOrder : models.map((model) => model.name);
-    const fromIndex = currentOrder.indexOf(draggedModelName);
-    const toIndex = currentOrder.indexOf(targetModelName);
-    if (fromIndex === -1 || toIndex === -1) return;
+  const previewMoveModel = useCallback(
+    (targetModelName: string) => {
+      const draggedModel = activeDragModelRef.current;
+      if (!draggedModel || draggedModel === targetModelName) return;
 
-    const nextOrder = [...currentOrder];
-    const [moved] = nextOrder.splice(fromIndex, 1);
-    nextOrder.splice(toIndex, 0, moved);
-    setLocalOrder(nextOrder);
+      setLocalOrder((current) => {
+        const currentOrder = current.length ? current : models.map((model) => model.name);
+        const fromIndex = currentOrder.indexOf(draggedModel);
+        const toIndex = currentOrder.indexOf(targetModelName);
+        if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return current;
+
+        const nextOrder = [...currentOrder];
+        const [moved] = nextOrder.splice(fromIndex, 1);
+        nextOrder.splice(toIndex, 0, moved);
+        dragCurrentOrderRef.current = nextOrder;
+        return nextOrder;
+      });
+    },
+    [models],
+  );
+
+  const finishDrag = useCallback(() => {
+    if (!activeDragModelRef.current) return;
+    const nextOrder = dragCurrentOrderRef.current.length
+      ? dragCurrentOrderRef.current
+      : models.map((model) => model.name);
+    const originalOrder = dragStartOrderRef.current;
+    const orderChanged =
+      nextOrder.length !== originalOrder.length ||
+      nextOrder.some((modelName, index) => modelName !== originalOrder[index]);
+
+    activeDragModelRef.current = null;
+    dragStartOrderRef.current = [];
+    dragCurrentOrderRef.current = [];
     setDraggedModelName(null);
-    reorderMutation.mutate(nextOrder);
-  };
+
+    if (orderChanged) {
+      reorderMutation.mutate(nextOrder);
+    }
+  }, [models, reorderMutation]);
+
+  useEffect(() => {
+    if (!draggedModelName) return;
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const row = document
+        .elementFromPoint(event.clientX, event.clientY)
+        ?.closest('tr[data-row-key]');
+      const targetModelName = row?.getAttribute('data-row-key');
+      if (targetModelName) previewMoveModel(targetModelName);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', finishDrag);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', finishDrag);
+    };
+  }, [draggedModelName, finishDrag, previewMoveModel]);
 
   if (isLoading) return <Spin />;
 
@@ -903,9 +964,19 @@ function ModelsTab() {
         pagination={false}
         scroll={{ x: 'max-content' }}
         onRow={(record) => ({
-          onDragOver: (event) => event.preventDefault(),
-          onDrop: () => moveModel(record.name),
-          onMouseUp: () => moveModel(record.name),
+          style: {
+            opacity: record.name === draggedModelName ? 0.48 : 1,
+            transition: 'opacity 120ms ease',
+          },
+          onDragOver: (event) => {
+            event.preventDefault();
+            previewMoveModel(record.name);
+          },
+          onDragEnter: () => previewMoveModel(record.name),
+          onDrop: (event) => {
+            event.preventDefault();
+            finishDrag();
+          },
         })}
         columns={[
           {
@@ -922,14 +993,19 @@ function ModelsTab() {
                   style={{ cursor: 'grab' }}
                   onMouseDown={(event) => {
                     event.preventDefault();
-                    setDraggedModelName(record.name);
+                    beginDrag(record.name);
                   }}
                   onDragStart={(event) => {
                     event.dataTransfer.effectAllowed = 'move';
                     event.dataTransfer.setData('text/plain', record.name);
-                    setDraggedModelName(record.name);
+                    const row = event.currentTarget.closest('tr');
+                    if (row) {
+                      const { height } = row.getBoundingClientRect();
+                      event.dataTransfer.setDragImage(row, 24, height / 2);
+                    }
+                    beginDrag(record.name);
                   }}
-                  onDragEnd={() => setDraggedModelName(null)}
+                  onDragEnd={finishDrag}
                 />
               </Tooltip>
             ),
