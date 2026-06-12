@@ -1,8 +1,7 @@
 import { Injectable, BadGatewayException, RequestTimeoutException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AzureOpenAI, APIConnectionTimeoutError, APIError } from 'openai';
-
-export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'xhigh';
+import type { ReasoningEffort } from '../models/model-registry';
 
 const DEFAULT_REASONING_EFFORT: ReasoningEffort = 'medium';
 const DEFAULT_API_VERSION = '2025-03-01-preview';

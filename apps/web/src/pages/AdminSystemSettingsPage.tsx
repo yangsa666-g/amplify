@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Typography,
   Tabs,
@@ -15,6 +15,7 @@ import {
   Alert,
   Tooltip,
   Table,
+  Switch,
   theme,
 } from 'antd';
 import {
@@ -28,11 +29,20 @@ import {
   KeyOutlined,
   CopyOutlined,
   EyeOutlined,
+  SaveOutlined,
+  HolderOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation, Trans } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import type { FieldTemplate, FieldTemplateItem, PromptTemplate, ApiError } from '../types';
+import type {
+  FieldTemplate,
+  FieldTemplateItem,
+  PromptTemplate,
+  ApiError,
+  Model,
+  ReasoningEffort,
+} from '../types';
 import {
   adminListFieldTemplates,
   adminCreateFieldTemplate,
@@ -51,9 +61,12 @@ import { getAdminRequests, approveRequest, rejectRequest } from '../api/template
 import { FieldTemplateEditorModal, PromptEditorModal } from '../components/TemplateEditorModals';
 import type { ExpiryOption, ApiKeyInfo } from '../api/apiKeys';
 import { getApiKey, createApiKey, deleteApiKey } from '../api/apiKeys';
+import { getAdminModels, reorderAdminModels, updateAdminModel } from '../api/models';
 import { message } from '../utils/message';
 import { formatDate, formatDateTime } from '../utils/format';
 import { templateDisplayName } from '../utils/templateLabels';
+
+type ModelDraft = Partial<Pick<Model, 'label' | 'enabled' | 'defaultReasoningEffort'>>;
 
 // ─── System Field Templates Tab ───────────────────────────────────────────────
 
@@ -359,7 +372,11 @@ function PendingRequestsTab() {
     refetchInterval: 30_000,
   });
 
-  const [rejectModal, setRejectModal] = useState<{ open: boolean; id: string; name: string }>({
+  const [rejectModal, setRejectModal] = useState<{
+    open: boolean;
+    id: string;
+    name: string;
+  }>({
     open: false,
     id: '',
     name: '',
@@ -422,7 +439,9 @@ function PendingRequestsTab() {
                   {t('common.view')}
                 </Button>
                 <Popconfirm
-                  title={t('admin.system.requests.approveConfirm', { name: displayName })}
+                  title={t('admin.system.requests.approveConfirm', {
+                    name: displayName,
+                  })}
                   onConfirm={() => approveMutation.mutate(req.id)}
                   okText={t('admin.system.requests.approve')}
                 >
@@ -435,7 +454,11 @@ function PendingRequestsTab() {
                   size="small"
                   danger
                   onClick={() => {
-                    setRejectModal({ open: true, id: req.id, name: displayName });
+                    setRejectModal({
+                      open: true,
+                      id: req.id,
+                      name: displayName,
+                    });
                     setRejectNote('');
                   }}
                 >
@@ -552,7 +575,9 @@ function PendingRequestsTab() {
 
       <Modal
         open={rejectModal.open}
-        title={t('admin.system.requests.declineTitle', { name: rejectModal.name })}
+        title={t('admin.system.requests.declineTitle', {
+          name: rejectModal.name,
+        })}
         onCancel={() => setRejectModal({ open: false, id: '', name: '' })}
         onOk={() => rejectMutation.mutate({ id: rejectModal.id, note: rejectNote })}
         okText={t('admin.system.requests.decline')}
@@ -651,7 +676,10 @@ function ApiKeysTab() {
               </Typography.Text>
               <Input.Password
                 value={newKey}
-                visibilityToggle={{ visible: keyVisible, onVisibleChange: setKeyVisible }}
+                visibilityToggle={{
+                  visible: keyVisible,
+                  onVisibleChange: setKeyVisible,
+                }}
                 readOnly
                 addonAfter={
                   <Tooltip title={t('common.copy')}>
@@ -762,6 +790,326 @@ function ApiKeysTab() {
   );
 }
 
+// ─── Models Tab ───────────────────────────────────────────────────────────────
+
+function ModelsTab() {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [drafts, setDrafts] = useState<Record<string, ModelDraft>>({});
+  const [localOrder, setLocalOrder] = useState<string[]>([]);
+  const [draggedModelName, setDraggedModelName] = useState<string | null>(null);
+  const activeDragModelRef = useRef<string | null>(null);
+  const dragStartOrderRef = useRef<string[]>([]);
+  const dragCurrentOrderRef = useRef<string[]>([]);
+
+  const { data: models = [], isLoading } = useQuery({
+    queryKey: ['admin-models'],
+    queryFn: () => getAdminModels().then((r) => r.data),
+  });
+
+  useEffect(() => {
+    if (activeDragModelRef.current) return;
+    const modelNames = models.map((model) => model.name);
+    setLocalOrder(modelNames);
+    dragCurrentOrderRef.current = modelNames;
+  }, [models]);
+
+  const orderedModels = useMemo(() => {
+    if (localOrder.length === 0) return models;
+    const modelsByName = new Map(models.map((model) => [model.name, model]));
+    return [
+      ...localOrder.flatMap((modelName) => {
+        const model = modelsByName.get(modelName);
+        return model ? [model] : [];
+      }),
+      ...models.filter((model) => !localOrder.includes(model.name)),
+    ];
+  }, [localOrder, models]);
+
+  const saveMutation = useMutation({
+    mutationFn: ({ modelName, data }: { modelName: string; data: ModelDraft }) =>
+      updateAdminModel(modelName, data).then((r) => r.data),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['admin-models'] });
+      qc.invalidateQueries({ queryKey: ['models'] });
+      setDrafts((current) => {
+        const next = { ...current };
+        delete next[variables.modelName];
+        return next;
+      });
+      message.success(t('admin.system.models.saved'));
+    },
+    onError: (e: ApiError) =>
+      message.error(e.response?.data?.message || t('admin.system.models.saveFailed')),
+  });
+
+  const reorderMutation = useMutation({
+    mutationFn: (modelNames: string[]) =>
+      reorderAdminModels(
+        modelNames.map((modelName, index) => ({ modelName, sortOrder: (index + 1) * 10 })),
+      ).then((r) => r.data),
+    onSuccess: (data) => {
+      qc.setQueryData(['admin-models'], data);
+      qc.invalidateQueries({ queryKey: ['models'] });
+      message.success(t('admin.system.models.orderSaved'));
+    },
+    onError: (e: ApiError) => {
+      setLocalOrder(models.map((model) => model.name));
+      message.error(e.response?.data?.message || t('admin.system.models.orderFailed'));
+    },
+  });
+
+  const defaultMutation = useMutation({
+    mutationFn: (modelName: string) =>
+      updateAdminModel(modelName, { isDefault: true, enabled: true }).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-models'] });
+      qc.invalidateQueries({ queryKey: ['models'] });
+      message.success(t('admin.system.models.defaultUpdated'));
+    },
+    onError: (e: ApiError) =>
+      message.error(e.response?.data?.message || t('admin.system.models.saveFailed')),
+  });
+
+  const patchDraft = (modelName: string, patch: ModelDraft) => {
+    setDrafts((current) => ({
+      ...current,
+      [modelName]: { ...current[modelName], ...patch },
+    }));
+  };
+
+  const valueFor = <K extends keyof ModelDraft>(record: Model, key: K) =>
+    drafts[record.name]?.[key] ?? record[key];
+
+  const beginDrag = useCallback(
+    (modelName: string) => {
+      const currentOrder = localOrder.length ? localOrder : models.map((model) => model.name);
+      activeDragModelRef.current = modelName;
+      dragStartOrderRef.current = currentOrder;
+      dragCurrentOrderRef.current = currentOrder;
+      setDraggedModelName(modelName);
+    },
+    [localOrder, models],
+  );
+
+  const previewMoveModel = useCallback(
+    (targetModelName: string) => {
+      const draggedModel = activeDragModelRef.current;
+      if (!draggedModel || draggedModel === targetModelName) return;
+
+      setLocalOrder((current) => {
+        const currentOrder = current.length ? current : models.map((model) => model.name);
+        const fromIndex = currentOrder.indexOf(draggedModel);
+        const toIndex = currentOrder.indexOf(targetModelName);
+        if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return current;
+
+        const nextOrder = [...currentOrder];
+        const [moved] = nextOrder.splice(fromIndex, 1);
+        nextOrder.splice(toIndex, 0, moved);
+        dragCurrentOrderRef.current = nextOrder;
+        return nextOrder;
+      });
+    },
+    [models],
+  );
+
+  const finishDrag = useCallback(() => {
+    if (!activeDragModelRef.current) return;
+    const nextOrder = dragCurrentOrderRef.current.length
+      ? dragCurrentOrderRef.current
+      : models.map((model) => model.name);
+    const originalOrder = dragStartOrderRef.current;
+    const orderChanged =
+      nextOrder.length !== originalOrder.length ||
+      nextOrder.some((modelName, index) => modelName !== originalOrder[index]);
+
+    activeDragModelRef.current = null;
+    dragStartOrderRef.current = [];
+    dragCurrentOrderRef.current = [];
+    setDraggedModelName(null);
+
+    if (orderChanged) {
+      reorderMutation.mutate(nextOrder);
+    }
+  }, [models, reorderMutation]);
+
+  useEffect(() => {
+    if (!draggedModelName) return;
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const row = document
+        .elementFromPoint(event.clientX, event.clientY)
+        ?.closest('tr[data-row-key]');
+      const targetModelName = row?.getAttribute('data-row-key');
+      if (targetModelName) previewMoveModel(targetModelName);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', finishDrag);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', finishDrag);
+    };
+  }, [draggedModelName, finishDrag, previewMoveModel]);
+
+  if (isLoading) return <Spin />;
+
+  return (
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <Alert type="info" showIcon message={t('admin.system.models.intro')} />
+      <Table
+        size="small"
+        rowKey="name"
+        dataSource={orderedModels}
+        pagination={false}
+        scroll={{ x: 'max-content' }}
+        onRow={(record) => ({
+          style: {
+            opacity: record.name === draggedModelName ? 0.48 : 1,
+            transition: 'opacity 120ms ease',
+          },
+          onDragOver: (event) => {
+            event.preventDefault();
+            previewMoveModel(record.name);
+          },
+          onDragEnter: () => previewMoveModel(record.name),
+          onDrop: (event) => {
+            event.preventDefault();
+            finishDrag();
+          },
+        })}
+        columns={[
+          {
+            title: '',
+            key: 'drag',
+            width: 48,
+            render: (_: unknown, record: Model) => (
+              <Tooltip title={t('admin.system.models.dragToReorder')}>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<HolderOutlined />}
+                  draggable
+                  style={{ cursor: 'grab' }}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    beginDrag(record.name);
+                  }}
+                  onDragStart={(event) => {
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', record.name);
+                    const row = event.currentTarget.closest('tr');
+                    if (row) {
+                      const { height } = row.getBoundingClientRect();
+                      event.dataTransfer.setDragImage(row, 24, height / 2);
+                    }
+                    beginDrag(record.name);
+                  }}
+                  onDragEnd={finishDrag}
+                />
+              </Tooltip>
+            ),
+          },
+          {
+            title: t('admin.system.models.model'),
+            dataIndex: 'name',
+            key: 'name',
+            width: 220,
+            render: (_: string, record: Model) => (
+              <Space direction="vertical" size={0}>
+                <Space>
+                  <Typography.Text strong>{record.name}</Typography.Text>
+                  {record.isDefault && <Tag color="blue">{t('common.default')}</Tag>}
+                </Space>
+                <Space size={4}>
+                  <Tag>{record.provider}</Tag>
+                  {record.supportsReasoning && (
+                    <Tag color="green">{t('admin.system.models.reasoning')}</Tag>
+                  )}
+                </Space>
+              </Space>
+            ),
+          },
+          {
+            title: t('admin.system.models.displayName'),
+            key: 'label',
+            width: 220,
+            render: (_: unknown, record: Model) => (
+              <Input
+                value={valueFor(record, 'label')}
+                onChange={(e) => patchDraft(record.name, { label: e.target.value })}
+              />
+            ),
+          },
+          {
+            title: t('admin.system.models.enabled'),
+            key: 'enabled',
+            width: 100,
+            render: (_: unknown, record: Model) => (
+              <Switch
+                checked={valueFor(record, 'enabled') !== false}
+                disabled={record.isDefault}
+                onChange={(enabled) => patchDraft(record.name, { enabled })}
+              />
+            ),
+          },
+          {
+            title: t('admin.system.models.defaultEffort'),
+            key: 'defaultReasoningEffort',
+            width: 180,
+            render: (_: unknown, record: Model) => (
+              <Select
+                style={{ width: 150 }}
+                value={valueFor(record, 'defaultReasoningEffort')}
+                disabled={record.supportsReasoning === false}
+                options={(record.reasoningEfforts ?? []).map((effort) => ({
+                  value: effort,
+                  label: t(`effort.${effort}`),
+                }))}
+                onChange={(defaultReasoningEffort: ReasoningEffort) =>
+                  patchDraft(record.name, { defaultReasoningEffort })
+                }
+              />
+            ),
+          },
+          {
+            title: t('admin.system.models.actions'),
+            key: 'actions',
+            width: 220,
+            render: (_: unknown, record: Model) => (
+              <Space>
+                <Button
+                  icon={<SaveOutlined />}
+                  size="small"
+                  type={drafts[record.name] ? 'primary' : 'default'}
+                  disabled={!drafts[record.name]}
+                  loading={saveMutation.isPending}
+                  onClick={() =>
+                    saveMutation.mutate({
+                      modelName: record.name,
+                      data: drafts[record.name],
+                    })
+                  }
+                >
+                  {t('common.save')}
+                </Button>
+                <Button
+                  size="small"
+                  disabled={record.isDefault}
+                  loading={defaultMutation.isPending}
+                  onClick={() => defaultMutation.mutate(record.name)}
+                >
+                  {t('admin.system.models.setDefault')}
+                </Button>
+              </Space>
+            ),
+          },
+        ]}
+      />
+    </Space>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminSystemSettingsPage() {
@@ -780,12 +1128,15 @@ export default function AdminSystemSettingsPage() {
         ? 'admin-requests'
         : tabParam === 'api-keys'
           ? 'admin-api-keys'
-          : 'admin-fields';
+          : tabParam === 'models'
+            ? 'admin-models'
+            : 'admin-fields';
   const tabParams: Record<string, string> = {
     'admin-fields': 'fields',
     'admin-prompt': 'prompts',
     'admin-requests': 'requests',
     'admin-api-keys': 'api-keys',
+    'admin-models': 'models',
   };
 
   const tabItems = [
@@ -812,6 +1163,11 @@ export default function AdminSystemSettingsPage() {
         </Space>
       ),
       children: <PendingRequestsTab />,
+    },
+    {
+      key: 'admin-models',
+      label: t('admin.system.models.title'),
+      children: <ModelsTab />,
     },
     {
       key: 'admin-api-keys',

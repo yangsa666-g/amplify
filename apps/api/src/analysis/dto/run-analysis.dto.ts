@@ -1,5 +1,5 @@
 import { IsString, IsNotEmpty, IsOptional, IsIn } from 'class-validator';
-import type { ReasoningEffort } from '../azure-openai.service';
+import type { ReasoningEffort } from '../../models/model-registry';
 
 export class RunAnalysisDto {
   @IsString()

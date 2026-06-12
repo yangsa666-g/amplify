@@ -1,10 +1,12 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { AzureOpenAIService, type ReasoningEffort } from './azure-openai.service';
+import { AzureOpenAIService } from './azure-openai.service';
 import { AnthropicService } from './anthropic.service';
 import { FieldTemplatesService } from '../field-templates/field-templates.service';
 import { PromptTemplatesService } from '../prompt-templates/prompt-templates.service';
 import { DocumentsService } from '../documents/documents.service';
+import { ModelsService } from '../models/models.service';
+import type { ReasoningEffort } from '../models/model-registry';
 
 export function parseRiskAnalysis(text: string): {
   originalContractDescription: string;
@@ -176,10 +178,11 @@ export class AnalysisService {
     private fieldTemplates: FieldTemplatesService,
     private promptTemplates: PromptTemplatesService,
     private documents: DocumentsService,
+    private models: ModelsService,
   ) {}
 
-  private selectAI(model: string): AzureOpenAIService | AnthropicService {
-    return model.startsWith('claude') ? this.anthropicAI : this.azureAI;
+  private async selectAI(model: string): Promise<AzureOpenAIService | AnthropicService> {
+    return (await this.models.getProvider(model)) === 'claude' ? this.anthropicAI : this.azureAI;
   }
 
   async run(
@@ -188,8 +191,13 @@ export class AnalysisService {
     model: string,
     fieldTemplateId?: string,
     promptTemplateId?: string,
-    reasoningEffort: ReasoningEffort = 'medium',
+    reasoningEffort?: ReasoningEffort,
   ) {
+    const resolvedReasoningEffort = await this.models.normalizeReasoningEffort(
+      model,
+      reasoningEffort,
+    );
+
     // 1. Load document text (and the OCR duration recorded at upload time)
     const contractText = await this.documents.getExtractedText(documentId, userId);
     if (!contractText) throw new BadRequestException('Contract text is empty');
@@ -236,7 +244,7 @@ export class AnalysisService {
         userId,
         documentId,
         modelName: model,
-        reasoningEffort,
+        reasoningEffort: resolvedReasoningEffort,
         fieldTemplateId: fieldTemplate.id,
         promptTemplateId: promptTemplate.id,
         fieldTemplateSnapshotJson: fieldTemplate.items,
@@ -248,15 +256,15 @@ export class AnalysisService {
     try {
       // 6. Field extraction + risk analysis in parallel, timing each call
       //    separately (they run concurrently, so these durations overlap).
-      const ai = this.selectAI(model);
+      const ai = await this.selectAI(model);
       const timeIt = async <T>(fn: () => Promise<T>): Promise<{ result: T; ms: number }> => {
         const start = Date.now();
         const result = await fn();
         return { result, ms: Date.now() - start };
       };
       const [fieldTimed, riskTimed] = await Promise.all([
-        timeIt(() => ai.chat(model, fieldPrompt, reasoningEffort)),
-        timeIt(() => ai.chat(model, riskPrompt, reasoningEffort)),
+        timeIt(() => ai.chat(model, fieldPrompt, resolvedReasoningEffort)),
+        timeIt(() => ai.chat(model, riskPrompt, resolvedReasoningEffort)),
       ]);
       const rawFieldResult = fieldTimed.result;
       const riskResult = riskTimed.result;
