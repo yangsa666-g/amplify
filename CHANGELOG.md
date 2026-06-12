@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/shidafu666/amplify/compare/v0.4.0...v0.4.1) (2026-06-12)
+
+
+### Bug Fixes
+
+* extend analysis request timeouts ([97ba49a](https://github.com/shidafu666/amplify/commit/97ba49aff48144d1f68b6b7487f8f54466f32bfe))
+
 ## [0.4.0](https://github.com/shidafu666/amplify/compare/v0.3.0...v0.4.0) (2026-06-09)
 
 
