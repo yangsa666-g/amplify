@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../prisma/prisma.service';
 import {
   buildModelCatalogEntry,
   inferModelProvider,
@@ -7,10 +8,14 @@ import {
   type ModelProvider,
   type ReasoningEffort,
 } from './model-registry';
+import { UpdateModelCatalogDto } from './dto/model-catalog.dto';
 
 @Injectable()
 export class ModelsService {
-  constructor(private config: ConfigService) {}
+  constructor(
+    private config: ConfigService,
+    private prisma: PrismaService,
+  ) {}
 
   private parseModelList(raw: string) {
     return raw
@@ -34,12 +39,58 @@ export class ModelsService {
     );
   }
 
+  private async modelSettings() {
+    return this.prisma.modelCatalogSetting.findMany();
+  }
+
+  private mergeSettings(
+    models: ModelCatalogEntry[],
+    settings: Awaited<ReturnType<ModelsService['modelSettings']>>,
+  ): ModelCatalogEntry[] {
+    const settingsByName = new Map(settings.map((setting) => [setting.modelName, setting]));
+    const explicitDefault = settings.find(
+      (setting) =>
+        setting.isDefault && setting.enabled && models.some((m) => m.name === setting.modelName),
+    )?.modelName;
+    const fallbackDefault =
+      explicitDefault ??
+      models.find((model) => {
+        const setting = settingsByName.get(model.name);
+        return setting?.enabled ?? model.enabled;
+      })?.name;
+
+    return models
+      .map((model) => {
+        const setting = settingsByName.get(model.name);
+        return {
+          ...model,
+          label: setting?.label?.trim() || model.label,
+          enabled: setting?.enabled ?? model.enabled,
+          defaultReasoningEffort:
+            setting?.defaultReasoningEffort &&
+            model.reasoningEfforts.includes(setting.defaultReasoningEffort as ReasoningEffort)
+              ? (setting.defaultReasoningEffort as ReasoningEffort)
+              : model.defaultReasoningEffort,
+          sortOrder: setting?.sortOrder ?? model.sortOrder,
+          isDefault: model.name === fallbackDefault,
+        };
+      })
+      .sort((a, b) => {
+        return a.sortOrder - b.sortOrder || a.label.localeCompare(b.label);
+      });
+  }
+
   async getModels(): Promise<ModelCatalogEntry[]> {
-    return this.configuredModels();
+    const models = this.mergeSettings(this.configuredModels(), await this.modelSettings());
+    return models.filter((model) => model.enabled);
+  }
+
+  async getAdminModels(): Promise<ModelCatalogEntry[]> {
+    return this.mergeSettings(this.configuredModels(), await this.modelSettings());
   }
 
   async getModel(name: string): Promise<ModelCatalogEntry | undefined> {
-    return this.configuredModels().find((model) => model.name === name);
+    return (await this.getAdminModels()).find((model) => model.name === name);
   }
 
   async getProvider(name: string): Promise<ModelProvider> {
@@ -53,5 +104,60 @@ export class ModelsService {
     return model.reasoningEfforts.includes(requestedEffort)
       ? requestedEffort
       : model.defaultReasoningEffort;
+  }
+
+  async updateAdminModel(modelName: string, input: UpdateModelCatalogDto) {
+    const model = (await this.getAdminModels()).find((item) => item.name === modelName);
+    if (!model) {
+      throw new BadRequestException('Model is not configured');
+    }
+
+    if (input.isDefault) {
+      await this.prisma.$transaction([
+        this.prisma.modelCatalogSetting.updateMany({
+          where: { isDefault: true, modelName: { not: modelName } },
+          data: { isDefault: false },
+        }),
+        this.prisma.modelCatalogSetting.upsert({
+          where: { modelName },
+          create: {
+            modelName,
+            label: input.label,
+            enabled: input.enabled ?? true,
+            defaultReasoningEffort: input.defaultReasoningEffort,
+            sortOrder: input.sortOrder,
+            isDefault: true,
+          },
+          update: {
+            label: input.label,
+            enabled: input.enabled,
+            defaultReasoningEffort: input.defaultReasoningEffort,
+            sortOrder: input.sortOrder,
+            isDefault: true,
+          },
+        }),
+      ]);
+    } else {
+      await this.prisma.modelCatalogSetting.upsert({
+        where: { modelName },
+        create: {
+          modelName,
+          label: input.label,
+          enabled: input.enabled ?? true,
+          defaultReasoningEffort: input.defaultReasoningEffort,
+          sortOrder: input.sortOrder,
+          isDefault: false,
+        },
+        update: {
+          label: input.label,
+          enabled: input.enabled,
+          defaultReasoningEffort: input.defaultReasoningEffort,
+          sortOrder: input.sortOrder,
+          isDefault: input.isDefault,
+        },
+      });
+    }
+
+    return (await this.getAdminModels()).find((item) => item.name === modelName);
   }
 }

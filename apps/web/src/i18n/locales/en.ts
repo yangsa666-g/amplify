@@ -493,6 +493,22 @@ const en = {
       saveFailed: 'Save failed',
       deleteFailed: 'Delete failed',
       failed: 'Failed',
+      models: {
+        title: 'Models',
+        intro:
+          'Configure the model catalog exposed to users. Provider capabilities come from the built-in registry; these settings control display, availability, defaults, and order.',
+        model: 'Model',
+        displayName: 'Display Name',
+        enabled: 'Enabled',
+        defaultEffort: 'Default Effort',
+        sortOrder: 'Sort',
+        actions: 'Actions',
+        reasoning: 'Reasoning',
+        setDefault: 'Set Default',
+        saved: 'Model saved',
+        saveFailed: 'Failed to save model',
+        defaultUpdated: 'Default model updated',
+      },
       requests: {
         fieldTemplate: 'Field Template',
         promptTemplate: 'Prompt Template',

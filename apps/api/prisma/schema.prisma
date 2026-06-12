@@ -307,6 +307,22 @@ model ApiKey {
   @@map("api_keys")
 }
 
+model ModelCatalogSetting {
+  id                     String   @id @default(cuid())
+  modelName              String   @unique @map("model_name")
+  label                  String?
+  enabled                Boolean  @default(true)
+  defaultReasoningEffort String?  @map("default_reasoning_effort")
+  sortOrder              Int?     @map("sort_order")
+  isDefault              Boolean  @default(false) @map("is_default")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  @@index([enabled, sortOrder])
+  @@index([isDefault])
+  @@map("model_catalog_settings")
+}
+
 model AuditLog {
   id         String   @id @default(cuid())
   userId     String?  @map("user_id")

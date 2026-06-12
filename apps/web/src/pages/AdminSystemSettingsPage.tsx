@@ -15,6 +15,7 @@ import {
   Alert,
   Tooltip,
   Table,
+  Switch,
   theme,
 } from 'antd';
 import {
@@ -28,11 +29,19 @@ import {
   KeyOutlined,
   CopyOutlined,
   EyeOutlined,
+  SaveOutlined,
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation, Trans } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import type { FieldTemplate, FieldTemplateItem, PromptTemplate, ApiError } from '../types';
+import type {
+  FieldTemplate,
+  FieldTemplateItem,
+  PromptTemplate,
+  ApiError,
+  Model,
+  ReasoningEffort,
+} from '../types';
 import {
   adminListFieldTemplates,
   adminCreateFieldTemplate,
@@ -51,9 +60,12 @@ import { getAdminRequests, approveRequest, rejectRequest } from '../api/template
 import { FieldTemplateEditorModal, PromptEditorModal } from '../components/TemplateEditorModals';
 import type { ExpiryOption, ApiKeyInfo } from '../api/apiKeys';
 import { getApiKey, createApiKey, deleteApiKey } from '../api/apiKeys';
+import { getAdminModels, updateAdminModel } from '../api/models';
 import { message } from '../utils/message';
 import { formatDate, formatDateTime } from '../utils/format';
 import { templateDisplayName } from '../utils/templateLabels';
+
+type ModelDraft = Partial<Pick<Model, 'label' | 'enabled' | 'defaultReasoningEffort'>>;
 
 // ─── System Field Templates Tab ───────────────────────────────────────────────
 
@@ -359,7 +371,11 @@ function PendingRequestsTab() {
     refetchInterval: 30_000,
   });
 
-  const [rejectModal, setRejectModal] = useState<{ open: boolean; id: string; name: string }>({
+  const [rejectModal, setRejectModal] = useState<{
+    open: boolean;
+    id: string;
+    name: string;
+  }>({
     open: false,
     id: '',
     name: '',
@@ -422,7 +438,9 @@ function PendingRequestsTab() {
                   {t('common.view')}
                 </Button>
                 <Popconfirm
-                  title={t('admin.system.requests.approveConfirm', { name: displayName })}
+                  title={t('admin.system.requests.approveConfirm', {
+                    name: displayName,
+                  })}
                   onConfirm={() => approveMutation.mutate(req.id)}
                   okText={t('admin.system.requests.approve')}
                 >
@@ -435,7 +453,11 @@ function PendingRequestsTab() {
                   size="small"
                   danger
                   onClick={() => {
-                    setRejectModal({ open: true, id: req.id, name: displayName });
+                    setRejectModal({
+                      open: true,
+                      id: req.id,
+                      name: displayName,
+                    });
                     setRejectNote('');
                   }}
                 >
@@ -552,7 +574,9 @@ function PendingRequestsTab() {
 
       <Modal
         open={rejectModal.open}
-        title={t('admin.system.requests.declineTitle', { name: rejectModal.name })}
+        title={t('admin.system.requests.declineTitle', {
+          name: rejectModal.name,
+        })}
         onCancel={() => setRejectModal({ open: false, id: '', name: '' })}
         onOk={() => rejectMutation.mutate({ id: rejectModal.id, note: rejectNote })}
         okText={t('admin.system.requests.decline')}
@@ -651,7 +675,10 @@ function ApiKeysTab() {
               </Typography.Text>
               <Input.Password
                 value={newKey}
-                visibilityToggle={{ visible: keyVisible, onVisibleChange: setKeyVisible }}
+                visibilityToggle={{
+                  visible: keyVisible,
+                  onVisibleChange: setKeyVisible,
+                }}
                 readOnly
                 addonAfter={
                   <Tooltip title={t('common.copy')}>
@@ -762,6 +789,168 @@ function ApiKeysTab() {
   );
 }
 
+// ─── Models Tab ───────────────────────────────────────────────────────────────
+
+function ModelsTab() {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [drafts, setDrafts] = useState<Record<string, ModelDraft>>({});
+  const { data: models = [], isLoading } = useQuery({
+    queryKey: ['admin-models'],
+    queryFn: () => getAdminModels().then((r) => r.data),
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: ({ modelName, data }: { modelName: string; data: ModelDraft }) =>
+      updateAdminModel(modelName, data).then((r) => r.data),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['admin-models'] });
+      qc.invalidateQueries({ queryKey: ['models'] });
+      setDrafts((current) => {
+        const next = { ...current };
+        delete next[variables.modelName];
+        return next;
+      });
+      message.success(t('admin.system.models.saved'));
+    },
+    onError: (e: ApiError) =>
+      message.error(e.response?.data?.message || t('admin.system.models.saveFailed')),
+  });
+
+  const defaultMutation = useMutation({
+    mutationFn: (modelName: string) =>
+      updateAdminModel(modelName, { isDefault: true, enabled: true }).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-models'] });
+      qc.invalidateQueries({ queryKey: ['models'] });
+      message.success(t('admin.system.models.defaultUpdated'));
+    },
+    onError: (e: ApiError) =>
+      message.error(e.response?.data?.message || t('admin.system.models.saveFailed')),
+  });
+
+  const patchDraft = (modelName: string, patch: ModelDraft) => {
+    setDrafts((current) => ({
+      ...current,
+      [modelName]: { ...current[modelName], ...patch },
+    }));
+  };
+
+  const valueFor = <K extends keyof ModelDraft>(record: Model, key: K) =>
+    drafts[record.name]?.[key] ?? record[key];
+
+  if (isLoading) return <Spin />;
+
+  return (
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <Alert type="info" showIcon message={t('admin.system.models.intro')} />
+      <Table
+        size="small"
+        rowKey="name"
+        dataSource={models}
+        pagination={false}
+        scroll={{ x: 'max-content' }}
+        columns={[
+          {
+            title: t('admin.system.models.model'),
+            dataIndex: 'name',
+            key: 'name',
+            width: 220,
+            render: (_: string, record: Model) => (
+              <Space direction="vertical" size={0}>
+                <Space>
+                  <Typography.Text strong>{record.name}</Typography.Text>
+                  {record.isDefault && <Tag color="blue">{t('common.default')}</Tag>}
+                </Space>
+                <Space size={4}>
+                  <Tag>{record.provider}</Tag>
+                  {record.supportsReasoning && (
+                    <Tag color="green">{t('admin.system.models.reasoning')}</Tag>
+                  )}
+                </Space>
+              </Space>
+            ),
+          },
+          {
+            title: t('admin.system.models.displayName'),
+            key: 'label',
+            width: 220,
+            render: (_: unknown, record: Model) => (
+              <Input
+                value={valueFor(record, 'label')}
+                onChange={(e) => patchDraft(record.name, { label: e.target.value })}
+              />
+            ),
+          },
+          {
+            title: t('admin.system.models.enabled'),
+            key: 'enabled',
+            width: 100,
+            render: (_: unknown, record: Model) => (
+              <Switch
+                checked={valueFor(record, 'enabled') !== false}
+                disabled={record.isDefault}
+                onChange={(enabled) => patchDraft(record.name, { enabled })}
+              />
+            ),
+          },
+          {
+            title: t('admin.system.models.defaultEffort'),
+            key: 'defaultReasoningEffort',
+            width: 180,
+            render: (_: unknown, record: Model) => (
+              <Select
+                style={{ width: 150 }}
+                value={valueFor(record, 'defaultReasoningEffort')}
+                disabled={record.supportsReasoning === false}
+                options={(record.reasoningEfforts ?? []).map((effort) => ({
+                  value: effort,
+                  label: t(`effort.${effort}`),
+                }))}
+                onChange={(defaultReasoningEffort: ReasoningEffort) =>
+                  patchDraft(record.name, { defaultReasoningEffort })
+                }
+              />
+            ),
+          },
+          {
+            title: t('admin.system.models.actions'),
+            key: 'actions',
+            width: 220,
+            render: (_: unknown, record: Model) => (
+              <Space>
+                <Button
+                  icon={<SaveOutlined />}
+                  size="small"
+                  type={drafts[record.name] ? 'primary' : 'default'}
+                  disabled={!drafts[record.name]}
+                  loading={saveMutation.isPending}
+                  onClick={() =>
+                    saveMutation.mutate({
+                      modelName: record.name,
+                      data: drafts[record.name],
+                    })
+                  }
+                >
+                  {t('common.save')}
+                </Button>
+                <Button
+                  size="small"
+                  disabled={record.isDefault}
+                  loading={defaultMutation.isPending}
+                  onClick={() => defaultMutation.mutate(record.name)}
+                >
+                  {t('admin.system.models.setDefault')}
+                </Button>
+              </Space>
+            ),
+          },
+        ]}
+      />
+    </Space>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminSystemSettingsPage() {
@@ -780,12 +969,15 @@ export default function AdminSystemSettingsPage() {
         ? 'admin-requests'
         : tabParam === 'api-keys'
           ? 'admin-api-keys'
-          : 'admin-fields';
+          : tabParam === 'models'
+            ? 'admin-models'
+            : 'admin-fields';
   const tabParams: Record<string, string> = {
     'admin-fields': 'fields',
     'admin-prompt': 'prompts',
     'admin-requests': 'requests',
     'admin-api-keys': 'api-keys',
+    'admin-models': 'models',
   };
 
   const tabItems = [
@@ -812,6 +1004,11 @@ export default function AdminSystemSettingsPage() {
         </Space>
       ),
       children: <PendingRequestsTab />,
+    },
+    {
+      key: 'admin-models',
+      label: t('admin.system.models.title'),
+      children: <ModelsTab />,
     },
     {
       key: 'admin-api-keys',

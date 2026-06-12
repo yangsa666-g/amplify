@@ -29,6 +29,27 @@ const authResponse = {
   user: mockUser,
 };
 
+const MODEL_CATALOG_STORAGE_KEY = 'mock-model-catalog';
+
+const readMockModelCatalog = () => {
+  if (typeof localStorage === 'undefined') return mockModels.map((model) => ({ ...model }));
+  try {
+    const stored = localStorage.getItem(MODEL_CATALOG_STORAGE_KEY);
+    return stored
+      ? (JSON.parse(stored) as typeof mockModels)
+      : mockModels.map((model) => ({ ...model }));
+  } catch {
+    return mockModels.map((model) => ({ ...model }));
+  }
+};
+
+const writeMockModelCatalog = () => {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem(MODEL_CATALOG_STORAGE_KEY, JSON.stringify(mockModelCatalog));
+};
+
+let mockModelCatalog = readMockModelCatalog();
+
 const jsonNotFound = (message = 'Mock resource not found') =>
   HttpResponse.json({ message }, { status: 404 });
 
@@ -44,7 +65,43 @@ export const handlers = [
   http.post(api('/auth/logout'), () => new HttpResponse(null, { status: 204 })),
   http.post(api('/auth/change-password'), () => new HttpResponse(null, { status: 204 })),
 
-  http.get(api('/models'), () => HttpResponse.json(mockModels)),
+  http.get(api('/models'), () =>
+    HttpResponse.json(
+      mockModelCatalog
+        .filter((model) => model.enabled !== false)
+        .sort((a, b) => {
+          return (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.label.localeCompare(b.label);
+        }),
+    ),
+  ),
+  http.get(api('/admin/models'), () => HttpResponse.json(mockModelCatalog)),
+  http.patch(api('/admin/models/:modelName'), async ({ params, request }) => {
+    const modelName = decodeURIComponent(String(params.modelName));
+    const body = (await request.json()) as Partial<(typeof mockModelCatalog)[number]>;
+    const model = mockModelCatalog.find((item) => item.name === modelName);
+    if (!model) return jsonNotFound('Model is not configured');
+
+    if (body.isDefault) {
+      mockModelCatalog = mockModelCatalog.map((item) => ({
+        ...item,
+        isDefault: false,
+      }));
+    }
+
+    mockModelCatalog = mockModelCatalog.map((item) =>
+      item.name === modelName
+        ? {
+            ...item,
+            ...body,
+            enabled: body.isDefault ? true : (body.enabled ?? item.enabled),
+            isDefault: body.isDefault ?? item.isDefault,
+          }
+        : item,
+    );
+    writeMockModelCatalog();
+
+    return HttpResponse.json(mockModelCatalog.find((item) => item.name === modelName));
+  }),
   http.get(api('/field-templates'), () => HttpResponse.json(mockFieldTemplates)),
   http.get(api('/field-templates/:id'), ({ params }) => {
     const template = mockFieldTemplates.find((item) => item.id === params.id);
@@ -59,10 +116,16 @@ export const handlers = [
   http.get(api('/admin/prompt-templates'), () => HttpResponse.json(mockPromptTemplates)),
 
   http.get(api('/history'), () =>
-    HttpResponse.json({ analysisJobs: mockAnalysisJobs, compareJobs: mockCompareJobs }),
+    HttpResponse.json({
+      analysisJobs: mockAnalysisJobs,
+      compareJobs: mockCompareJobs,
+    }),
   ),
   http.get(api('/history/all'), () =>
-    HttpResponse.json({ analysisJobs: mockAnalysisJobs, compareJobs: mockCompareJobs }),
+    HttpResponse.json({
+      analysisJobs: mockAnalysisJobs,
+      compareJobs: mockCompareJobs,
+    }),
   ),
 
   http.get(api('/analysis/recent'), () => HttpResponse.json(mockAnalysisJobs)),
@@ -106,7 +169,9 @@ export const handlers = [
   ),
 
   http.get(api('/documents/:documentId/text'), ({ params }) =>
-    HttpResponse.json({ text: mockDocumentText[String(params.documentId)] ?? '' }),
+    HttpResponse.json({
+      text: mockDocumentText[String(params.documentId)] ?? '',
+    }),
   ),
   http.get(api('/documents/:documentId/download'), ({ params }) =>
     HttpResponse.text(`Mock original document for ${String(params.documentId)}`, {
@@ -143,7 +208,9 @@ export const handlers = [
 
   http.get(api('/notifications'), () => HttpResponse.json(mockNotifications)),
   http.get(api('/notifications/unread-count'), () =>
-    HttpResponse.json({ count: mockNotifications.filter((item) => !item.isRead).length }),
+    HttpResponse.json({
+      count: mockNotifications.filter((item) => !item.isRead).length,
+    }),
   ),
   http.put(api('/notifications/:id/read'), ({ params }) => {
     const notification = mockNotifications.find((item) => item.id === params.id);
@@ -169,7 +236,10 @@ export const handlers = [
 
   http.get(api('/admin/dashboard/stats'), ({ request }) => {
     const period = new URL(request.url).searchParams.get('period');
-    return HttpResponse.json({ ...mockAdminStats, period: period ?? mockAdminStats.period });
+    return HttpResponse.json({
+      ...mockAdminStats,
+      period: period ?? mockAdminStats.period,
+    });
   }),
   http.get(api('/admin/users'), () => HttpResponse.json(mockUsers)),
   http.post(api('/admin/users'), async ({ request }) => {
