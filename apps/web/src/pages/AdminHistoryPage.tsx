@@ -11,6 +11,7 @@ import CompareDetailDrawer from '../components/CompareDetailDrawer';
 import { useTextFilter, getFeedbackSummary } from '../utils/historyUtils';
 import { statusLabel, effortLabel } from '../utils/labels';
 import { formatDateTime } from '../utils/format';
+import { templateDisplayName } from '../utils/templateLabels';
 
 export default function AdminHistoryPage() {
   const { t, i18n } = useTranslation();
@@ -47,6 +48,7 @@ export default function AdminHistoryPage() {
   const idFilter = useTextFilter(['id']);
   const userFilter = useTextFilter(['user', 'name']);
   const fileFilter = useTextFilter(['document', 'fileName']);
+  const templateFilter = useTextFilter(['fieldTemplate', 'name']);
   const oldFileFilter = useTextFilter(['oldDocument', 'fileName']);
   const newFileFilter = useTextFilter(['newDocument', 'fileName']);
 
@@ -87,6 +89,13 @@ export default function AdminHistoryPage() {
       key: 'model',
       filters: modelOptions,
       onFilter: (value: React.Key | boolean, record: AnalysisJob) => record.modelName === value,
+    },
+    {
+      title: t('history.columns.template'),
+      dataIndex: ['fieldTemplate', 'name'],
+      key: 'template',
+      render: (name?: string) => (name ? templateDisplayName(t, name) : '-'),
+      ...templateFilter,
     },
     {
       title: t('history.columns.effort'),
