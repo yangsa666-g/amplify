@@ -1,12 +1,4 @@
 import { defineConfig } from 'prisma/config';
-import { existsSync } from 'node:fs';
-import { loadEnvFile } from 'node:process';
-
-for (const envPath of ['.env', '../../.env']) {
-  if (existsSync(envPath)) {
-    loadEnvFile(envPath);
-  }
-}
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',
