@@ -243,6 +243,7 @@ const zh: typeof en = {
       oldFile: '旧文件',
       newFile: '新文件',
       model: '模型',
+      template: '字段模板',
       effort: '推理强度',
       status: '状态',
       feedback: '反馈',

@@ -244,6 +244,7 @@ const en = {
       oldFile: 'Old File',
       newFile: 'New File',
       model: 'Model',
+      template: 'Field Template',
       effort: 'Reasoning Effort',
       status: 'Status',
       feedback: 'Feedback',
