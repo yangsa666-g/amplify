@@ -88,6 +88,7 @@ export interface AnalysisJob {
   riskAnalysisMs?: number | null;
   document: { fileName: string; extractionMs?: number | null };
   fieldTemplate?: { id: string; name: string } | null;
+  promptTemplate?: { id: string; name: string } | null;
   user?: { id: string; name: string; email: string };
   feedbacks?: Array<{ userId: string; rating: number; comment?: string | null }>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

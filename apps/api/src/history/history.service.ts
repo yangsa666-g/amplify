@@ -15,6 +15,7 @@ export class HistoryService {
         include: {
           document: { select: { fileName: true } },
           fieldTemplate: { select: { id: true, name: true } },
+          promptTemplate: { select: { id: true, name: true } },
           feedbacks: {
             where: { userId },
             select: { userId: true, rating: true, comment: true },
@@ -42,6 +43,7 @@ export class HistoryService {
         include: {
           document: { select: { fileName: true } },
           fieldTemplate: { select: { id: true, name: true } },
+          promptTemplate: { select: { id: true, name: true } },
           feedbacks: { select: { userId: true, rating: true, comment: true } },
           user: { select: { id: true, name: true, email: true } },
         },
