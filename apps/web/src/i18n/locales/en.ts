@@ -245,6 +245,7 @@ const en = {
       newFile: 'New File',
       model: 'Model',
       template: 'Field Template',
+      riskPromptTemplate: 'Risk Prompt Template',
       effort: 'Reasoning Effort',
       status: 'Status',
       feedback: 'Feedback',

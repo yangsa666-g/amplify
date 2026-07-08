@@ -62,6 +62,7 @@ export default function HistoryPage() {
 
   const fileFilter = useTextFilter(['document', 'fileName']);
   const templateFilter = useTextFilter(['fieldTemplate', 'name']);
+  const promptTemplateFilter = useTextFilter(['promptTemplate', 'name']);
   const oldFileFilter = useTextFilter(['oldDocument', 'fileName']);
   const newFileFilter = useTextFilter(['newDocument', 'fileName']);
 
@@ -85,6 +86,13 @@ export default function HistoryPage() {
       key: 'template',
       render: (name?: string) => (name ? templateDisplayName(t, name) : '-'),
       ...templateFilter,
+    },
+    {
+      title: t('history.columns.riskPromptTemplate'),
+      dataIndex: ['promptTemplate', 'name'],
+      key: 'riskPromptTemplate',
+      render: (name?: string) => name || '-',
+      ...promptTemplateFilter,
     },
     {
       title: t('history.columns.effort'),
