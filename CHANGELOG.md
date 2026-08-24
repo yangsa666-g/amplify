@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/shidafu666/amplify/compare/v0.5.0...v0.5.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* **models:** clarify custom model identifier label ([#58](https://github.com/shidafu666/amplify/issues/58)) ([e6ca494](https://github.com/shidafu666/amplify/commit/e6ca4949b067b7ae105633ae8fc99b74fc5b72e6))
+
 ## [0.5.0](https://github.com/shidafu666/amplify/compare/v0.4.1...v0.5.0) (2026-08-24)
 
 
