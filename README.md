@@ -93,7 +93,7 @@ Copy `.env.example` to `.env` and fill in the values.
 | `AZURE_OPENAI_ENDPOINT` | ✅ | Azure OpenAI endpoint URL |
 | `AZURE_OPENAI_API_KEY` | ✅ | Azure OpenAI API key |
 | `AZURE_OPENAI_MODELS` | ✅ | Comma-separated list of deployed model names |
-| `MODEL_CREDENTIALS_ENCRYPTION_KEY` | ❌ | Base64-encoded 32-byte key used to encrypt API keys for OpenAI-compatible models managed in the admin UI. Generate once with `openssl rand -base64 32` and keep it stable |
+| `MODEL_CREDENTIALS_ENCRYPTION_KEY` | ❌ | Base64 key material encoding at least 32 bytes, used to encrypt API keys for OpenAI-compatible models managed in the admin UI. Generate once with `openssl rand -base64 32` (or 48) and keep it stable |
 | `AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT` | ✅ | Azure Document Intelligence endpoint |
 | `AZURE_DOCUMENT_INTELLIGENCE_KEY` | ✅ | Azure Document Intelligence key |
 | `ANTHROPIC_API_KEY` | ❌ | Anthropic API key (enables Claude models) |

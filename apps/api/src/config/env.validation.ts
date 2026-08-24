@@ -6,6 +6,8 @@
  * required, and known weak/placeholder values are rejected in production.
  */
 
+import { decodeModelCredentialsKey } from '../models/model-credentials-key';
+
 /** Placeholder/example values that must never be used as real secrets. */
 const WEAK_SECRETS = new Set([
   'dev-secret',
@@ -50,9 +52,10 @@ export function validateEnv(env: Record<string, unknown>): Record<string, unknow
 
   const modelCredentialsKey = asString(env.MODEL_CREDENTIALS_ENCRYPTION_KEY);
   if (modelCredentialsKey) {
-    const validBase64 = /^[A-Za-z0-9+/]{43}=$/.test(modelCredentialsKey);
-    if (!validBase64 || Buffer.from(modelCredentialsKey, 'base64').length !== 32) {
-      errors.push('MODEL_CREDENTIALS_ENCRYPTION_KEY must be a Base64-encoded 32-byte key.');
+    if (!decodeModelCredentialsKey(modelCredentialsKey)) {
+      errors.push(
+        'MODEL_CREDENTIALS_ENCRYPTION_KEY must be Base64 key material encoding at least 32 bytes.',
+      );
     }
   }
 

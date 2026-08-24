@@ -63,6 +63,16 @@ describe('validateEnv', () => {
     ).not.toThrow();
   });
 
+  it('accepts longer Base64 key material and derives an AES-256 key', () => {
+    expect(() =>
+      validateEnv({
+        ...base,
+        NODE_ENV: 'development',
+        MODEL_CREDENTIALS_ENCRYPTION_KEY: Buffer.alloc(48, 7).toString('base64'),
+      }),
+    ).not.toThrow();
+  });
+
   it('rejects an invalid model credentials encryption key', () => {
     expect(() =>
       validateEnv({

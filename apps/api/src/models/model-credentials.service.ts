@@ -1,6 +1,7 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
+import { decodeModelCredentialsKey } from './model-credentials-key';
 
 const PREFIX = 'v1';
 
@@ -56,9 +57,8 @@ export class ModelCredentialsService {
   }
 
   private encryptionKey(): Buffer | null {
-    const raw = this.config.get<string>('MODEL_CREDENTIALS_ENCRYPTION_KEY', '').trim();
-    if (!raw) return null;
-    const decoded = Buffer.from(raw, 'base64');
-    return decoded.length === 32 ? decoded : null;
+    return decodeModelCredentialsKey(
+      this.config.get<string>('MODEL_CREDENTIALS_ENCRYPTION_KEY', ''),
+    );
   }
 }
