@@ -354,9 +354,9 @@ azure-status: ## Show Azure Web App status
 	  --query "{name:name, state:state, url:defaultHostName, resourceGroup:resourceGroup}" \
 	  --output table
 
-.PHONY: azure-destroy
-azure-destroy: ## ⚠ Delete ALL Azure resources in the resource group
-	@echo "$(BOLD)WARNING: This will delete ALL resources in $(AZURE_RESOURCE_GROUP). Press Ctrl-C to cancel.$(RESET)"
-	@sleep 5
-	az group delete --subscription $(AZURE_SUBSCRIPTION) --name $(AZURE_RESOURCE_GROUP) --yes --no-wait
-	@echo "$(GREEN)✔ Resource group deletion initiated$(RESET)"
+# .PHONY: azure-destroy
+# azure-destroy: ## ⚠ Delete ALL Azure resources in the resource group
+# 	@echo "$(BOLD)WARNING: This will delete ALL resources in $(AZURE_RESOURCE_GROUP). Press Ctrl-C to cancel.$(RESET)"
+# 	@sleep 5
+# 	az group delete --subscription $(AZURE_SUBSCRIPTION) --name $(AZURE_RESOURCE_GROUP) --yes --no-wait
+# 	@echo "$(GREEN)✔ Resource group deletion initiated$(RESET)"
