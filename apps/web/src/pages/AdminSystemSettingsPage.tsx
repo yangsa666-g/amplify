@@ -61,6 +61,7 @@ import {
 } from '../api/promptTemplates';
 import { getAdminRequests, approveRequest, rejectRequest } from '../api/templateRequests';
 import { FieldTemplateEditorModal, PromptEditorModal } from '../components/TemplateEditorModals';
+import { ModelProviderIcon } from '../components/ModelProviderIcon';
 import type { ExpiryOption, ApiKeyInfo } from '../api/apiKeys';
 import { getApiKey, createApiKey, deleteApiKey } from '../api/apiKeys';
 import {
@@ -76,6 +77,7 @@ import {
 import { message } from '../utils/message';
 import { formatDate, formatDateTime } from '../utils/format';
 import { templateDisplayName } from '../utils/templateLabels';
+import { modelIconName } from '../utils/modelIcons';
 
 type ModelDraft = Partial<Pick<Model, 'label' | 'enabled' | 'defaultReasoningEffort'>>;
 type CustomModelFormValues = CustomModelInput;
@@ -1156,6 +1158,7 @@ function ModelsTab() {
             render: (_: string, record: Model) => (
               <Space direction="vertical" size={0}>
                 <Space>
+                  <ModelProviderIcon modelName={modelIconName(record)} />
                   <Typography.Text strong>{record.name}</Typography.Text>
                   {record.isDefault && <Tag color="blue">{t('common.default')}</Tag>}
                 </Space>

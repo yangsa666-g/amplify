@@ -27,6 +27,7 @@ import UploadProgress from '../components/UploadProgress';
 import AnalysisProgress from '../components/AnalysisProgress';
 import RunTimings from '../components/RunTimings';
 import TokenUsageSummary from '../components/TokenUsageSummary';
+import { ModelOptionLabel } from '../components/ModelProviderIcon';
 import { formatDuration } from '../utils/duration';
 import { formatDateTime } from '../utils/format';
 import { message } from '../utils/message';
@@ -292,7 +293,10 @@ export default function ComparePage() {
               style={{ width: isMobile ? '100%' : 240 }}
               value={selectedModel || undefined}
               onChange={setSelectedModel}
-              options={models.map((model: Model) => ({ value: model.name, label: model.label }))}
+              options={models.map((model: Model) => ({
+                value: model.name,
+                label: <ModelOptionLabel model={model} />,
+              }))}
             />
           </Space>
           <Space direction="vertical" size={4}>
