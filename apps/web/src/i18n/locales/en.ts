@@ -525,10 +525,10 @@ const en = {
         editTitle: 'Edit OpenAI-Compatible Model',
         model: 'Model',
         displayName: 'Display Name',
-        callId: 'Call ID',
-        callIdHint:
+        modelId: 'Model ID',
+        modelIdHint:
           'Cannot be changed after creation. Users and external APIs use this value to select the model.',
-        callIdInvalid:
+        modelIdInvalid:
           'Use letters, numbers, dots, underscores, colons, or hyphens, starting with a letter or number',
         endpoint: 'API Endpoint',
         endpointHint:

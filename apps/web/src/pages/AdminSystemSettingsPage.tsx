@@ -1304,13 +1304,13 @@ function ModelsTab() {
         >
           <Form.Item
             name="name"
-            label={t('admin.system.models.callId')}
-            extra={t('admin.system.models.callIdHint')}
+            label={t('admin.system.models.modelId')}
+            extra={t('admin.system.models.modelIdHint')}
             rules={[
               { required: true },
               {
                 pattern: /^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/,
-                message: t('admin.system.models.callIdInvalid'),
+                message: t('admin.system.models.modelIdInvalid'),
               },
             ]}
           >
