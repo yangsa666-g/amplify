@@ -93,7 +93,7 @@ pnpm dev           # 同时启动 api（:3001）和 web（:3000）
 | `AZURE_OPENAI_ENDPOINT` | ✅ | Azure OpenAI 端点 URL |
 | `AZURE_OPENAI_API_KEY` | ✅ | Azure OpenAI API 密钥 |
 | `AZURE_OPENAI_MODELS` | ✅ | 已部署模型名称，逗号分隔 |
-| `MODEL_CREDENTIALS_ENCRYPTION_KEY` | ❌ | 用于加密管理员页面中 OpenAI 兼容模型 API key 的 Base64 32 字节密钥。使用 `openssl rand -base64 32` 生成一次并保持不变 |
+| `MODEL_CREDENTIALS_ENCRYPTION_KEY` | ❌ | 用于加密管理员页面中 OpenAI 兼容模型 API key 的 Base64 密钥材料（至少 32 字节）。可使用 `openssl rand -base64 32`（或 48）生成一次并保持不变 |
 | `AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT` | ✅ | Azure Document Intelligence 端点 |
 | `AZURE_DOCUMENT_INTELLIGENCE_KEY` | ✅ | Azure Document Intelligence 密钥 |
 | `ANTHROPIC_API_KEY` | ❌ | Anthropic API 密钥（启用 Claude 模型） |

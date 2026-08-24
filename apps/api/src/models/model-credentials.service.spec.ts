@@ -27,6 +27,13 @@ describe('ModelCredentialsService', () => {
     );
   });
 
+  it('supports longer Base64 key material such as openssl rand -base64 48', () => {
+    const service = createService(Buffer.alloc(48, 4).toString('base64'));
+    const encrypted = service.encrypt('secret-api-key');
+
+    expect(service.decrypt(encrypted)).toBe('secret-api-key');
+  });
+
   it('does not enable custom models without a valid key', () => {
     expect(createService('').isConfigured()).toBe(false);
     expect(createService('not-base64').isConfigured()).toBe(false);
