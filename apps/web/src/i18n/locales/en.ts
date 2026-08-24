@@ -498,14 +498,47 @@ const en = {
       models: {
         title: 'Models',
         intro:
-          'Configure the model catalog exposed to users. Provider capabilities come from the built-in registry; these settings control display, availability, defaults, and order.',
+          'Configure the model catalog exposed to users. Environment models keep their existing connections, and OpenAI-compatible models can be added here.',
+        add: 'Add Model',
+        addTitle: 'Add OpenAI-Compatible Model',
+        editTitle: 'Edit OpenAI-Compatible Model',
         model: 'Model',
         displayName: 'Display Name',
+        callId: 'Call ID',
+        callIdHint:
+          'Cannot be changed after creation. Users and external APIs use this value to select the model.',
+        callIdInvalid:
+          'Use letters, numbers, dots, underscores, colons, or hyphens, starting with a letter or number',
+        endpoint: 'API Endpoint',
+        endpointHint:
+          'Enter the OpenAI-compatible API base URL, for example https://api.example.com/v1.',
+        upstreamModel: 'Upstream Model Name',
+        protocol: 'API Protocol',
+        apiKey: 'API Key',
+        apiKeyKeepHint: 'Leave blank to keep the current API key.',
+        supportsReasoning: 'Supports Reasoning Effort',
         enabled: 'Enabled',
         defaultEffort: 'Default Effort',
         sortOrder: 'Sort',
         actions: 'Actions',
         reasoning: 'Reasoning',
+        source: {
+          environment: 'Environment',
+          custom: 'Custom',
+        },
+        credentials: {
+          master_key_missing: 'Encryption key missing',
+          decrypt_failed: 'Credentials unavailable',
+          ready: 'Credentials ready',
+        },
+        encryptionMissing:
+          'MODEL_CREDENTIALS_ENCRYPTION_KEY is not configured. Environment models still work, but custom models cannot be managed or used.',
+        testConnection: 'Test Connection',
+        testSucceeded: 'Connection succeeded ({{latency}} ms)',
+        testFailed: 'Connection test failed',
+        deleteConfirm: 'Delete this custom model? Historical analysis records will be kept.',
+        deleted: 'Model deleted',
+        deleteFailed: 'Failed to delete model',
         dragToReorder: 'Drag to reorder',
         setDefault: 'Set Default',
         saved: 'Model saved',

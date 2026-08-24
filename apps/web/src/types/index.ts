@@ -23,6 +23,12 @@ export interface Model {
   reasoningEfforts?: ReasoningEffort[];
   defaultReasoningEffort?: ReasoningEffort;
   sortOrder?: number;
+  source?: 'environment' | 'custom';
+  endpoint?: string;
+  upstreamModelName?: string;
+  apiProtocol?: 'chat_completions' | 'responses';
+  hasApiKey?: boolean;
+  credentialStatus?: 'ready' | 'master_key_missing' | 'decrypt_failed';
 }
 
 export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'xhigh';

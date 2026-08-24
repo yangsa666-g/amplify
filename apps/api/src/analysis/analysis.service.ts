@@ -1,7 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { AzureOpenAIService } from './azure-openai.service';
-import { AnthropicService } from './anthropic.service';
+import { AiService } from './ai.service';
 import { FieldTemplatesService } from '../field-templates/field-templates.service';
 import { PromptTemplatesService } from '../prompt-templates/prompt-templates.service';
 import { DocumentsService } from '../documents/documents.service';
@@ -173,17 +172,12 @@ function buildRiskAnalysisPrompt(templateContent: string, contractText: string):
 export class AnalysisService {
   constructor(
     private prisma: PrismaService,
-    private azureAI: AzureOpenAIService,
-    private anthropicAI: AnthropicService,
+    private ai: AiService,
     private fieldTemplates: FieldTemplatesService,
     private promptTemplates: PromptTemplatesService,
     private documents: DocumentsService,
     private models: ModelsService,
   ) {}
-
-  private async selectAI(model: string): Promise<AzureOpenAIService | AnthropicService> {
-    return (await this.models.getProvider(model)) === 'claude' ? this.anthropicAI : this.azureAI;
-  }
 
   async run(
     userId: string,
@@ -193,10 +187,8 @@ export class AnalysisService {
     promptTemplateId?: string,
     reasoningEffort?: ReasoningEffort,
   ) {
-    const resolvedReasoningEffort = await this.models.normalizeReasoningEffort(
-      model,
-      reasoningEffort,
-    );
+    const resolvedModel = await this.models.resolveForExecution(model, reasoningEffort);
+    const resolvedReasoningEffort = resolvedModel.reasoningEffort;
 
     // 1. Load document text (and the OCR duration recorded at upload time)
     const contractText = await this.documents.getExtractedText(documentId, userId);
@@ -256,15 +248,15 @@ export class AnalysisService {
     try {
       // 6. Field extraction + risk analysis in parallel, timing each call
       //    separately (they run concurrently, so these durations overlap).
-      const ai = await this.selectAI(model);
+      const ai = this.ai;
       const timeIt = async <T>(fn: () => Promise<T>): Promise<{ result: T; ms: number }> => {
         const start = Date.now();
         const result = await fn();
         return { result, ms: Date.now() - start };
       };
       const [fieldTimed, riskTimed] = await Promise.all([
-        timeIt(() => ai.chat(model, fieldPrompt, resolvedReasoningEffort)),
-        timeIt(() => ai.chat(model, riskPrompt, resolvedReasoningEffort)),
+        timeIt(() => ai.chat(resolvedModel, fieldPrompt)),
+        timeIt(() => ai.chat(resolvedModel, riskPrompt)),
       ]);
       const rawFieldResult = fieldTimed.result;
       const riskResult = riskTimed.result;

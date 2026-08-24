@@ -93,6 +93,7 @@ Copy `.env.example` to `.env` and fill in the values.
 | `AZURE_OPENAI_ENDPOINT` | ✅ | Azure OpenAI endpoint URL |
 | `AZURE_OPENAI_API_KEY` | ✅ | Azure OpenAI API key |
 | `AZURE_OPENAI_MODELS` | ✅ | Comma-separated list of deployed model names |
+| `MODEL_CREDENTIALS_ENCRYPTION_KEY` | ❌ | Base64-encoded 32-byte key used to encrypt API keys for OpenAI-compatible models managed in the admin UI. Generate once with `openssl rand -base64 32` and keep it stable |
 | `AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT` | ✅ | Azure Document Intelligence endpoint |
 | `AZURE_DOCUMENT_INTELLIGENCE_KEY` | ✅ | Azure Document Intelligence key |
 | `ANTHROPIC_API_KEY` | ❌ | Anthropic API key (enables Claude models) |
@@ -106,6 +107,11 @@ Copy `.env.example` to `.env` and fill in the values.
 | `ENTRA_TENANT_ID` | ❌ | Entra directory (tenant) GUID — single-tenant |
 | `ENTRA_REDIRECT_URI` | ❌ | Public callback URL, e.g. `https://<host>/api/auth/entra/callback` |
 | `ENTRA_POST_LOGIN_REDIRECT` | ❌ | SPA landing URL after callback, e.g. `https://<host>/auth/callback` |
+
+Admins can add OpenAI-compatible endpoints under **System Settings → Models** when
+`MODEL_CREDENTIALS_ENCRYPTION_KEY` is configured. Environment-based Azure OpenAI and Anthropic
+models continue to work without this variable. The encryption key must remain stable; changing or
+losing it makes stored model API keys unreadable.
 
 ### Startup validation (fail-fast)
 

@@ -323,6 +323,20 @@ model ModelCatalogSetting {
   @@map("model_catalog_settings")
 }
 
+model OpenAICompatibleModel {
+  id                String   @id @default(cuid())
+  name              String   @unique
+  endpoint          String
+  upstreamModelName String   @map("upstream_model_name")
+  apiProtocol       String   @default("chat_completions") @map("api_protocol")
+  encryptedApiKey   String   @map("encrypted_api_key")
+  supportsReasoning Boolean  @default(false) @map("supports_reasoning")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("openai_compatible_models")
+}
+
 model AuditLog {
   id         String   @id @default(cuid())
   userId     String?  @map("user_id")

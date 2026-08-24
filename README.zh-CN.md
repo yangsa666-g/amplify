@@ -93,6 +93,7 @@ pnpm dev           # 同时启动 api（:3001）和 web（:3000）
 | `AZURE_OPENAI_ENDPOINT` | ✅ | Azure OpenAI 端点 URL |
 | `AZURE_OPENAI_API_KEY` | ✅ | Azure OpenAI API 密钥 |
 | `AZURE_OPENAI_MODELS` | ✅ | 已部署模型名称，逗号分隔 |
+| `MODEL_CREDENTIALS_ENCRYPTION_KEY` | ❌ | 用于加密管理员页面中 OpenAI 兼容模型 API key 的 Base64 32 字节密钥。使用 `openssl rand -base64 32` 生成一次并保持不变 |
 | `AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT` | ✅ | Azure Document Intelligence 端点 |
 | `AZURE_DOCUMENT_INTELLIGENCE_KEY` | ✅ | Azure Document Intelligence 密钥 |
 | `ANTHROPIC_API_KEY` | ❌ | Anthropic API 密钥（启用 Claude 模型） |
@@ -106,6 +107,10 @@ pnpm dev           # 同时启动 api（:3001）和 web（:3000）
 | `ENTRA_TENANT_ID` | ❌ | Entra 目录（租户）GUID —— 单租户 |
 | `ENTRA_REDIRECT_URI` | ❌ | 公开回调 URL，例如 `https://<host>/api/auth/entra/callback` |
 | `ENTRA_POST_LOGIN_REDIRECT` | ❌ | 回调后 SPA 落地页 URL，例如 `https://<host>/auth/callback` |
+
+配置 `MODEL_CREDENTIALS_ENCRYPTION_KEY` 后，管理员可在 **系统设置 → 模型** 中添加 OpenAI
+兼容 endpoint。未配置时，基于环境变量的 Azure OpenAI 和 Anthropic 模型仍可正常使用。
+该加密密钥必须长期保持不变；若更换或丢失，已保存的模型 API key 将无法解密。
 
 ### 启动校验（fail-fast）
 

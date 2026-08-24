@@ -52,4 +52,24 @@ describe('validateEnv', () => {
       validateEnv({ ...base, NODE_ENV: 'development', AUDIT_LOG_RETENTION_DAYS: 'forever' }),
     ).toThrow(/AUDIT_LOG_RETENTION_DAYS/);
   });
+
+  it('accepts a valid model credentials encryption key', () => {
+    expect(() =>
+      validateEnv({
+        ...base,
+        NODE_ENV: 'development',
+        MODEL_CREDENTIALS_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
+      }),
+    ).not.toThrow();
+  });
+
+  it('rejects an invalid model credentials encryption key', () => {
+    expect(() =>
+      validateEnv({
+        ...base,
+        NODE_ENV: 'development',
+        MODEL_CREDENTIALS_ENCRYPTION_KEY: 'too-short',
+      }),
+    ).toThrow(/MODEL_CREDENTIALS_ENCRYPTION_KEY/);
+  });
 });

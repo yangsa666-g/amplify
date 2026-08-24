@@ -16,6 +16,7 @@ import {
   Tooltip,
   Table,
   Switch,
+  Form,
   theme,
 } from 'antd';
 import {
@@ -61,12 +62,22 @@ import { getAdminRequests, approveRequest, rejectRequest } from '../api/template
 import { FieldTemplateEditorModal, PromptEditorModal } from '../components/TemplateEditorModals';
 import type { ExpiryOption, ApiKeyInfo } from '../api/apiKeys';
 import { getApiKey, createApiKey, deleteApiKey } from '../api/apiKeys';
-import { getAdminModels, reorderAdminModels, updateAdminModel } from '../api/models';
+import {
+  createAdminModel,
+  deleteAdminModel,
+  getAdminModels,
+  getModelConfigurationStatus,
+  reorderAdminModels,
+  testModelConnection,
+  updateAdminModel,
+  type CustomModelInput,
+} from '../api/models';
 import { message } from '../utils/message';
 import { formatDate, formatDateTime } from '../utils/format';
 import { templateDisplayName } from '../utils/templateLabels';
 
 type ModelDraft = Partial<Pick<Model, 'label' | 'enabled' | 'defaultReasoningEffort'>>;
+type CustomModelFormValues = CustomModelInput;
 
 // ─── System Field Templates Tab ───────────────────────────────────────────────
 
@@ -798,6 +809,8 @@ function ModelsTab() {
   const [drafts, setDrafts] = useState<Record<string, ModelDraft>>({});
   const [localOrder, setLocalOrder] = useState<string[]>([]);
   const [draggedModelName, setDraggedModelName] = useState<string | null>(null);
+  const [editingModel, setEditingModel] = useState<Model | null | 'new'>(null);
+  const [modelForm] = Form.useForm<CustomModelFormValues>();
   const activeDragModelRef = useRef<string | null>(null);
   const dragStartOrderRef = useRef<string[]>([]);
   const dragCurrentOrderRef = useRef<string[]>([]);
@@ -806,6 +819,11 @@ function ModelsTab() {
     queryKey: ['admin-models'],
     queryFn: () => getAdminModels().then((r) => r.data),
   });
+  const { data: configurationStatus } = useQuery({
+    queryKey: ['admin-model-configuration-status'],
+    queryFn: () => getModelConfigurationStatus().then((response) => response.data),
+  });
+  const customModelsEnabled = configurationStatus?.customModelsEnabled === true;
 
   useEffect(() => {
     if (activeDragModelRef.current) return;
@@ -870,6 +888,101 @@ function ModelsTab() {
     onError: (e: ApiError) =>
       message.error(e.response?.data?.message || t('admin.system.models.saveFailed')),
   });
+
+  const customModelMutation = useMutation({
+    mutationFn: (values: CustomModelFormValues) => {
+      if (editingModel && editingModel !== 'new') {
+        const { apiKey } = values;
+        return updateAdminModel(editingModel.name, {
+          label: values.label,
+          endpoint: values.endpoint,
+          upstreamModelName: values.upstreamModelName,
+          apiProtocol: values.apiProtocol,
+          supportsReasoning: values.supportsReasoning,
+          enabled: values.enabled,
+          apiKey: apiKey?.trim() || undefined,
+        }).then((response) => response.data);
+      }
+      return createAdminModel({ ...values, apiKey: values.apiKey.trim() }).then(
+        (response) => response.data,
+      );
+    },
+    onSuccess: (_data, values) => {
+      setEditingModel(null);
+      modelForm.resetFields();
+      setDrafts((current) => {
+        const next = { ...current };
+        delete next[values.name];
+        return next;
+      });
+      qc.invalidateQueries({ queryKey: ['admin-models'] });
+      qc.invalidateQueries({ queryKey: ['models'] });
+      message.success(t('admin.system.models.saved'));
+    },
+    onError: (error: ApiError) =>
+      message.error(error.response?.data?.message || t('admin.system.models.saveFailed')),
+  });
+
+  const testConnectionMutation = useMutation({
+    mutationFn: (values: CustomModelFormValues) =>
+      testModelConnection({
+        ...values,
+        name: editingModel && editingModel !== 'new' ? editingModel.name : values.name,
+        apiKey: values.apiKey?.trim() || undefined,
+      }).then((response) => response.data),
+    onSuccess: (result) =>
+      message.success(t('admin.system.models.testSucceeded', { latency: result.latencyMs })),
+    onError: (error: ApiError) =>
+      message.error(error.response?.data?.message || t('admin.system.models.testFailed')),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (modelName: string) => deleteAdminModel(modelName),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-models'] });
+      qc.invalidateQueries({ queryKey: ['models'] });
+      message.success(t('admin.system.models.deleted'));
+    },
+    onError: (error: ApiError) =>
+      message.error(error.response?.data?.message || t('admin.system.models.deleteFailed')),
+  });
+
+  const openCreateModel = () => {
+    modelForm.setFieldsValue({
+      name: '',
+      label: '',
+      endpoint: '',
+      upstreamModelName: '',
+      apiProtocol: 'chat_completions',
+      apiKey: '',
+      supportsReasoning: false,
+      enabled: true,
+    });
+    setEditingModel('new');
+  };
+
+  const openEditModel = (model: Model) => {
+    modelForm.setFieldsValue({
+      name: model.name,
+      label: model.label,
+      endpoint: model.endpoint ?? '',
+      upstreamModelName: model.upstreamModelName ?? '',
+      apiProtocol: model.apiProtocol ?? 'chat_completions',
+      apiKey: '',
+      supportsReasoning: model.supportsReasoning ?? false,
+      enabled: model.enabled ?? true,
+    });
+    setEditingModel(model);
+  };
+
+  const testCurrentConnection = async () => {
+    try {
+      const values = await modelForm.validateFields();
+      testConnectionMutation.mutate(values);
+    } catch {
+      // Ant Design displays field-level validation errors.
+    }
+  };
 
   const patchDraft = (modelName: string, patch: ModelDraft) => {
     setDrafts((current) => ({
@@ -957,6 +1070,23 @@ function ModelsTab() {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Alert type="info" showIcon message={t('admin.system.models.intro')} />
+      {configurationStatus && !customModelsEnabled && (
+        <Alert type="warning" showIcon message={t('admin.system.models.encryptionMissing')} />
+      )}
+      <div>
+        <Tooltip
+          title={customModelsEnabled ? undefined : t('admin.system.models.encryptionMissing')}
+        >
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            disabled={!customModelsEnabled}
+            onClick={openCreateModel}
+          >
+            {t('admin.system.models.add')}
+          </Button>
+        </Tooltip>
+      </div>
       <Table
         size="small"
         rowKey="name"
@@ -1023,8 +1153,18 @@ function ModelsTab() {
                 </Space>
                 <Space size={4}>
                   <Tag>{record.provider}</Tag>
+                  <Tag color={record.source === 'custom' ? 'purple' : 'default'}>
+                    {t(`admin.system.models.source.${record.source ?? 'environment'}`)}
+                  </Tag>
                   {record.supportsReasoning && (
                     <Tag color="green">{t('admin.system.models.reasoning')}</Tag>
+                  )}
+                  {record.source === 'custom' && record.credentialStatus !== 'ready' && (
+                    <Tag color="red">
+                      {record.credentialStatus === 'decrypt_failed'
+                        ? t('admin.system.models.credentials.decrypt_failed')
+                        : t('admin.system.models.credentials.master_key_missing')}
+                    </Tag>
                   )}
                 </Space>
               </Space>
@@ -1075,7 +1215,7 @@ function ModelsTab() {
           {
             title: t('admin.system.models.actions'),
             key: 'actions',
-            width: 220,
+            width: 380,
             render: (_: unknown, record: Model) => (
               <Space>
                 <Button
@@ -1095,17 +1235,143 @@ function ModelsTab() {
                 </Button>
                 <Button
                   size="small"
-                  disabled={record.isDefault}
+                  disabled={
+                    record.isDefault ||
+                    (record.source === 'custom' && record.credentialStatus !== 'ready')
+                  }
                   loading={defaultMutation.isPending}
                   onClick={() => defaultMutation.mutate(record.name)}
                 >
                   {t('admin.system.models.setDefault')}
                 </Button>
+                {record.source === 'custom' && (
+                  <Button
+                    size="small"
+                    icon={<EditOutlined />}
+                    disabled={!customModelsEnabled}
+                    onClick={() => openEditModel(record)}
+                  >
+                    {t('common.edit')}
+                  </Button>
+                )}
+                {record.source === 'custom' && (
+                  <Popconfirm
+                    title={t('admin.system.models.deleteConfirm')}
+                    onConfirm={() => deleteMutation.mutate(record.name)}
+                  >
+                    <Button size="small" danger icon={<DeleteOutlined />}>
+                      {t('common.delete')}
+                    </Button>
+                  </Popconfirm>
+                )}
               </Space>
             ),
           },
         ]}
       />
+      <Modal
+        open={editingModel !== null}
+        title={
+          editingModel === 'new'
+            ? t('admin.system.models.addTitle')
+            : t('admin.system.models.editTitle')
+        }
+        okText={t('common.save')}
+        cancelText={t('common.cancel')}
+        confirmLoading={customModelMutation.isPending}
+        onOk={() => modelForm.submit()}
+        onCancel={() => {
+          setEditingModel(null);
+          modelForm.resetFields();
+        }}
+        destroyOnClose
+      >
+        <Form
+          form={modelForm}
+          layout="vertical"
+          onFinish={(values) => customModelMutation.mutate(values)}
+        >
+          <Form.Item
+            name="name"
+            label={t('admin.system.models.callId')}
+            extra={t('admin.system.models.callIdHint')}
+            rules={[
+              { required: true },
+              {
+                pattern: /^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/,
+                message: t('admin.system.models.callIdInvalid'),
+              },
+            ]}
+          >
+            <Input disabled={editingModel !== 'new'} />
+          </Form.Item>
+          <Form.Item
+            name="label"
+            label={t('admin.system.models.displayName')}
+            rules={[{ required: true }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="endpoint"
+            label={t('admin.system.models.endpoint')}
+            extra={t('admin.system.models.endpointHint')}
+            rules={[{ required: true }, { type: 'url' }]}
+          >
+            <Input placeholder="https://api.example.com/v1" />
+          </Form.Item>
+          <Form.Item
+            name="upstreamModelName"
+            label={t('admin.system.models.upstreamModel')}
+            rules={[{ required: true }]}
+          >
+            <Input placeholder="gpt-4.1-mini" />
+          </Form.Item>
+          <Form.Item
+            name="apiProtocol"
+            label={t('admin.system.models.protocol')}
+            rules={[{ required: true }]}
+          >
+            <Select
+              options={[
+                { value: 'chat_completions', label: 'Chat Completions' },
+                { value: 'responses', label: 'Responses' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item
+            name="apiKey"
+            label={t('admin.system.models.apiKey')}
+            extra={editingModel === 'new' ? undefined : t('admin.system.models.apiKeyKeepHint')}
+            rules={[{ required: editingModel === 'new' }]}
+          >
+            <Input.Password autoComplete="new-password" />
+          </Form.Item>
+          <Space size="large">
+            <Form.Item
+              name="supportsReasoning"
+              valuePropName="checked"
+              label={t('admin.system.models.supportsReasoning')}
+            >
+              <Switch />
+            </Form.Item>
+            <Form.Item
+              name="enabled"
+              valuePropName="checked"
+              label={t('admin.system.models.enabled')}
+            >
+              <Switch />
+            </Form.Item>
+          </Space>
+          <Button
+            onClick={testCurrentConnection}
+            loading={testConnectionMutation.isPending}
+            disabled={!customModelsEnabled}
+          >
+            {t('admin.system.models.testConnection')}
+          </Button>
+        </Form>
+      </Modal>
     </Space>
   );
 }

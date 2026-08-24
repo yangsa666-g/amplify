@@ -34,6 +34,7 @@ export const mockModels: Model[] = [
     reasoningEfforts: ['none', 'low', 'medium', 'high', 'xhigh'],
     defaultReasoningEffort: 'medium',
     sortOrder: 10,
+    source: 'environment',
   },
   {
     name: 'gpt-5.4',
@@ -46,6 +47,7 @@ export const mockModels: Model[] = [
     reasoningEfforts: ['none', 'low', 'medium', 'high', 'xhigh'],
     defaultReasoningEffort: 'medium',
     sortOrder: 10,
+    source: 'environment',
   },
   {
     name: 'claude-sonnet-4-5',
@@ -58,6 +60,7 @@ export const mockModels: Model[] = [
     reasoningEfforts: ['none', 'low', 'medium', 'high', 'xhigh'],
     defaultReasoningEffort: 'medium',
     sortOrder: 20,
+    source: 'environment',
   },
 ];
 
