@@ -2,6 +2,7 @@ import { Injectable, BadGatewayException, RequestTimeoutException } from '@nestj
 import { ConfigService } from '@nestjs/config';
 import { AzureOpenAI, APIConnectionTimeoutError, APIError } from 'openai';
 import type { ReasoningEffort } from '../models/model-registry';
+import { fromOpenAIUsage, type AiChatResult } from './token-usage';
 
 const DEFAULT_REASONING_EFFORT: ReasoningEffort = 'medium';
 const DEFAULT_API_VERSION = '2025-03-01-preview';
@@ -45,7 +46,7 @@ export class AzureOpenAIService {
     model: string,
     prompt: string,
     reasoningEffort: ReasoningEffort = DEFAULT_REASONING_EFFORT,
-  ): Promise<string> {
+  ): Promise<AiChatResult> {
     if (!this.endpoint || !this.apiKey) {
       throw new BadGatewayException('Azure OpenAI is not configured');
     }
@@ -57,7 +58,10 @@ export class AzureOpenAIService {
         input: prompt,
         ...(mappedEffort ? { reasoning: { effort: mappedEffort } } : {}),
       });
-      return response.output_text ?? '';
+      return {
+        text: response.output_text ?? '',
+        usage: fromOpenAIUsage(response.usage),
+      };
     } catch (err: unknown) {
       if (err instanceof APIConnectionTimeoutError) {
         throw new RequestTimeoutException('Azure OpenAI request timed out');

@@ -35,6 +35,7 @@ import { message } from '../utils/message';
 import { statusLabel, effortLabel } from '../utils/labels';
 import { formatDateTime } from '../utils/format';
 import RunTimings from './RunTimings';
+import TokenUsageSummary from './TokenUsageSummary';
 import type { AnalysisJob, AnalysisJobFeedback } from '../types';
 
 interface Props {
@@ -394,6 +395,7 @@ export default function AnalysisDetailDrawer({ job, open, onClose }: Props) {
                 }}
               />
             </div>
+            <TokenUsageSummary usage={detail?.tokenUsage} />
           </div>
 
           <Tabs

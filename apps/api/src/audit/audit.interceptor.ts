@@ -97,6 +97,7 @@ export class AuditInterceptor implements NestInterceptor {
 
   private getActionInfo(method: string, path: string, params: Record<string, string>): ActionInfo {
     const id = params.id;
+    const modelName = params.modelName;
 
     if (method === 'POST' && path === '/auth/login') return { action: 'auth.login' };
     if (method === 'GET' && path === '/auth/me') return { action: 'auth.me' };
@@ -141,6 +142,15 @@ export class AuditInterceptor implements NestInterceptor {
 
     if (path.startsWith('/admin/users')) {
       return this.adminUserAction(method, path, id);
+    }
+    if (path.startsWith('/admin/models')) {
+      if (path === '/admin/models/test-connection') {
+        return { action: 'admin.model.test', targetType: 'model' };
+      }
+      if (path === '/admin/models/configuration-status') {
+        return { action: 'admin.model.configuration_status', targetType: 'model' };
+      }
+      return this.basicAction(method, 'admin.model', modelName);
     }
     if (path.startsWith('/admin/dashboard')) return { action: 'admin.dashboard.view' };
     if (method === 'POST' && path === '/admin/audit/cleanup') {

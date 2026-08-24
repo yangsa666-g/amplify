@@ -34,6 +34,7 @@ export const mockModels: Model[] = [
     reasoningEfforts: ['none', 'low', 'medium', 'high', 'xhigh'],
     defaultReasoningEffort: 'medium',
     sortOrder: 10,
+    source: 'environment',
   },
   {
     name: 'gpt-5.4',
@@ -46,6 +47,7 @@ export const mockModels: Model[] = [
     reasoningEfforts: ['none', 'low', 'medium', 'high', 'xhigh'],
     defaultReasoningEffort: 'medium',
     sortOrder: 10,
+    source: 'environment',
   },
   {
     name: 'claude-sonnet-4-5',
@@ -58,6 +60,7 @@ export const mockModels: Model[] = [
     reasoningEfforts: ['none', 'low', 'medium', 'high', 'xhigh'],
     defaultReasoningEffort: 'medium',
     sortOrder: 20,
+    source: 'environment',
   },
 ];
 
@@ -102,6 +105,17 @@ export const mockPromptTemplates: PromptTemplate[] = [
     isDefault: true,
     scope: 'system',
     templateType: 'risk_analysis',
+    createdAt: '2026-06-01T03:00:00.000Z',
+    updatedAt: '2026-06-01T03:00:00.000Z',
+  },
+  {
+    id: 'mock-comparison-prompt-default',
+    name: 'Default Contract Comparison Prompt',
+    content: 'Compare all supplied contracts and cite each material difference.',
+    isSystem: true,
+    isDefault: true,
+    scope: 'system',
+    templateType: 'contract_comparison',
     createdAt: '2026-06-01T03:00:00.000Z',
     updatedAt: '2026-06-01T03:00:00.000Z',
   },
@@ -233,23 +247,27 @@ export const mockCompareJobs: CompareJob[] = [
   {
     id: 'mock-compare-success',
     status: 'success',
-    diffMode: 'side_by_side',
+    modelName: 'gpt-5.4',
+    reasoningEffort: 'medium',
+    promptTemplateId: 'mock-comparison-prompt-default',
+    promptTemplate: {
+      id: 'mock-comparison-prompt-default',
+      name: 'Default Contract Comparison Prompt',
+    },
     createdAt: '2026-06-05T05:10:00.000Z',
-    oldDocument: { fileName: 'MSA v1.docx' },
-    newDocument: { fileName: 'MSA v2.docx' },
+    documents: [
+      { sortOrder: 0, document: { id: 'mock-doc-old', fileName: 'MSA v1.docx' } },
+      { sortOrder: 1, document: { id: 'mock-doc-new', fileName: 'MSA v2.docx' } },
+    ],
     user: {
       id: mockUser.id,
       name: mockUser.name,
       email: mockUser.email,
     },
-    diffResultJson: {
-      chunks: [
-        { type: 'unchanged', value: 'The supplier shall provide services.', lines: [] },
-        { type: 'removed', value: 'Payment is due within 60 days.', lines: [] },
-        { type: 'added', value: 'Payment is due within 30 days.', lines: [] },
-      ],
-      stats: { added: 1, removed: 1, unchanged: 1 },
-    },
+    resultText: '## Material changes\n\nPayment terms changed from 60 to 30 days.',
+    analysisMs: 4200,
+    tokenUsageJson: { inputTokens: 1000, outputTokens: 200, totalTokens: 1200 },
+    feedbacks: [],
   },
 ];
 

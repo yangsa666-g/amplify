@@ -22,7 +22,13 @@ import {
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import type { FieldTemplate, FieldTemplateItem, PromptTemplate, ApiError } from '../types';
+import type {
+  ApiError,
+  FieldTemplate,
+  FieldTemplateItem,
+  PromptTemplate,
+  PromptTemplateType,
+} from '../types';
 import {
   listFieldTemplates,
   createFieldTemplate,
@@ -288,12 +294,12 @@ function FieldTemplatesTab() {
 
 // ─── Prompt Templates Tab ─────────────────────────────────────────────────────
 
-function PromptTemplatesTab() {
+function PromptTemplatesTab({ type }: { type: PromptTemplateType }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const { data: templates = [], isLoading } = useQuery({
-    queryKey: ['prompt-templates'],
-    queryFn: () => listPromptTemplates().then((r) => r.data),
+    queryKey: ['prompt-templates', type],
+    queryFn: () => listPromptTemplates(type).then((r) => r.data),
   });
 
   const { data: myRequests = [] } = useQuery({
@@ -310,9 +316,9 @@ function PromptTemplatesTab() {
 
   const createMutation = useMutation({
     mutationFn: ({ name, content }: { name: string; content: string }) =>
-      createPromptTemplate(name, content).then((r) => r.data),
+      createPromptTemplate(name, content, type).then((r) => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['prompt-templates'] });
+      qc.invalidateQueries({ queryKey: ['prompt-templates', type] });
       setEditorOpen(false);
       message.success(t('settings.templateCreated'));
     },
@@ -324,7 +330,7 @@ function PromptTemplatesTab() {
     mutationFn: ({ id, name, content }: { id: string; name: string; content: string }) =>
       updatePromptTemplate(id, name, content).then((r) => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['prompt-templates'] });
+      qc.invalidateQueries({ queryKey: ['prompt-templates', type] });
       setEditorOpen(false);
       message.success(t('settings.templateSaved'));
     },
@@ -334,7 +340,7 @@ function PromptTemplatesTab() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deletePromptTemplate(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['prompt-templates'] });
+      qc.invalidateQueries({ queryKey: ['prompt-templates', type] });
       message.success(t('settings.templateDeleted'));
     },
     onError: () => message.error(t('settings.deleteFailed')),
@@ -343,7 +349,7 @@ function PromptTemplatesTab() {
   const duplicateMutation = useMutation({
     mutationFn: (systemId: string) => duplicatePromptTemplate(systemId).then((r) => r.data),
     onSuccess: (tmpl) => {
-      qc.invalidateQueries({ queryKey: ['prompt-templates'] });
+      qc.invalidateQueries({ queryKey: ['prompt-templates', type] });
       setDupModalOpen(false);
       setEditingTemplate(tmpl);
       setEditorOpen(true);
@@ -500,7 +506,22 @@ export default function SettingsPage() {
     {
       key: 'prompt',
       label: t('settings.myPromptTemplates'),
-      children: <PromptTemplatesTab />,
+      children: (
+        <Tabs
+          items={[
+            {
+              key: 'risk_analysis',
+              label: t('settings.riskAnalysisPrompts'),
+              children: <PromptTemplatesTab type="risk_analysis" />,
+            },
+            {
+              key: 'contract_comparison',
+              label: t('settings.comparisonPrompts'),
+              children: <PromptTemplatesTab type="contract_comparison" />,
+            },
+          ]}
+        />
+      ),
     },
   ];
 

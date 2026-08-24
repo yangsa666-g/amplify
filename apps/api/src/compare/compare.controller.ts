@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser, AuthUser } from '../auth/decorators/current-user.decorator';
 import { CompareService } from './compare.service';
 import { RunCompareDto } from './dto/run-compare.dto';
+import { SubmitFeedbackDto } from '../analysis/dto/submit-feedback.dto';
 
 @Controller('compare')
 @UseGuards(JwtAuthGuard)
@@ -15,9 +16,10 @@ export class CompareController {
   run(@CurrentUser() user: AuthUser, @Body() body: RunCompareDto) {
     return this.compareService.run(
       user.userId,
-      body.oldDocumentId,
-      body.newDocumentId,
-      body.diffMode,
+      body.documentIds,
+      body.model,
+      body.promptTemplateId,
+      body.reasoningEffort,
     );
   }
 
@@ -28,6 +30,20 @@ export class CompareController {
 
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.compareService.findOne(id, user.userId);
+    return this.compareService.findOne(id, user.userId, user.role);
+  }
+
+  @Post(':id/feedback')
+  submitFeedback(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() body: SubmitFeedbackDto,
+  ) {
+    return this.compareService.submitFeedback(id, user.userId, body.rating, body.comment);
+  }
+
+  @Get(':id/feedback')
+  getFeedback(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.compareService.getFeedback(id, user.userId, user.role);
   }
 }

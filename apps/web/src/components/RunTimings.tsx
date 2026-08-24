@@ -18,6 +18,7 @@ export default function RunTimings({ timings }: { timings?: RunTimingsData | nul
     { label: t('timings.ocr'), value: formatDuration(timings.ocrMs) },
     { label: t('timings.fieldExtraction'), value: formatDuration(timings.fieldExtractionMs) },
     { label: t('timings.riskAnalysis'), value: formatDuration(timings.riskAnalysisMs) },
+    { label: t('timings.comparisonAnalysis'), value: formatDuration(timings.analysisMs) },
   ].filter((it): it is { label: string; value: string } => it.value !== null);
 
   if (items.length === 0) return null;

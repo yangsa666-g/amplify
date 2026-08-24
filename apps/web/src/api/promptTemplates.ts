@@ -1,16 +1,19 @@
 import client from './client';
-import type { PromptTemplate } from '../types';
+import type { PromptTemplate, PromptTemplateType } from '../types';
 
 // ─── User API ────────────────────────────────────────────────────────────────
 
-export const listPromptTemplates = (type = 'risk_analysis') =>
+export const listPromptTemplates = (type: PromptTemplateType = 'risk_analysis') =>
   client.get<PromptTemplate[]>(`/prompt-templates?type=${type}`);
 
 export const getPromptTemplateById = (id: string) =>
   client.get<PromptTemplate>(`/prompt-templates/${id}`);
 
-export const createPromptTemplate = (name: string, content: string, type = 'risk_analysis') =>
-  client.post<PromptTemplate>(`/prompt-templates?type=${type}`, { name, content });
+export const createPromptTemplate = (
+  name: string,
+  content: string,
+  type: PromptTemplateType = 'risk_analysis',
+) => client.post<PromptTemplate>(`/prompt-templates?type=${type}`, { name, content });
 
 export const updatePromptTemplate = (id: string, name: string, content: string) =>
   client.put<PromptTemplate>(`/prompt-templates/${id}`, { name, content });
@@ -23,11 +26,14 @@ export const duplicatePromptTemplate = (systemId: string) =>
 
 // ─── Admin API ────────────────────────────────────────────────────────────────
 
-export const adminListPromptTemplates = (type = 'risk_analysis') =>
+export const adminListPromptTemplates = (type: PromptTemplateType = 'risk_analysis') =>
   client.get<PromptTemplate[]>(`/admin/prompt-templates?type=${type}`);
 
-export const adminCreatePromptTemplate = (name: string, content: string, type = 'risk_analysis') =>
-  client.post<PromptTemplate>(`/admin/prompt-templates?type=${type}`, { name, content });
+export const adminCreatePromptTemplate = (
+  name: string,
+  content: string,
+  type: PromptTemplateType = 'risk_analysis',
+) => client.post<PromptTemplate>(`/admin/prompt-templates?type=${type}`, { name, content });
 
 export const adminUpdatePromptTemplate = (id: string, name: string, content: string) =>
   client.put<PromptTemplate>(`/admin/prompt-templates/${id}`, { name, content });
@@ -35,5 +41,7 @@ export const adminUpdatePromptTemplate = (id: string, name: string, content: str
 export const adminDeletePromptTemplate = (id: string) =>
   client.delete<{ deleted: boolean }>(`/admin/prompt-templates/${id}`);
 
-export const adminSetDefaultPromptTemplate = (id: string, type = 'risk_analysis') =>
-  client.post<PromptTemplate>(`/admin/prompt-templates/${id}/set-default?type=${type}`);
+export const adminSetDefaultPromptTemplate = (
+  id: string,
+  type: PromptTemplateType = 'risk_analysis',
+) => client.post<PromptTemplate>(`/admin/prompt-templates/${id}/set-default?type=${type}`);

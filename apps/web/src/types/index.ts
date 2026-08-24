@@ -23,9 +23,16 @@ export interface Model {
   reasoningEfforts?: ReasoningEffort[];
   defaultReasoningEffort?: ReasoningEffort;
   sortOrder?: number;
+  source?: 'environment' | 'custom';
+  endpoint?: string;
+  upstreamModelName?: string;
+  apiProtocol?: 'chat_completions' | 'responses';
+  hasApiKey?: boolean;
+  credentialStatus?: 'ready' | 'master_key_missing' | 'decrypt_failed';
 }
 
 export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'xhigh';
+export type PromptTemplateType = 'risk_analysis' | 'contract_comparison';
 
 export interface FieldTemplateItem {
   id?: string;
@@ -53,7 +60,7 @@ export interface PromptTemplate {
   isSystem: boolean;
   isDefault: boolean;
   userId?: string | null;
-  templateType?: string;
+  templateType?: PromptTemplateType;
   scope?: 'system' | 'personal';
   createdAt?: string;
   updatedAt?: string;
@@ -72,6 +79,24 @@ export interface RunTimings {
   ocrMs?: number | null;
   fieldExtractionMs?: number | null;
   riskAnalysisMs?: number | null;
+  analysisMs?: number | null;
+}
+
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  cachedInputTokens?: number;
+  reasoningTokens?: number;
+  cacheCreationInputTokens?: number;
+  cacheReadInputTokens?: number;
+}
+
+export interface AnalysisTokenUsage extends TokenUsage {
+  stages: {
+    fieldExtraction: TokenUsage | null;
+    riskAnalysis: TokenUsage | null;
+  };
 }
 
 export interface AnalysisJob {
@@ -86,6 +111,7 @@ export interface AnalysisJob {
   createdAt: string;
   fieldExtractionMs?: number | null;
   riskAnalysisMs?: number | null;
+  tokenUsage?: AnalysisTokenUsage | null;
   document: { fileName: string; extractionMs?: number | null };
   fieldTemplate?: { id: string; name: string } | null;
   promptTemplate?: { id: string; name: string } | null;
@@ -118,37 +144,42 @@ export interface AnalysisResult {
   fieldExtractionResult: any[];
   riskAnalysisResult: { originalContractDescription: string; riskAnalysis: string };
   timings?: RunTimings;
+  tokenUsage?: AnalysisTokenUsage | null;
 }
 
 export interface CompareJob {
   id: string;
+  userId?: string;
   status: 'pending' | 'running' | 'success' | 'failed';
-  diffMode: 'unified' | 'side_by_side';
+  modelName: string;
+  reasoningEffort: ReasoningEffort;
+  promptTemplateId?: string | null;
+  promptTemplate?: { id: string; name: string } | null;
+  promptSnapshotText?: string;
+  resultText?: string | null;
+  analysisMs?: number | null;
+  tokenUsage?: TokenUsage | null;
+  tokenUsageJson?: TokenUsage | null;
   createdAt: string;
-  oldDocument: { fileName: string };
-  newDocument: { fileName: string };
+  documents: Array<{
+    sortOrder: number;
+    document: { id: string; fileName: string; extractionMs?: number | null };
+  }>;
   user?: { id: string; name: string; email: string };
-  diffResultJson?: { chunks: DiffChunk[]; stats: DiffStats } | null;
+  feedbacks?: Array<{ userId: string; rating: number; comment?: string | null }>;
   errorMessage?: string | null;
 }
 
 export interface CompareResult {
   compareJobId: string;
   status: string;
-  diffMode: string;
-  diffResult: { chunks: DiffChunk[]; stats: DiffStats };
+  analysisResult: string;
+  timings: RunTimings;
+  tokenUsage: TokenUsage | null;
 }
 
-export interface DiffChunk {
-  type: 'added' | 'removed' | 'unchanged';
-  value: string;
-  lines: string[];
-}
-
-export interface DiffStats {
-  added: number;
-  removed: number;
-  unchanged: number;
+export interface CompareJobFeedback extends Omit<AnalysisJobFeedback, 'analysisJobId'> {
+  compareJobId: string;
 }
 
 export interface AdminStats {

@@ -1,26 +1,44 @@
 import { create } from 'zustand';
-import type { Document, CompareResult } from '../types';
+import type { CompareResult, Document, ReasoningEffort } from '../types';
 
-// In-memory (like analysisStore): the compare page's inputs and result survive
-// navigating away and back within the session. A full page refresh resets it.
 interface CompareState {
-  oldDoc: Document | null;
-  newDoc: Document | null;
-  diffMode: 'side_by_side' | 'unified';
+  documents: Array<Document | null>;
+  selectedModel: string;
+  selectedReasoningEffort: ReasoningEffort;
   result: CompareResult | null;
-  setOldDoc: (doc: Document | null) => void;
-  setNewDoc: (doc: Document | null) => void;
-  setDiffMode: (mode: 'side_by_side' | 'unified') => void;
+  setDocument: (index: number, document: Document | null) => void;
+  addDocumentSlot: () => void;
+  removeDocumentSlot: (index: number) => void;
+  setSelectedModel: (model: string) => void;
+  setSelectedReasoningEffort: (effort: ReasoningEffort) => void;
   setResult: (result: CompareResult | null) => void;
 }
 
 export const useCompareStore = create<CompareState>()((set) => ({
-  oldDoc: null,
-  newDoc: null,
-  diffMode: 'side_by_side',
+  documents: [null, null],
+  selectedModel: '',
+  selectedReasoningEffort: 'medium',
   result: null,
-  setOldDoc: (doc) => set({ oldDoc: doc }),
-  setNewDoc: (doc) => set({ newDoc: doc }),
-  setDiffMode: (mode) => set({ diffMode: mode }),
+  setDocument: (index, document) =>
+    set((state) => ({
+      documents: state.documents.map((item, itemIndex) => (itemIndex === index ? document : item)),
+      result: null,
+    })),
+  addDocumentSlot: () =>
+    set((state) => ({
+      documents: state.documents.length < 5 ? [...state.documents, null] : state.documents,
+      result: null,
+    })),
+  removeDocumentSlot: (index) =>
+    set((state) => ({
+      documents:
+        state.documents.length > 2
+          ? state.documents.filter((_, itemIndex) => itemIndex !== index)
+          : state.documents,
+      result: null,
+    })),
+  setSelectedModel: (selectedModel) => set({ selectedModel, result: null }),
+  setSelectedReasoningEffort: (selectedReasoningEffort) =>
+    set({ selectedReasoningEffort, result: null }),
   setResult: (result) => set({ result }),
 }));

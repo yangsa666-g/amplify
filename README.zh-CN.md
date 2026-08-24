@@ -5,7 +5,7 @@
 ## 功能特性
 
 - **合同分析** — 上传 PDF、DOCX 或 TXT 格式的合同，通过可自定义的字段模板和提示词模板生成结构化 AI 分析报告
-- **合同比较** — 对两份合同版本进行并排差异对比，并提供 AI 摘要说明变更内容
+- **合同比较** — 按上传顺序对 2–5 份合同执行 Prompt 驱动的 AI 分析，并生成自由 Markdown 报告
 - **多模型支持** — 可在 Azure OpenAI（GPT-4、GPT-5 系列）和 Anthropic Claude 模型之间自由切换
 - **模板管理** — 创建个人或系统级字段模板和提示词模板，标准化分析流程
 - **分析历史** — 浏览和回顾历史分析记录
@@ -93,6 +93,7 @@ pnpm dev           # 同时启动 api（:3001）和 web（:3000）
 | `AZURE_OPENAI_ENDPOINT` | ✅ | Azure OpenAI 端点 URL |
 | `AZURE_OPENAI_API_KEY` | ✅ | Azure OpenAI API 密钥 |
 | `AZURE_OPENAI_MODELS` | ✅ | 已部署模型名称，逗号分隔 |
+| `MODEL_CREDENTIALS_ENCRYPTION_KEY` | ❌ | 用于加密管理员页面中 OpenAI 兼容模型 API key 的 Base64 32 字节密钥。使用 `openssl rand -base64 32` 生成一次并保持不变 |
 | `AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT` | ✅ | Azure Document Intelligence 端点 |
 | `AZURE_DOCUMENT_INTELLIGENCE_KEY` | ✅ | Azure Document Intelligence 密钥 |
 | `ANTHROPIC_API_KEY` | ❌ | Anthropic API 密钥（启用 Claude 模型） |
@@ -106,6 +107,10 @@ pnpm dev           # 同时启动 api（:3001）和 web（:3000）
 | `ENTRA_TENANT_ID` | ❌ | Entra 目录（租户）GUID —— 单租户 |
 | `ENTRA_REDIRECT_URI` | ❌ | 公开回调 URL，例如 `https://<host>/api/auth/entra/callback` |
 | `ENTRA_POST_LOGIN_REDIRECT` | ❌ | 回调后 SPA 落地页 URL，例如 `https://<host>/auth/callback` |
+
+配置 `MODEL_CREDENTIALS_ENCRYPTION_KEY` 后，管理员可在 **系统设置 → 模型** 中添加 OpenAI
+兼容 endpoint。未配置时，基于环境变量的 Azure OpenAI 和 Anthropic 模型仍可正常使用。
+该加密密钥必须长期保持不变；若更换或丢失，已保存的模型 API key 将无法解密。
 
 ### 启动校验（fail-fast）
 
@@ -228,9 +233,10 @@ API 运行时，可在 `http://localhost:3001/docs` 访问完整的 OpenAPI 文�
 | `POST` | `/auth/refresh` | 刷新访问令牌 |
 | `POST` | `/documents/upload` | 上传合同文件 |
 | `GET` | `/documents/:id/text` | 获取提取的文本内容 |
-| `POST` | `/analysis` | 执行合同分析 |
+| `POST` | `/analysis/run` | 执行合同分析 |
 | `GET` | `/analysis/:id` | 获取分析结果 |
-| `POST` | `/compare` | 比较两份合同 |
+| `POST` | `/compare/run` | 对 2–5 份合同执行 AI 分析 |
+| `GET` | `/compare/:id` | 获取合同比对结果 |
 | `GET` | `/models` | 列出可用的 AI 模型 |
 | `GET` | `/field-templates` | 列出字段模板 |
 | `GET` | `/prompt-templates` | 列出提示词模板 |
@@ -252,8 +258,10 @@ X-API-Key: <your-api-key>
 | `POST` | `/v1/documents/upload` | 上传合同（`multipart/form-data`，最大 50 MB），返回 `documentId`。文本抽取为异步执行，需轮询直到 `textExtractionStatus` 为 `success`。 |
 | `POST` | `/v1/analysis/run` | 对已上传的文档执行字段抽取与风险分析，同步返回，通常耗时 10–60 秒。 |
 | `GET`  | `/v1/analysis/:id` | 查询历史分析任务结果。 |
-| `POST` | `/v1/compare/run` | 对两份已上传文档执行行级差异对比。 |
-| `GET`  | `/v1/compare/:id` | 查询历史比较任务结果。 |
+| `POST` | `/v1/compare/run` | 按顺序对 2–5 份已上传文档执行 Prompt 驱动的 AI 分析。 |
+| `GET`  | `/v1/compare/:id` | 查询比对任务的配置、有序文档、Markdown 结果、耗时和 token 用量。 |
+| `GET`  | `/v1/models` | 列出 API Key 所属用户可用的模型。 |
+| `GET`  | `/v1/prompt-templates?type=contract_comparison` | 列出可选择的合同比对 Prompt 模板。 |
 
 **示例 — 完整分析流程：**
 
@@ -269,6 +277,28 @@ curl -X POST http://localhost:3001/v1/analysis/run \
   -H "Content-Type: application/json" \
   -d "{\"documentId\": \"$DOC_ID\", \"model\": \"gpt-5.4\"}"
 ```
+
+模型提供商返回 token 信息时，分析响应会包含聚合 token 用量和各阶段明细。
+
+**示例 — 使用 AI 比对两份合同：**
+
+```bash
+OLD_ID=$(curl -s -X POST http://localhost:3001/v1/documents/upload \
+  -H "X-API-Key: $API_KEY" \
+  -F "file=@contract-v1.pdf" | jq -r .id)
+
+NEW_ID=$(curl -s -X POST http://localhost:3001/v1/documents/upload \
+  -H "X-API-Key: $API_KEY" \
+  -F "file=@contract-v2.pdf" | jq -r .id)
+
+# 等待两份文档的文本抽取完成后执行比对。
+curl -X POST http://localhost:3001/v1/compare/run \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"documentIds\":[\"$OLD_ID\",\"$NEW_ID\"],\"model\":\"gpt-5.4\",\"reasoningEffort\":\"medium\"}"
+```
+
+`documentIds` 必须包含 2–5 个不重复的 ID，其顺序会保留在 Prompt 和结果元数据中。省略 `promptTemplateId` 时使用系统默认合同比对模板。比对响应包含 Markdown 报告、分析耗时和 token 用量。
 
 完整的请求 / 响应结构请参阅 `/docs`。
 

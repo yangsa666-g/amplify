@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
 import { CompareController } from './compare.controller';
 import { CompareService } from './compare.service';
-import { DiffService } from './diff.service';
-import { DocumentsModule } from '../documents/documents.module';
+import { PromptTemplatesModule } from '../prompt-templates/prompt-templates.module';
+import { ModelsModule } from '../models/models.module';
+import { AiModule } from '../analysis/ai.module';
 
 @Module({
-  imports: [DocumentsModule],
+  imports: [PromptTemplatesModule, ModelsModule, AiModule],
   controllers: [CompareController],
-  providers: [CompareService, DiffService],
+  providers: [CompareService],
   exports: [CompareService],
 })
 export class CompareModule {}

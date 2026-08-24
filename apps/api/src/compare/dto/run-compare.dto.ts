@@ -1,15 +1,33 @@
-import { IsString, IsNotEmpty, IsOptional, IsIn } from 'class-validator';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  ArrayUnique,
+  IsArray,
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
+import type { ReasoningEffort } from '../../models/model-registry';
 
 export class RunCompareDto {
-  @IsString()
-  @IsNotEmpty()
-  oldDocumentId!: string;
+  @IsArray()
+  @ArrayMinSize(2)
+  @ArrayMaxSize(5)
+  @ArrayUnique()
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  documentIds!: string[];
 
   @IsString()
   @IsNotEmpty()
-  newDocumentId!: string;
+  model!: string;
 
   @IsOptional()
-  @IsIn(['unified', 'side_by_side'])
-  diffMode?: 'unified' | 'side_by_side';
+  @IsString()
+  promptTemplateId?: string;
+
+  @IsOptional()
+  @IsIn(['none', 'low', 'medium', 'high', 'xhigh'])
+  reasoningEffort?: ReasoningEffort;
 }

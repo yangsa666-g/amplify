@@ -27,8 +27,15 @@ export class HistoryService {
         orderBy: { createdAt: 'desc' },
         take: 10,
         include: {
-          oldDocument: { select: { fileName: true } },
-          newDocument: { select: { fileName: true } },
+          documents: {
+            orderBy: { sortOrder: 'asc' },
+            include: { document: { select: { id: true, fileName: true } } },
+          },
+          promptTemplate: { select: { id: true, name: true } },
+          feedbacks: {
+            where: { userId },
+            select: { userId: true, rating: true, comment: true },
+          },
         },
       }),
     ]);
@@ -51,8 +58,12 @@ export class HistoryService {
       this.prisma.compareJob.findMany({
         orderBy: { createdAt: 'desc' },
         include: {
-          oldDocument: { select: { fileName: true } },
-          newDocument: { select: { fileName: true } },
+          documents: {
+            orderBy: { sortOrder: 'asc' },
+            include: { document: { select: { id: true, fileName: true } } },
+          },
+          promptTemplate: { select: { id: true, name: true } },
+          feedbacks: { select: { userId: true, rating: true, comment: true } },
           user: { select: { id: true, name: true, email: true } },
         },
       }),

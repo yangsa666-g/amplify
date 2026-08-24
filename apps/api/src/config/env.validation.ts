@@ -48,6 +48,14 @@ export function validateEnv(env: Record<string, unknown>): Record<string, unknow
     }
   }
 
+  const modelCredentialsKey = asString(env.MODEL_CREDENTIALS_ENCRYPTION_KEY);
+  if (modelCredentialsKey) {
+    const validBase64 = /^[A-Za-z0-9+/]{43}=$/.test(modelCredentialsKey);
+    if (!validBase64 || Buffer.from(modelCredentialsKey, 'base64').length !== 32) {
+      errors.push('MODEL_CREDENTIALS_ENCRYPTION_KEY must be a Base64-encoded 32-byte key.');
+    }
+  }
+
   // ─── Stricter checks in production ───────────────────────────────────────────
   if (prod) {
     if (jwtSecret && WEAK_SECRETS.has(jwtSecret.toLowerCase())) {
