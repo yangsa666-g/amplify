@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0](https://github.com/shidafu666/amplify/compare/v0.4.1...v0.5.0) (2026-08-24)
+
+
+### Features
+
+* **compare:** add AI multi-contract analysis ([#53](https://github.com/shidafu666/amplify/issues/53)) ([6bb0690](https://github.com/shidafu666/amplify/commit/6bb0690f8b0420cd966b093b3604bfb95649d033))
+* **models:** add provider icons for custom models ([#57](https://github.com/shidafu666/amplify/issues/57)) ([43fb39a](https://github.com/shidafu666/amplify/commit/43fb39a849da3e29c5c13a9ab8d8363b9bdbe92c))
+
+
+### Bug Fixes
+
+* **config:** accept longer model credential key material ([#56](https://github.com/shidafu666/amplify/issues/56)) ([8165e6a](https://github.com/shidafu666/amplify/commit/8165e6a38a89c3546a899f39b9979c308b0326c7))
+
 ## [0.4.1](https://github.com/shidafu666/amplify/compare/v0.4.0...v0.4.1) (2026-06-12)
 
 
