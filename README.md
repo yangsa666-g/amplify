@@ -5,7 +5,7 @@ An AI-powered contract analysis platform that helps you upload, parse, and analy
 ## Features
 
 - **Contract Analysis** — Upload PDF, DOCX, or TXT contracts and get structured AI-generated analysis using customizable field and prompt templates
-- **Contract Comparison** — Side-by-side diff and AI-powered summary of changes between two contract versions
+- **Contract Comparison** — Run prompt-driven AI analysis across 2–5 ordered contracts and receive a free-form Markdown report
 - **Multi-model Support** — Switch between Azure OpenAI (GPT-4, GPT-5 series) and Anthropic Claude models
 - **Template Management** — Create personal or system-wide field templates and prompt templates to standardize analysis
 - **Analysis History** — Browse and revisit past analyses
@@ -93,6 +93,7 @@ Copy `.env.example` to `.env` and fill in the values.
 | `AZURE_OPENAI_ENDPOINT` | ✅ | Azure OpenAI endpoint URL |
 | `AZURE_OPENAI_API_KEY` | ✅ | Azure OpenAI API key |
 | `AZURE_OPENAI_MODELS` | ✅ | Comma-separated list of deployed model names |
+| `MODEL_CREDENTIALS_ENCRYPTION_KEY` | ❌ | Base64-encoded 32-byte key used to encrypt API keys for OpenAI-compatible models managed in the admin UI. Generate once with `openssl rand -base64 32` and keep it stable |
 | `AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT` | ✅ | Azure Document Intelligence endpoint |
 | `AZURE_DOCUMENT_INTELLIGENCE_KEY` | ✅ | Azure Document Intelligence key |
 | `ANTHROPIC_API_KEY` | ❌ | Anthropic API key (enables Claude models) |
@@ -106,6 +107,11 @@ Copy `.env.example` to `.env` and fill in the values.
 | `ENTRA_TENANT_ID` | ❌ | Entra directory (tenant) GUID — single-tenant |
 | `ENTRA_REDIRECT_URI` | ❌ | Public callback URL, e.g. `https://<host>/api/auth/entra/callback` |
 | `ENTRA_POST_LOGIN_REDIRECT` | ❌ | SPA landing URL after callback, e.g. `https://<host>/auth/callback` |
+
+Admins can add OpenAI-compatible endpoints under **System Settings → Models** when
+`MODEL_CREDENTIALS_ENCRYPTION_KEY` is configured. Environment-based Azure OpenAI and Anthropic
+models continue to work without this variable. The encryption key must remain stable; changing or
+losing it makes stored model API keys unreadable.
 
 ### Startup validation (fail-fast)
 
@@ -229,9 +235,10 @@ Full OpenAPI documentation is available at `http://localhost:3001/docs` when the
 | `POST` | `/auth/refresh` | Refresh access token |
 | `POST` | `/documents/upload` | Upload a contract file |
 | `GET` | `/documents/:id/text` | Get extracted text |
-| `POST` | `/analysis` | Run contract analysis |
+| `POST` | `/analysis/run` | Run contract analysis |
 | `GET` | `/analysis/:id` | Get analysis result |
-| `POST` | `/compare` | Compare two contracts |
+| `POST` | `/compare/run` | Run AI analysis across 2–5 contracts |
+| `GET` | `/compare/:id` | Get a comparison result |
 | `GET` | `/models` | List available AI models |
 | `GET` | `/field-templates` | List field templates |
 | `GET` | `/prompt-templates` | List prompt templates |
@@ -253,8 +260,10 @@ X-API-Key: <your-api-key>
 | `POST` | `/v1/documents/upload` | Upload a contract (`multipart/form-data`, max 50 MB). Returns `documentId`. Text extraction is asynchronous — poll until `textExtractionStatus` is `success`. |
 | `POST` | `/v1/analysis/run` | Run field extraction + risk analysis on an uploaded document. Synchronous; typically 10–60 s. |
 | `GET`  | `/v1/analysis/:id` | Retrieve a previous analysis job result. |
-| `POST` | `/v1/compare/run` | Run a line-level diff between two uploaded documents. |
-| `GET`  | `/v1/compare/:id` | Retrieve a previous compare job result. |
+| `POST` | `/v1/compare/run` | Run prompt-driven AI analysis across 2–5 ordered documents. |
+| `GET`  | `/v1/compare/:id` | Retrieve the configuration, ordered documents, Markdown result, timings, and token usage for a compare job. |
+| `GET`  | `/v1/models` | List models available to the API key owner. |
+| `GET`  | `/v1/prompt-templates?type=contract_comparison` | List selectable contract-comparison prompt templates. |
 
 **Example — full analysis flow:**
 
@@ -270,6 +279,28 @@ curl -X POST http://localhost:3001/v1/analysis/run \
   -H "Content-Type: application/json" \
   -d "{\"documentId\": \"$DOC_ID\", \"model\": \"gpt-5.4\"}"
 ```
+
+Analysis responses include aggregate and per-stage token usage when reported by the model provider.
+
+**Example — compare two contracts with AI:**
+
+```bash
+OLD_ID=$(curl -s -X POST http://localhost:3001/v1/documents/upload \
+  -H "X-API-Key: $API_KEY" \
+  -F "file=@contract-v1.pdf" | jq -r .id)
+
+NEW_ID=$(curl -s -X POST http://localhost:3001/v1/documents/upload \
+  -H "X-API-Key: $API_KEY" \
+  -F "file=@contract-v2.pdf" | jq -r .id)
+
+# Wait for both documents to finish text extraction, then run comparison.
+curl -X POST http://localhost:3001/v1/compare/run \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"documentIds\":[\"$OLD_ID\",\"$NEW_ID\"],\"model\":\"gpt-5.4\",\"reasoningEffort\":\"medium\"}"
+```
+
+`documentIds` must contain 2–5 unique IDs. Their order is preserved in the prompt and result metadata. Omit `promptTemplateId` to use the default contract-comparison template. Compare responses contain the Markdown report, analysis timing, and token usage.
 
 See `/docs` for the full request/response schemas.
 

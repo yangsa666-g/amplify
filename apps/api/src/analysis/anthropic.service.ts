@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import Anthropic, { APIConnectionTimeoutError, APIError } from '@anthropic-ai/sdk';
 import type { Message, ContentBlock } from '@anthropic-ai/sdk/resources/messages';
 import type { ReasoningEffort } from '../models/model-registry';
+import { fromAnthropicUsage, type AiChatResult } from './token-usage';
 
 // Response cap per effort level. Adaptive thinking decides its own internal
 // budget; we just need max_tokens large enough to fit reasoning + the
@@ -62,7 +63,7 @@ export class AnthropicService {
     model: string,
     prompt: string,
     reasoningEffort: ReasoningEffort = 'medium',
-  ): Promise<string> {
+  ): Promise<AiChatResult> {
     if (!this.isConfigured()) {
       throw new BadGatewayException('Anthropic is not configured');
     }
@@ -92,7 +93,10 @@ export class AnthropicService {
         })) as Message;
       }
 
-      return this.extractText(response.content);
+      return {
+        text: this.extractText(response.content),
+        usage: fromAnthropicUsage(response.usage),
+      };
     } catch (err: unknown) {
       if (err instanceof APIConnectionTimeoutError) {
         throw new RequestTimeoutException('Anthropic request timed out');

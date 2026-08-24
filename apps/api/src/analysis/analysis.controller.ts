@@ -46,6 +46,6 @@ export class AnalysisController {
 
   @Get(':id/feedback')
   getFeedback(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.analysisService.getFeedback(id, user.userId);
+    return this.analysisService.getFeedback(id, user.userId, user.role);
   }
 }

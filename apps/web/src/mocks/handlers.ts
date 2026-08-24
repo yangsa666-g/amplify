@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import type { AnalysisJobFeedback, User } from '../types';
+import type { AnalysisJobFeedback, Model, User } from '../types';
 import {
   mockAdminStats,
   mockAnalysisJobs,
@@ -71,10 +71,65 @@ export const handlers = [
         .filter((model) => model.enabled !== false)
         .sort((a, b) => {
           return (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.label.localeCompare(b.label);
-        }),
+        })
+        .map((model) => ({
+          name: model.name,
+          label: model.label,
+          provider: model.provider,
+          icon: model.icon,
+          enabled: model.enabled,
+          isDefault: model.isDefault,
+          supportsReasoning: model.supportsReasoning,
+          reasoningEfforts: model.reasoningEfforts,
+          defaultReasoningEffort: model.defaultReasoningEffort,
+          sortOrder: model.sortOrder,
+        })),
     ),
   ),
   http.get(api('/admin/models'), () => HttpResponse.json(mockModelCatalog)),
+  http.get(api('/admin/models/configuration-status'), () =>
+    HttpResponse.json({ customModelsEnabled: true }),
+  ),
+  http.post(api('/admin/models/test-connection'), async () =>
+    HttpResponse.json({ ok: true as const, latencyMs: 125 }),
+  ),
+  http.post(api('/admin/models'), async ({ request }) => {
+    const body = (await request.json()) as {
+      name: string;
+      label: string;
+      endpoint: string;
+      upstreamModelName: string;
+      apiProtocol: 'chat_completions' | 'responses';
+      supportsReasoning: boolean;
+      enabled: boolean;
+    };
+    if (mockModelCatalog.some((model) => model.name === body.name)) {
+      return HttpResponse.json({ message: 'Model name is already configured' }, { status: 409 });
+    }
+    const created: Model = {
+      name: body.name,
+      label: body.label,
+      provider: 'openai' as const,
+      icon: 'openai' as const,
+      enabled: body.enabled,
+      isDefault: false,
+      supportsReasoning: body.supportsReasoning,
+      reasoningEfforts: body.supportsReasoning
+        ? ['none', 'low', 'medium', 'high', 'xhigh']
+        : ['none'],
+      defaultReasoningEffort: body.supportsReasoning ? ('medium' as const) : ('none' as const),
+      sortOrder: Math.max(0, ...mockModelCatalog.map((model) => model.sortOrder ?? 0)) + 10,
+      source: 'custom' as const,
+      endpoint: body.endpoint,
+      upstreamModelName: body.upstreamModelName,
+      apiProtocol: body.apiProtocol,
+      hasApiKey: true,
+      credentialStatus: 'ready' as const,
+    };
+    mockModelCatalog = [...mockModelCatalog, created];
+    writeMockModelCatalog();
+    return HttpResponse.json(created, { status: 201 });
+  }),
   http.patch(api('/admin/models/order'), async ({ request }) => {
     const body = (await request.json()) as {
       models: Array<{ modelName: string; sortOrder: number }>;
@@ -93,11 +148,14 @@ export const handlers = [
   }),
   http.patch(api('/admin/models/:modelName'), async ({ params, request }) => {
     const modelName = decodeURIComponent(String(params.modelName));
-    const body = (await request.json()) as Partial<(typeof mockModelCatalog)[number]>;
+    const body = (await request.json()) as Partial<(typeof mockModelCatalog)[number]> & {
+      apiKey?: string;
+    };
+    const { apiKey: _apiKey, ...safeBody } = body;
     const model = mockModelCatalog.find((item) => item.name === modelName);
     if (!model) return jsonNotFound('Model is not configured');
 
-    if (body.isDefault) {
+    if (safeBody.isDefault) {
       mockModelCatalog = mockModelCatalog.map((item) => ({
         ...item,
         isDefault: false,
@@ -108,9 +166,10 @@ export const handlers = [
       item.name === modelName
         ? {
             ...item,
-            ...body,
-            enabled: body.isDefault ? true : (body.enabled ?? item.enabled),
-            isDefault: body.isDefault ?? item.isDefault,
+            ...safeBody,
+            hasApiKey: item.hasApiKey || Boolean(_apiKey),
+            enabled: safeBody.isDefault ? true : (safeBody.enabled ?? item.enabled),
+            isDefault: safeBody.isDefault ?? item.isDefault,
           }
         : item,
     );
@@ -118,18 +177,42 @@ export const handlers = [
 
     return HttpResponse.json(mockModelCatalog.find((item) => item.name === modelName));
   }),
+  http.delete(api('/admin/models/:modelName'), ({ params }) => {
+    const modelName = decodeURIComponent(String(params.modelName));
+    const model = mockModelCatalog.find((item) => item.name === modelName);
+    if (!model) return jsonNotFound('Model is not configured');
+    if (model.source !== 'custom') {
+      return HttpResponse.json(
+        { message: 'Environment models cannot be deleted' },
+        { status: 400 },
+      );
+    }
+    mockModelCatalog = mockModelCatalog.filter((item) => item.name !== modelName);
+    writeMockModelCatalog();
+    return HttpResponse.json({ deleted: true });
+  }),
   http.get(api('/field-templates'), () => HttpResponse.json(mockFieldTemplates)),
   http.get(api('/field-templates/:id'), ({ params }) => {
     const template = mockFieldTemplates.find((item) => item.id === params.id);
     return template ? HttpResponse.json(template) : jsonNotFound();
   }),
-  http.get(api('/prompt-templates'), () => HttpResponse.json(mockPromptTemplates)),
+  http.get(api('/prompt-templates'), ({ request }) => {
+    const type = new URL(request.url).searchParams.get('type') ?? 'risk_analysis';
+    return HttpResponse.json(
+      mockPromptTemplates.filter((template) => template.templateType === type),
+    );
+  }),
   http.get(api('/prompt-templates/:id'), ({ params }) => {
     const template = mockPromptTemplates.find((item) => item.id === params.id);
     return template ? HttpResponse.json(template) : jsonNotFound();
   }),
   http.get(api('/admin/field-templates'), () => HttpResponse.json(mockFieldTemplates)),
-  http.get(api('/admin/prompt-templates'), () => HttpResponse.json(mockPromptTemplates)),
+  http.get(api('/admin/prompt-templates'), ({ request }) => {
+    const type = new URL(request.url).searchParams.get('type') ?? 'risk_analysis';
+    return HttpResponse.json(
+      mockPromptTemplates.filter((template) => template.templateType === type),
+    );
+  }),
 
   http.get(api('/history'), () =>
     HttpResponse.json({
@@ -213,12 +296,26 @@ export const handlers = [
     const job = getCompareJob(String(params.compareId));
     return job ? HttpResponse.json(job) : jsonNotFound('Compare job not found');
   }),
+  http.get(api('/compare/:compareId/feedback'), () => HttpResponse.json([])),
+  http.post(api('/compare/:compareId/feedback'), async ({ params, request }) => {
+    const body = (await request.json()) as { rating: number; comment?: string };
+    return HttpResponse.json({
+      id: `mock-compare-feedback-${Date.now()}`,
+      compareJobId: String(params.compareId),
+      userId: mockUser.id,
+      rating: body.rating,
+      comment: body.comment,
+      createdAt: new Date().toISOString(),
+      user: { id: mockUser.id, name: mockUser.name },
+    });
+  }),
   http.post(api('/compare/run'), () =>
     HttpResponse.json({
       compareJobId: 'mock-compare-success',
       status: 'success',
-      diffMode: 'side_by_side',
-      diffResult: mockCompareJobs[0].diffResultJson,
+      analysisResult: mockCompareJobs[0].resultText,
+      timings: { analysisMs: mockCompareJobs[0].analysisMs },
+      tokenUsage: mockCompareJobs[0].tokenUsageJson,
     }),
   ),
 

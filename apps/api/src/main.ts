@@ -49,8 +49,8 @@ async function bootstrap() {
         `**Authentication:** All endpoints require an \`X-API-Key\` header.\n` +
         `Obtain an API key from the Admin panel → System Settings → API Keys.\n\n` +
         `**Typical workflow:**\n` +
-        `1. Upload a contract document (\`POST /v1/documents/upload\`)\n` +
-        `2. Run analysis (\`POST /v1/analysis/run\`) or compare two documents (\`POST /v1/compare/run\`)\n` +
+        `1. Upload one or more contract documents (\`POST /v1/documents/upload\`)\n` +
+        `2. Run analysis (\`POST /v1/analysis/run\`) or compare 2–5 ordered documents with AI (\`POST /v1/compare/run\`)\n` +
         `3. Retrieve results (\`GET /v1/analysis/{id}\` or \`GET /v1/compare/{id}\`)`,
     )
     .setVersion('1.0')

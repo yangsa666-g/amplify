@@ -20,11 +20,13 @@ export class AdminDashboardService {
     const [
       analysisJobs,
       compareJobs,
-      feedbacks,
+      analysisFeedbacks,
+      compareFeedbacks,
       newUsers,
       activeAnalysisUserIds,
       activeCompareUserIds,
-      modelGroups,
+      analysisModelGroups,
+      compareModelGroups,
     ] = await Promise.all([
       this.prisma.analysisJob.findMany({
         where: { createdAt: { gte: since } },
@@ -37,6 +39,10 @@ export class AdminDashboardService {
       this.prisma.analysisJobFeedback.findMany({
         where: { createdAt: { gte: since } },
         select: { rating: true, analysisJobId: true },
+      }),
+      this.prisma.compareJobFeedback.findMany({
+        where: { createdAt: { gte: since } },
+        select: { rating: true, compareJobId: true },
       }),
       this.prisma.user.count({ where: { createdAt: { gte: since } } }),
       this.prisma.analysisJob.findMany({
@@ -55,6 +61,12 @@ export class AdminDashboardService {
         _count: { _all: true },
         orderBy: { _count: { modelName: 'desc' } },
       }),
+      this.prisma.compareJob.groupBy({
+        by: ['modelName'],
+        where: { createdAt: { gte: since } },
+        _count: { _all: true },
+        orderBy: { _count: { modelName: 'desc' } },
+      }),
     ]);
 
     // Analysis status breakdown
@@ -63,9 +75,10 @@ export class AdminDashboardService {
       analysisStatusCounts[job.status as keyof typeof analysisStatusCounts]++;
     }
     const analysisTotalCount = analysisJobs.length;
-    const analysisSuccessRate = analysisTotalCount > 0
-      ? Math.round((analysisStatusCounts.success / analysisTotalCount) * 100)
-      : 0;
+    const analysisSuccessRate =
+      analysisTotalCount > 0
+        ? Math.round((analysisStatusCounts.success / analysisTotalCount) * 100)
+        : 0;
 
     // Compare status breakdown
     const compareStatusCounts = { pending: 0, running: 0, success: 0, failed: 0 };
@@ -73,15 +86,18 @@ export class AdminDashboardService {
       compareStatusCounts[job.status as keyof typeof compareStatusCounts]++;
     }
     const compareTotalCount = compareJobs.length;
-    const compareSuccessRate = compareTotalCount > 0
-      ? Math.round((compareStatusCounts.success / compareTotalCount) * 100)
-      : 0;
+    const compareSuccessRate =
+      compareTotalCount > 0
+        ? Math.round((compareStatusCounts.success / compareTotalCount) * 100)
+        : 0;
 
     // Feedback breakdown
+    const feedbacks = [...analysisFeedbacks, ...compareFeedbacks];
     const thumbsUp = feedbacks.filter((f) => f.rating === 1).length;
     const thumbsDown = feedbacks.filter((f) => f.rating === -1).length;
     const totalFeedback = feedbacks.length;
-    const feedbackPositiveRate = totalFeedback > 0 ? Math.round((thumbsUp / totalFeedback) * 100) : null;
+    const feedbackPositiveRate =
+      totalFeedback > 0 ? Math.round((thumbsUp / totalFeedback) * 100) : null;
 
     // Active users (union of unique userIds)
     const activeUserIdSet = new Set([
@@ -91,10 +107,16 @@ export class AdminDashboardService {
     const activeUsersCount = activeUserIdSet.size;
 
     // Model usage
-    const modelUsage = modelGroups.map((g) => ({
-      modelName: g.modelName,
-      count: g._count._all,
-    }));
+    const modelUsageMap = new Map<string, number>();
+    for (const group of [...analysisModelGroups, ...compareModelGroups]) {
+      modelUsageMap.set(
+        group.modelName,
+        (modelUsageMap.get(group.modelName) ?? 0) + group._count._all,
+      );
+    }
+    const modelUsage = [...modelUsageMap.entries()]
+      .map(([modelName, count]) => ({ modelName, count }))
+      .sort((a, b) => b.count - a.count);
 
     // Daily volume: group jobs by date
     const dailyVolume = this.buildDailyVolume(analysisJobs, compareJobs, since, period);
@@ -176,7 +198,21 @@ export class AdminDashboardService {
       }),
     ]);
 
-    const userIds = [...new Set(analysisGroups.map((g) => g.userId))].slice(0, 5);
+    const activity = new Map<string, { analysisCount: number; compareCount: number }>();
+    for (const group of analysisGroups) {
+      activity.set(group.userId, { analysisCount: group._count._all, compareCount: 0 });
+    }
+    for (const group of compareGroups) {
+      const current = activity.get(group.userId) ?? { analysisCount: 0, compareCount: 0 };
+      current.compareCount = group._count._all;
+      activity.set(group.userId, current);
+    }
+    const userIds = [...activity.entries()]
+      .sort(
+        (a, b) => b[1].analysisCount + b[1].compareCount - (a[1].analysisCount + a[1].compareCount),
+      )
+      .slice(0, 5)
+      .map(([userId]) => userId);
     if (userIds.length === 0) return [];
 
     const users = await this.prisma.user.findMany({
@@ -184,16 +220,15 @@ export class AdminDashboardService {
       select: { id: true, name: true, email: true },
     });
 
-    const compareMap = new Map(compareGroups.map((g) => [g.userId, g._count._all]));
-
-    return analysisGroups.slice(0, 5).map((ag) => {
-      const user = users.find((u) => u.id === ag.userId);
+    return userIds.map((userId) => {
+      const user = users.find((u) => u.id === userId);
+      const counts = activity.get(userId)!;
       return {
-        userId: ag.userId,
+        userId,
         name: user?.name ?? 'Unknown',
         email: user?.email ?? '',
-        analysisCount: ag._count._all,
-        compareCount: compareMap.get(ag.userId) ?? 0,
+        analysisCount: counts.analysisCount,
+        compareCount: counts.compareCount,
       };
     });
   }

@@ -1,16 +1,43 @@
 import {
-  Controller, Post, Get, Body, Param, UseGuards,
-  UseInterceptors, UploadedFile, BadRequestException,
+  Controller,
+  Post,
+  Get,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { IsString, IsOptional, IsIn } from 'class-validator';
 import {
-  ApiTags, ApiSecurity, ApiOperation, ApiConsumes, ApiBody,
-  ApiParam, ApiProperty, ApiPropertyOptional, ApiOkResponse,
-  ApiCreatedResponse, ApiUnauthorizedResponse, ApiBadRequestResponse,
+  ArrayMaxSize,
+  ArrayMinSize,
+  ArrayUnique,
+  IsArray,
+  IsString,
+  IsOptional,
+  IsIn,
+  IsNotEmpty,
+} from 'class-validator';
+import {
+  ApiTags,
+  ApiSecurity,
+  ApiOperation,
+  ApiConsumes,
+  ApiBody,
+  ApiParam,
+  ApiProperty,
+  ApiPropertyOptional,
+  ApiOkResponse,
+  ApiQuery,
+  ApiCreatedResponse,
+  ApiUnauthorizedResponse,
+  ApiBadRequestResponse,
   ApiNotFoundResponse,
 } from '@nestjs/swagger';
 import { ApiKeyGuard } from '../auth/guards/api-key.guard';
@@ -19,6 +46,8 @@ import { DocumentsService } from '../documents/documents.service';
 import { AnalysisService } from '../analysis/analysis.service';
 import { CompareService } from '../compare/compare.service';
 import { getUploadDir } from '../common/storage';
+import { ModelsService } from '../models/models.service';
+import { PromptTemplatesService } from '../prompt-templates/prompt-templates.service';
 
 // ─── DTO / Response classes for Swagger ──────────────────────────────────────
 
@@ -35,7 +64,11 @@ class UploadDocumentResponse {
   @ApiProperty({ example: 204800, description: 'File size in bytes' })
   fileSize!: number;
 
-  @ApiProperty({ enum: ['pending', 'success', 'failed'], example: 'pending', description: 'Text extraction status' })
+  @ApiProperty({
+    enum: ['pending', 'success', 'failed'],
+    example: 'pending',
+    description: 'Text extraction status',
+  })
   textExtractionStatus!: string;
 
   @ApiProperty({ example: '2026-05-10T08:00:00.000Z' })
@@ -44,7 +77,10 @@ class UploadDocumentResponse {
 
 class RunAnalysisBody {
   @IsString()
-  @ApiProperty({ example: 'clxyz123', description: 'Document ID returned from the upload endpoint' })
+  @ApiProperty({
+    example: 'clxyz123',
+    description: 'Document ID returned from the upload endpoint',
+  })
   documentId!: string;
 
   @IsString()
@@ -53,12 +89,18 @@ class RunAnalysisBody {
 
   @IsOptional()
   @IsString()
-  @ApiPropertyOptional({ example: 'cltemplate456', description: 'Field template ID (uses system default if omitted)' })
+  @ApiPropertyOptional({
+    example: 'cltemplate456',
+    description: 'Field template ID (uses system default if omitted)',
+  })
   fieldTemplateId?: string;
 
   @IsOptional()
   @IsString()
-  @ApiPropertyOptional({ example: 'clprompt789', description: 'Prompt template ID (uses system default if omitted)' })
+  @ApiPropertyOptional({
+    example: 'clprompt789',
+    description: 'Prompt template ID (uses system default if omitted)',
+  })
   promptTemplateId?: string;
 
   @IsOptional()
@@ -99,6 +141,32 @@ class RiskAnalysisParsed {
   riskAnalysis!: string;
 }
 
+class TokenUsageResponse {
+  @ApiProperty({ example: 12400 })
+  inputTokens!: number;
+
+  @ApiProperty({ example: 1800 })
+  outputTokens!: number;
+
+  @ApiProperty({ example: 14200 })
+  totalTokens!: number;
+
+  @ApiPropertyOptional({ example: 800 })
+  cachedInputTokens?: number;
+
+  @ApiPropertyOptional({ example: 450 })
+  reasoningTokens?: number;
+
+  @ApiPropertyOptional({ example: 0 })
+  cacheCreationInputTokens?: number;
+
+  @ApiPropertyOptional({ example: 0 })
+  cacheReadInputTokens?: number;
+
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
+  stages?: Record<string, unknown>;
+}
+
 class RunAnalysisResponse {
   @ApiProperty({ example: 'cljob111' })
   analysisJobId!: string;
@@ -111,52 +179,45 @@ class RunAnalysisResponse {
 
   @ApiProperty({ type: RiskAnalysisParsed })
   riskAnalysisResult!: RiskAnalysisParsed;
+
+  @ApiPropertyOptional({ type: TokenUsageResponse, nullable: true })
+  tokenUsage?: TokenUsageResponse | null;
 }
 
 class RunCompareBody {
-  @IsString()
-  @ApiProperty({ example: 'cldocOld', description: 'Document ID of the original (old) contract' })
-  oldDocumentId!: string;
+  @IsArray()
+  @ArrayMinSize(2)
+  @ArrayMaxSize(5)
+  @ArrayUnique()
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  @ApiProperty({
+    type: [String],
+    minItems: 2,
+    maxItems: 5,
+    uniqueItems: true,
+    example: ['cldoc1', 'cldoc2'],
+    description: 'Ordered document IDs. Document 1 is the baseline in the default template.',
+  })
+  documentIds!: string[];
 
   @IsString()
-  @ApiProperty({ example: 'cldocNew', description: 'Document ID of the revised (new) contract' })
-  newDocumentId!: string;
+  @IsNotEmpty()
+  @ApiProperty({ example: 'gpt-5.4', description: 'Model name returned by GET /v1/models' })
+  model!: string;
 
   @IsOptional()
-  @IsIn(['unified', 'side_by_side'])
+  @IsString()
   @ApiPropertyOptional({
-    enum: ['unified', 'side_by_side'],
-    default: 'side_by_side',
-    description: 'Diff display mode',
+    example: 'clprompt789',
+    description: 'Contract-comparison prompt template ID; uses the system default if omitted',
   })
-  diffMode?: 'unified' | 'side_by_side';
-}
+  promptTemplateId?: string;
 
-class DiffChunk {
-  @ApiProperty({ enum: ['added', 'removed', 'unchanged'] })
-  type!: string;
-
-  @ApiProperty({ type: [String], example: ['line 1', 'line 2'] })
-  lines!: string[];
-}
-
-class DiffStats {
-  @ApiProperty({ example: 5 })
-  added!: number;
-
-  @ApiProperty({ example: 3 })
-  removed!: number;
-
-  @ApiProperty({ example: 120 })
-  unchanged!: number;
-}
-
-class DiffResult {
-  @ApiProperty({ type: [DiffChunk] })
-  chunks!: DiffChunk[];
-
-  @ApiProperty({ type: DiffStats })
-  stats!: DiffStats;
+  @IsOptional()
+  @IsIn(['none', 'low', 'medium', 'high', 'xhigh'])
+  @ApiPropertyOptional({ enum: ['none', 'low', 'medium', 'high', 'xhigh'] })
+  reasoningEffort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh';
 }
 
 class RunCompareResponse {
@@ -166,11 +227,62 @@ class RunCompareResponse {
   @ApiProperty({ enum: ['success', 'failed'], example: 'success' })
   status!: string;
 
-  @ApiProperty({ enum: ['unified', 'side_by_side'], example: 'side_by_side' })
-  diffMode!: string;
+  @ApiProperty({ description: 'AI-generated Markdown result' })
+  analysisResult!: string;
 
-  @ApiProperty({ type: DiffResult })
-  diffResult!: DiffResult;
+  @ApiProperty({ example: { analysisMs: 12345 } })
+  timings!: { analysisMs: number };
+
+  @ApiPropertyOptional({ type: TokenUsageResponse, nullable: true })
+  tokenUsage?: TokenUsageResponse | null;
+}
+
+class CompareDocumentResponse {
+  @ApiProperty({ example: 'cldoc1' })
+  id!: string;
+
+  @ApiProperty({ example: 'contract-v1.pdf' })
+  fileName!: string;
+}
+
+class CompareJobDocumentResponse {
+  @ApiProperty({ example: 0 })
+  sortOrder!: number;
+
+  @ApiProperty({ type: CompareDocumentResponse })
+  document!: CompareDocumentResponse;
+}
+
+class CompareJobResponse {
+  @ApiProperty({ example: 'clcompare222' })
+  id!: string;
+
+  @ApiProperty({ enum: ['pending', 'running', 'success', 'failed'] })
+  status!: string;
+
+  @ApiProperty({ example: 'gpt-5.4' })
+  modelName!: string;
+
+  @ApiProperty({ example: 'medium' })
+  reasoningEffort!: string;
+
+  @ApiPropertyOptional({ example: 'clprompt789', nullable: true })
+  promptTemplateId?: string | null;
+
+  @ApiProperty({ description: 'Prompt template content captured when the task was started' })
+  promptSnapshotText!: string;
+
+  @ApiProperty({ type: [CompareJobDocumentResponse] })
+  documents!: CompareJobDocumentResponse[];
+
+  @ApiPropertyOptional({ description: 'AI-generated Markdown result', nullable: true })
+  resultText?: string | null;
+
+  @ApiPropertyOptional({ example: 12345, nullable: true })
+  analysisMs?: number | null;
+
+  @ApiPropertyOptional({ type: TokenUsageResponse, nullable: true })
+  tokenUsage?: TokenUsageResponse | null;
 }
 
 class ErrorResponse {
@@ -193,7 +305,37 @@ export class ExternalApiController {
     private documentsService: DocumentsService,
     private analysisService: AnalysisService,
     private compareService: CompareService,
+    private modelsService: ModelsService,
+    private promptTemplatesService: PromptTemplatesService,
   ) {}
+
+  @Get('models')
+  @ApiOperation({ summary: 'List enabled AI models' })
+  @ApiOkResponse({ description: 'Enabled model catalog' })
+  listModels() {
+    return this.modelsService.getModels();
+  }
+
+  @Get('prompt-templates')
+  @ApiOperation({ summary: 'List prompt templates available to the API key owner' })
+  @ApiQuery({ name: 'type', enum: ['contract_comparison'], required: false })
+  @ApiOkResponse({ description: 'Prompt template selection metadata' })
+  async listPromptTemplates(
+    @CurrentUser() user: AuthUser,
+    @Query('type') type = 'contract_comparison',
+  ) {
+    if (type !== 'contract_comparison') {
+      throw new BadRequestException('External API only exposes contract_comparison templates');
+    }
+    const templates = await this.promptTemplatesService.listForUser(user.userId, type);
+    return templates.map(({ id, name, templateType, isDefault, scope }) => ({
+      id,
+      name,
+      templateType,
+      isDefault,
+      scope,
+    }));
+  }
 
   @Post('documents/upload')
   @ApiOperation({
@@ -246,10 +388,7 @@ export class ExternalApiController {
   @ApiBody({ type: RunAnalysisBody })
   @ApiCreatedResponse({ description: 'Analysis completed', type: RunAnalysisResponse })
   @ApiBadRequestResponse({ description: 'Document text is empty or AI returned invalid response' })
-  runAnalysis(
-    @CurrentUser() user: AuthUser,
-    @Body() body: RunAnalysisBody,
-  ) {
+  runAnalysis(@CurrentUser() user: AuthUser, @Body() body: RunAnalysisBody) {
     return this.analysisService.run(
       user.userId,
       body.documentId,
@@ -276,25 +415,29 @@ export class ExternalApiController {
   @ApiOperation({
     summary: 'Run contract comparison',
     description:
-      'Computes a line-level diff between two uploaded contract documents. ' +
-      'Returns structured diff chunks (added / removed / unchanged lines) and summary statistics.',
+      'Runs prompt-driven AI analysis over 2–5 uploaded contracts in the supplied order. ' +
+      'Returns a Markdown result synchronously.',
   })
   @ApiBody({ type: RunCompareBody })
   @ApiCreatedResponse({ description: 'Comparison completed', type: RunCompareResponse })
-  runCompare(
-    @CurrentUser() user: AuthUser,
-    @Body() body: RunCompareBody,
-  ) {
-    return this.compareService.run(user.userId, body.oldDocumentId, body.newDocumentId, body.diffMode);
+  runCompare(@CurrentUser() user: AuthUser, @Body() body: RunCompareBody) {
+    return this.compareService.run(
+      user.userId,
+      body.documentIds,
+      body.model,
+      body.promptTemplateId,
+      body.reasoningEffort,
+    );
   }
 
   @Get('compare/:id')
   @ApiOperation({
     summary: 'Get compare job result',
-    description: 'Retrieve a previously created compare job and its diff results by job ID.',
+    description:
+      'Retrieve a previously created compare job, its ordered documents, Markdown result, timing, and token usage by job ID.',
   })
   @ApiParam({ name: 'id', description: 'Compare job ID', example: 'clcompare222' })
-  @ApiOkResponse({ description: 'Compare job found', type: RunCompareResponse })
+  @ApiOkResponse({ description: 'Compare job found', type: CompareJobResponse })
   @ApiNotFoundResponse({ description: 'Compare job not found' })
   getCompare(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.compareService.findOne(id, user.userId);

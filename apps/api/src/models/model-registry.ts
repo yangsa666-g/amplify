@@ -1,6 +1,9 @@
 export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high' | 'xhigh';
 export type ModelProvider = 'openai' | 'claude';
 export type ModelIcon = 'openai' | 'claude';
+export type ModelSource = 'environment' | 'custom';
+export type OpenAICompatibleProtocol = 'chat_completions' | 'responses';
+export type CredentialStatus = 'ready' | 'master_key_missing' | 'decrypt_failed';
 
 export interface ModelProviderDefinition {
   provider: ModelProvider;
@@ -25,6 +28,38 @@ export interface ModelCatalogEntry {
   defaultReasoningEffort: ReasoningEffort;
   sortOrder: number;
 }
+
+export interface AdminModelCatalogEntry extends ModelCatalogEntry {
+  source: ModelSource;
+  endpoint?: string;
+  upstreamModelName?: string;
+  apiProtocol?: OpenAICompatibleProtocol;
+  hasApiKey?: boolean;
+  credentialStatus?: CredentialStatus;
+}
+
+export interface OpenAICompatibleConnection {
+  endpoint: string;
+  apiKey: string;
+  upstreamModelName: string;
+  apiProtocol: OpenAICompatibleProtocol;
+  supportsReasoning: boolean;
+}
+
+export type ResolvedModel =
+  | {
+      source: 'environment';
+      provider: ModelProvider;
+      modelName: string;
+      supportsReasoning: boolean;
+      reasoningEffort: ReasoningEffort;
+    }
+  | ({
+      source: 'custom';
+      provider: 'openai';
+      modelName: string;
+      reasoningEffort: ReasoningEffort;
+    } & OpenAICompatibleConnection);
 
 export const MODEL_PROVIDER_REGISTRY: Record<ModelProvider, ModelProviderDefinition> = {
   openai: {

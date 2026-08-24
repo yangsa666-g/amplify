@@ -5,6 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { TemplateType } from '../../generated/prisma/client';
 
 @Injectable()
 export class PromptTemplatesService {
@@ -16,17 +17,25 @@ export class PromptTemplatesService {
     }
   }
 
+  private normalizeType(templateType: string): TemplateType {
+    if (!Object.values(TemplateType).includes(templateType as TemplateType)) {
+      throw new BadRequestException('Unsupported prompt template type');
+    }
+    return templateType as TemplateType;
+  }
+
   // ─── User API ─────────────────────────────────────────────────────────────
 
   /** List all system templates + user's personal templates */
   async listForUser(userId: string, templateType = 'risk_analysis') {
+    const type = this.normalizeType(templateType);
     const [system, personal] = await Promise.all([
       this.prisma.promptTemplate.findMany({
-        where: { isSystem: true, templateType: templateType as any },
+        where: { isSystem: true, templateType: type },
         orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
       }),
       this.prisma.promptTemplate.findMany({
-        where: { userId, isSystem: false, templateType: templateType as any },
+        where: { userId, isSystem: false, templateType: type },
         orderBy: { updatedAt: 'desc' },
       }),
     ]);
@@ -37,17 +46,21 @@ export class PromptTemplatesService {
   }
 
   /** Get a single template by ID; accessible if it's system or owned by user */
-  async getById(id: string, userId: string) {
+  async getById(id: string, userId: string, expectedType?: string) {
     const tmpl = await this.prisma.promptTemplate.findUnique({ where: { id } });
     if (!tmpl) throw new NotFoundException('Prompt template not found');
     if (!tmpl.isSystem && tmpl.userId !== userId) throw new ForbiddenException();
+    if (expectedType && tmpl.templateType !== this.normalizeType(expectedType)) {
+      throw new BadRequestException('Prompt template type does not match this operation');
+    }
     return { ...tmpl, scope: tmpl.isSystem ? 'system' : ('personal' as const) };
   }
 
   /** Get the system default (used as fallback when no template ID is provided) */
   async getSystemDefault(templateType = 'risk_analysis') {
+    const type = this.normalizeType(templateType);
     const tmpl = await this.prisma.promptTemplate.findFirst({
-      where: { isSystem: true, isDefault: true, templateType: templateType as any },
+      where: { isSystem: true, isDefault: true, templateType: type },
     });
     if (!tmpl) throw new NotFoundException('No system default prompt template found');
     return { ...tmpl, scope: 'system' as const };
@@ -59,13 +72,14 @@ export class PromptTemplatesService {
     data: { name: string; content: string },
     templateType = 'risk_analysis',
   ) {
+    const type = this.normalizeType(templateType);
     this.validate(data.content);
     return this.prisma.promptTemplate.create({
       data: {
         userId,
         name: data.name,
         content: data.content,
-        templateType: templateType as any,
+        templateType: type,
         isDefault: false,
         isSystem: false,
       },
@@ -117,8 +131,9 @@ export class PromptTemplatesService {
 
   /** List all system templates */
   async listSystemTemplates(templateType = 'risk_analysis') {
+    const type = this.normalizeType(templateType);
     return this.prisma.promptTemplate.findMany({
-      where: { isSystem: true, templateType: templateType as any },
+      where: { isSystem: true, templateType: type },
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
     });
   }
@@ -128,12 +143,13 @@ export class PromptTemplatesService {
     data: { name: string; content: string },
     templateType = 'risk_analysis',
   ) {
+    const type = this.normalizeType(templateType);
     this.validate(data.content);
     return this.prisma.promptTemplate.create({
       data: {
         name: data.name,
         content: data.content,
-        templateType: templateType as any,
+        templateType: type,
         isSystem: true,
         isDefault: false,
       },
@@ -163,8 +179,12 @@ export class PromptTemplatesService {
   async setSystemDefault(id: string, templateType = 'risk_analysis') {
     const existing = await this.prisma.promptTemplate.findUnique({ where: { id } });
     if (!existing || !existing.isSystem) throw new NotFoundException('System template not found');
+    const type = this.normalizeType(templateType);
+    if (existing.templateType !== type) {
+      throw new BadRequestException('Prompt template type does not match this operation');
+    }
     await this.prisma.promptTemplate.updateMany({
-      where: { isSystem: true, isDefault: true, templateType: templateType as any },
+      where: { isSystem: true, isDefault: true, templateType: type },
       data: { isDefault: false },
     });
     return this.prisma.promptTemplate.update({ where: { id }, data: { isDefault: true } });

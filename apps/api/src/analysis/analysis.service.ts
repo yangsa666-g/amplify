@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { AzureOpenAIService } from './azure-openai.service';
-import { AnthropicService } from './anthropic.service';
+import { AiService } from './ai.service';
+import { aggregateTokenUsage, type AiChatResult, type TokenUsage } from './token-usage';
 import { FieldTemplatesService } from '../field-templates/field-templates.service';
 import { PromptTemplatesService } from '../prompt-templates/prompt-templates.service';
 import { DocumentsService } from '../documents/documents.service';
@@ -173,17 +173,12 @@ function buildRiskAnalysisPrompt(templateContent: string, contractText: string):
 export class AnalysisService {
   constructor(
     private prisma: PrismaService,
-    private azureAI: AzureOpenAIService,
-    private anthropicAI: AnthropicService,
+    private ai: AiService,
     private fieldTemplates: FieldTemplatesService,
     private promptTemplates: PromptTemplatesService,
     private documents: DocumentsService,
     private models: ModelsService,
   ) {}
-
-  private async selectAI(model: string): Promise<AzureOpenAIService | AnthropicService> {
-    return (await this.models.getProvider(model)) === 'claude' ? this.anthropicAI : this.azureAI;
-  }
 
   async run(
     userId: string,
@@ -193,10 +188,8 @@ export class AnalysisService {
     promptTemplateId?: string,
     reasoningEffort?: ReasoningEffort,
   ) {
-    const resolvedReasoningEffort = await this.models.normalizeReasoningEffort(
-      model,
-      reasoningEffort,
-    );
+    const resolvedModel = await this.models.resolveForExecution(model, reasoningEffort);
+    const resolvedReasoningEffort = resolvedModel.reasoningEffort;
 
     // 1. Load document text (and the OCR duration recorded at upload time)
     const contractText = await this.documents.getExtractedText(documentId, userId);
@@ -212,7 +205,7 @@ export class AnalysisService {
       ? await this.fieldTemplates.getById(fieldTemplateId, userId)
       : await this.fieldTemplates.getSystemDefault();
     const promptTemplate = promptTemplateId
-      ? await this.promptTemplates.getById(promptTemplateId, userId)
+      ? await this.promptTemplates.getById(promptTemplateId, userId, 'risk_analysis')
       : await this.promptTemplates.getSystemDefault('risk_analysis');
 
     // 3. Build field extraction prompt
@@ -253,23 +246,38 @@ export class AnalysisService {
       },
     });
 
+    let fieldExtractionMs: number | null = null;
+    let riskAnalysisMs: number | null = null;
+    let fieldTokenUsage: TokenUsage | null = null;
+    let riskTokenUsage: TokenUsage | null = null;
+
     try {
-      // 6. Field extraction + risk analysis in parallel, timing each call
-      //    separately (they run concurrently, so these durations overlap).
-      const ai = await this.selectAI(model);
-      const timeIt = async <T>(fn: () => Promise<T>): Promise<{ result: T; ms: number }> => {
+      // Field extraction and risk analysis run concurrently. allSettled lets us
+      // retain timing/usage from one paid call if the other call fails.
+      const timeIt = async (
+        fn: () => Promise<AiChatResult>,
+      ): Promise<{ result: AiChatResult | null; error: unknown; ms: number }> => {
         const start = Date.now();
-        const result = await fn();
-        return { result, ms: Date.now() - start };
+        try {
+          return { result: await fn(), error: null, ms: Date.now() - start };
+        } catch (error) {
+          return { result: null, error, ms: Date.now() - start };
+        }
       };
-      const [fieldTimed, riskTimed] = await Promise.all([
-        timeIt(() => ai.chat(model, fieldPrompt, resolvedReasoningEffort)),
-        timeIt(() => ai.chat(model, riskPrompt, resolvedReasoningEffort)),
+      const [fieldCall, riskCall] = await Promise.all([
+        timeIt(() => this.ai.chat(resolvedModel, fieldPrompt)),
+        timeIt(() => this.ai.chat(resolvedModel, riskPrompt)),
       ]);
-      const rawFieldResult = fieldTimed.result;
-      const riskResult = riskTimed.result;
-      const fieldExtractionMs = fieldTimed.ms;
-      const riskAnalysisMs = riskTimed.ms;
+
+      fieldExtractionMs = fieldCall.ms;
+      riskAnalysisMs = riskCall.ms;
+      fieldTokenUsage = fieldCall.result?.usage ?? null;
+      riskTokenUsage = riskCall.result?.usage ?? null;
+      if (fieldCall.error) throw fieldCall.error;
+      if (riskCall.error) throw riskCall.error;
+
+      const rawFieldResult = fieldCall.result!.text;
+      const riskResult = riskCall.result!.text;
 
       let fieldExtractionResult: any;
       try {
@@ -289,8 +297,16 @@ export class AnalysisService {
 
       await this.prisma.analysisJob.update({
         where: { id: job.id },
-        data: { status: 'success', fieldExtractionMs, riskAnalysisMs },
+        data: {
+          status: 'success',
+          fieldExtractionMs,
+          riskAnalysisMs,
+          ...(fieldTokenUsage ? { fieldExtractionTokenUsage: fieldTokenUsage as any } : {}),
+          ...(riskTokenUsage ? { riskAnalysisTokenUsage: riskTokenUsage as any } : {}),
+        },
       });
+
+      const totalUsage = aggregateTokenUsage([fieldTokenUsage, riskTokenUsage]);
 
       return {
         analysisJobId: job.id,
@@ -298,11 +314,27 @@ export class AnalysisService {
         fieldExtractionResult,
         riskAnalysisResult: parseRiskAnalysis(riskResult),
         timings: { ocrMs, fieldExtractionMs, riskAnalysisMs },
+        tokenUsage: totalUsage
+          ? {
+              ...totalUsage,
+              stages: {
+                fieldExtraction: fieldTokenUsage,
+                riskAnalysis: riskTokenUsage,
+              },
+            }
+          : null,
       };
     } catch (err: any) {
       await this.prisma.analysisJob.update({
         where: { id: job.id },
-        data: { status: 'failed', errorMessage: err.message },
+        data: {
+          status: 'failed',
+          errorMessage: err.message,
+          fieldExtractionMs,
+          riskAnalysisMs,
+          ...(fieldTokenUsage ? { fieldExtractionTokenUsage: fieldTokenUsage as any } : {}),
+          ...(riskTokenUsage ? { riskAnalysisTokenUsage: riskTokenUsage as any } : {}),
+        },
       });
       throw err;
     }
@@ -325,6 +357,11 @@ export class AnalysisService {
         job.riskAnalysisResult.resultText,
       );
     }
+
+    (job as any).tokenUsage = this.buildAnalysisTokenUsage(
+      job.fieldExtractionTokenUsage as TokenUsage | null,
+      job.riskAnalysisTokenUsage as TokenUsage | null,
+    );
 
     return job;
   }
@@ -354,8 +391,10 @@ export class AnalysisService {
     });
   }
 
-  async getFeedback(jobId: string, userId: string) {
-    const job = await this.prisma.analysisJob.findFirst({ where: { id: jobId, userId } });
+  async getFeedback(jobId: string, userId: string, role?: string) {
+    const job = await this.prisma.analysisJob.findFirst({
+      where: role === 'admin' ? { id: jobId } : { id: jobId, userId },
+    });
     if (!job) throw new NotFoundException('Analysis job not found');
 
     return this.prisma.analysisJobFeedback.findMany({
@@ -363,5 +402,13 @@ export class AnalysisService {
       include: { user: { select: { id: true, name: true } } },
       orderBy: { createdAt: 'asc' },
     });
+  }
+
+  private buildAnalysisTokenUsage(
+    fieldExtraction: TokenUsage | null,
+    riskAnalysis: TokenUsage | null,
+  ) {
+    const total = aggregateTokenUsage([fieldExtraction, riskAnalysis]);
+    return total ? { ...total, stages: { fieldExtraction, riskAnalysis } } : null;
   }
 }

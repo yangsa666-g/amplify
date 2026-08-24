@@ -37,6 +37,7 @@ import { useAnalysisStore } from '../stores/analysisStore';
 import AnalysisProgress from '../components/AnalysisProgress';
 import UploadProgress from '../components/UploadProgress';
 import RunTimings from '../components/RunTimings';
+import TokenUsageSummary from '../components/TokenUsageSummary';
 import { formatDuration } from '../utils/duration';
 import { formatDateTime } from '../utils/format';
 import { message } from '../utils/message';
@@ -183,7 +184,7 @@ export default function AnalysisPage() {
     isLoading: promptTemplatesLoading,
     isError: promptTemplatesError,
   } = useQuery({
-    queryKey: ['prompt-templates'],
+    queryKey: ['prompt-templates', 'risk_analysis'],
     queryFn: () => listPromptTemplates().then((r) => r.data),
   });
 
@@ -597,6 +598,9 @@ export default function AnalysisPage() {
               <RunTimings timings={result.timings} />
             </div>
           )}
+          <div style={{ marginBottom: 12 }}>
+            <TokenUsageSummary usage={result.tokenUsage} />
+          </div>
           <Tabs
             items={[
               {

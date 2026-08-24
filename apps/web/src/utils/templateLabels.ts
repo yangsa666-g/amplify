@@ -5,6 +5,10 @@ export function templateDisplayName(t: TFunction, name: string) {
   const label = name
     .replace(/^Default Contract Fields/, t('templateNames.defaultContractFields'))
     .replace(/^Default Risk Analysis Prompt/, t('templateNames.defaultRiskAnalysisPrompt'))
+    .replace(
+      /^Default Contract Comparison Prompt/,
+      t('templateNames.defaultContractComparisonPrompt'),
+    )
     .replace(/\(copy\)/g, copySuffix);
 
   return copySuffix.startsWith('（') ? label.replace(/\s+（/g, '（') : label;

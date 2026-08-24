@@ -35,13 +35,9 @@ enum JobStatus {
   failed
 }
 
-enum DiffMode {
-  unified
-  side_by_side
-}
-
 enum TemplateType {
   risk_analysis
+  contract_comparison
 }
 
 enum TemplateKind {
@@ -62,29 +58,30 @@ enum NotificationType {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  email        String     @unique
+  id           String       @id @default(cuid())
+  email        String       @unique
   name         String
-  passwordHash String?    @map("password_hash")
+  passwordHash String?      @map("password_hash")
   authProvider AuthProvider @default(local) @map("auth_provider")
-  entraOid     String?    @unique @map("entra_oid")
-  role         Role       @default(user)
-  status       UserStatus @default(active)
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
+  entraOid     String?      @unique @map("entra_oid")
+  role         Role         @default(user)
+  status       UserStatus   @default(active)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
 
-  documents       Document[]
-  analysisJobs    AnalysisJob[]
-  compareJobs     CompareJob[]
-  fieldTemplates  FieldTemplate[]
-  promptTemplates PromptTemplate[]
-  feedbacks       AnalysisJobFeedback[]
+  documents        Document[]
+  analysisJobs     AnalysisJob[]
+  compareJobs      CompareJob[]
+  fieldTemplates   FieldTemplate[]
+  promptTemplates  PromptTemplate[]
+  feedbacks        AnalysisJobFeedback[]
+  compareFeedbacks CompareJobFeedback[]
   templateRequests TemplateRequest[]
-  notifications   Notification[]
-  reviewedRequests TemplateRequest[] @relation("ReviewedBy")
-  refreshTokens   RefreshToken[]
-  apiKeys         ApiKey[]
-  auditLogs       AuditLog[]
+  notifications    Notification[]
+  reviewedRequests TemplateRequest[]     @relation("ReviewedBy")
+  refreshTokens    RefreshToken[]
+  apiKeys          ApiKey[]
+  auditLogs        AuditLog[]
 
   @@map("users")
 }
@@ -98,9 +95,9 @@ model FieldTemplate {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  user         User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items        FieldTemplateItem[]
-  analysisJobs AnalysisJob[]
+  user             User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items            FieldTemplateItem[]
+  analysisJobs     AnalysisJob[]
   templateRequests TemplateRequest[]
 
   @@map("field_templates")
@@ -131,51 +128,53 @@ model PromptTemplate {
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
 
-  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  analysisJobs AnalysisJob[]
+  user             User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analysisJobs     AnalysisJob[]
+  compareJobs      CompareJob[]
   templateRequests TemplateRequest[]
 
   @@map("prompt_templates")
 }
 
 model Document {
-  id                    String               @id @default(cuid())
-  userId                String               @map("user_id")
-  fileName              String               @map("file_name")
-  fileType              String               @map("file_type")
-  fileSize              Int                  @map("file_size")
-  storagePath           String               @map("storage_path")
-  extractedText         String?              @map("extracted_text")
-  textExtractionStatus  TextExtractionStatus @default(pending) @map("text_extraction_status")
-  extractionError       String?              @map("extraction_error")
-  extractionMs          Int?                 @map("extraction_ms")
-  createdAt             DateTime             @default(now()) @map("created_at")
-  updatedAt             DateTime             @updatedAt @map("updated_at")
+  id                   String               @id @default(cuid())
+  userId               String               @map("user_id")
+  fileName             String               @map("file_name")
+  fileType             String               @map("file_type")
+  fileSize             Int                  @map("file_size")
+  storagePath          String               @map("storage_path")
+  extractedText        String?              @map("extracted_text")
+  textExtractionStatus TextExtractionStatus @default(pending) @map("text_extraction_status")
+  extractionError      String?              @map("extraction_error")
+  extractionMs         Int?                 @map("extraction_ms")
+  createdAt            DateTime             @default(now()) @map("created_at")
+  updatedAt            DateTime             @updatedAt @map("updated_at")
 
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  analysisJobs    AnalysisJob[]
-  oldCompareJobs  CompareJob[]  @relation("OldDocument")
-  newCompareJobs  CompareJob[]  @relation("NewDocument")
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analysisJobs AnalysisJob[]
+  compareJobs  CompareJobDocument[]
 
   @@map("documents")
 }
 
 model AnalysisJob {
-  id                        String     @id @default(cuid())
-  userId                    String     @map("user_id")
-  documentId                String     @map("document_id")
-  modelName                 String     @map("model_name")
-  reasoningEffort           String     @default("medium") @map("reasoning_effort")
-  fieldTemplateId           String?    @map("field_template_id")
-  promptTemplateId          String?    @map("prompt_template_id")
-  fieldTemplateSnapshotJson Json?      @map("field_template_snapshot_json")
-  promptSnapshotText        String?    @map("prompt_snapshot_text")
-  status                    JobStatus  @default(pending)
-  errorMessage              String?    @map("error_message")
-  fieldExtractionMs         Int?       @map("field_extraction_ms")
-  riskAnalysisMs            Int?       @map("risk_analysis_ms")
-  createdAt                 DateTime   @default(now()) @map("created_at")
-  updatedAt                 DateTime   @updatedAt @map("updated_at")
+  id                        String    @id @default(cuid())
+  userId                    String    @map("user_id")
+  documentId                String    @map("document_id")
+  modelName                 String    @map("model_name")
+  reasoningEffort           String    @default("medium") @map("reasoning_effort")
+  fieldTemplateId           String?   @map("field_template_id")
+  promptTemplateId          String?   @map("prompt_template_id")
+  fieldTemplateSnapshotJson Json?     @map("field_template_snapshot_json")
+  promptSnapshotText        String?   @map("prompt_snapshot_text")
+  status                    JobStatus @default(pending)
+  errorMessage              String?   @map("error_message")
+  fieldExtractionMs         Int?      @map("field_extraction_ms")
+  riskAnalysisMs            Int?      @map("risk_analysis_ms")
+  fieldExtractionTokenUsage Json?     @map("field_extraction_token_usage")
+  riskAnalysisTokenUsage    Json?     @map("risk_analysis_token_usage")
+  createdAt                 DateTime  @default(now()) @map("created_at")
+  updatedAt                 DateTime  @updatedAt @map("updated_at")
 
   user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   document              Document               @relation(fields: [documentId], references: [id], onDelete: Cascade)
@@ -211,29 +210,62 @@ model RiskAnalysisResult {
 }
 
 model CompareJob {
-  id             String    @id @default(cuid())
-  userId         String    @map("user_id")
-  oldDocumentId  String    @map("old_document_id")
-  newDocumentId  String    @map("new_document_id")
-  diffMode       DiffMode  @default(side_by_side) @map("diff_mode")
-  status         JobStatus @default(pending)
-  diffResultJson Json?     @map("diff_result_json")
-  errorMessage   String?   @map("error_message")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  id                 String    @id @default(cuid())
+  userId             String    @map("user_id")
+  modelName          String    @map("model_name")
+  reasoningEffort    String    @default("medium") @map("reasoning_effort")
+  promptTemplateId   String?   @map("prompt_template_id")
+  promptSnapshotText String    @map("prompt_snapshot_text")
+  status             JobStatus @default(pending)
+  resultText         String?   @map("result_text")
+  analysisMs         Int?      @map("analysis_ms")
+  tokenUsageJson     Json?     @map("token_usage_json")
+  errorMessage       String?   @map("error_message")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  oldDocument Document @relation("OldDocument", fields: [oldDocumentId], references: [id], onDelete: Cascade)
-  newDocument Document @relation("NewDocument", fields: [newDocumentId], references: [id], onDelete: Cascade)
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promptTemplate PromptTemplate?      @relation(fields: [promptTemplateId], references: [id], onDelete: SetNull)
+  documents      CompareJobDocument[]
+  feedbacks      CompareJobFeedback[]
 
   @@map("compare_jobs")
+}
+
+model CompareJobDocument {
+  compareJobId String @map("compare_job_id")
+  documentId   String @map("document_id")
+  sortOrder    Int    @map("sort_order")
+
+  compareJob CompareJob @relation(fields: [compareJobId], references: [id], onDelete: Cascade)
+  document   Document   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@id([compareJobId, documentId])
+  @@unique([compareJobId, sortOrder])
+  @@map("compare_job_documents")
+}
+
+model CompareJobFeedback {
+  id           String   @id @default(cuid())
+  compareJobId String   @map("compare_job_id")
+  userId       String   @map("user_id")
+  rating       Int
+  comment      String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  compareJob CompareJob @relation(fields: [compareJobId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([compareJobId, userId])
+  @@map("compare_job_feedbacks")
 }
 
 model AnalysisJobFeedback {
   id            String   @id @default(cuid())
   analysisJobId String   @map("analysis_job_id")
   userId        String   @map("user_id")
-  rating        Int      // 1 = thumbs up, -1 = thumbs down
+  rating        Int // 1 = thumbs up, -1 = thumbs down
   comment       String?
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
@@ -246,35 +278,35 @@ model AnalysisJobFeedback {
 }
 
 model TemplateRequest {
-  id                String        @id @default(cuid())
-  userId            String        @map("user_id")
-  templateKind      TemplateKind  @map("template_kind")
-  fieldTemplateId   String?       @map("field_template_id")
-  promptTemplateId  String?       @map("prompt_template_id")
-  status            RequestStatus @default(pending)
-  adminNote         String?       @map("admin_note")
-  reviewedById      String?       @map("reviewed_by_id")
-  createdAt         DateTime      @default(now()) @map("created_at")
-  updatedAt         DateTime      @updatedAt @map("updated_at")
+  id               String        @id @default(cuid())
+  userId           String        @map("user_id")
+  templateKind     TemplateKind  @map("template_kind")
+  fieldTemplateId  String?       @map("field_template_id")
+  promptTemplateId String?       @map("prompt_template_id")
+  status           RequestStatus @default(pending)
+  adminNote        String?       @map("admin_note")
+  reviewedById     String?       @map("reviewed_by_id")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
 
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reviewedBy      User?           @relation("ReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
-  fieldTemplate   FieldTemplate?  @relation(fields: [fieldTemplateId], references: [id], onDelete: SetNull)
-  promptTemplate  PromptTemplate? @relation(fields: [promptTemplateId], references: [id], onDelete: SetNull)
-  notifications   Notification[]
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy     User?           @relation("ReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  fieldTemplate  FieldTemplate?  @relation(fields: [fieldTemplateId], references: [id], onDelete: SetNull)
+  promptTemplate PromptTemplate? @relation(fields: [promptTemplateId], references: [id], onDelete: SetNull)
+  notifications  Notification[]
 
   @@map("template_requests")
 }
 
 model Notification {
-  id          String           @id @default(cuid())
-  userId      String           @map("user_id")
-  type        NotificationType
-  title       String
-  body        String
-  isRead      Boolean          @default(false) @map("is_read")
-  requestId   String?          @map("request_id")
-  createdAt   DateTime         @default(now()) @map("created_at")
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  title     String
+  body      String
+  isRead    Boolean          @default(false) @map("is_read")
+  requestId String?          @map("request_id")
+  createdAt DateTime         @default(now()) @map("created_at")
 
   user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   request TemplateRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
@@ -321,6 +353,20 @@ model ModelCatalogSetting {
   @@index([enabled, sortOrder])
   @@index([isDefault])
   @@map("model_catalog_settings")
+}
+
+model OpenAICompatibleModel {
+  id                String   @id @default(cuid())
+  name              String   @unique
+  endpoint          String
+  upstreamModelName String   @map("upstream_model_name")
+  apiProtocol       String   @default("chat_completions") @map("api_protocol")
+  encryptedApiKey   String   @map("encrypted_api_key")
+  supportsReasoning Boolean  @default(false) @map("supports_reasoning")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("openai_compatible_models")
 }
 
 model AuditLog {

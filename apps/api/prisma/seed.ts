@@ -128,6 +128,33 @@ The API supplies the contract text and controls the final response format.`,
     console.log('ℹ️  Default risk prompt already exists, skipping');
   }
 
+  const existingComparisonPrompt = await prisma.promptTemplate.findFirst({
+    where: {
+      isSystem: true,
+      isDefault: true,
+      templateType: TemplateType.contract_comparison,
+    },
+  });
+
+  if (!existingComparisonPrompt) {
+    await prisma.promptTemplate.create({
+      data: {
+        name: 'Default Contract Comparison Prompt',
+        templateType: TemplateType.contract_comparison,
+        isDefault: true,
+        isSystem: true,
+        content: `Compare the supplied contracts in detail. Treat Document 1 as the baseline and identify how each subsequent document differs from it.
+
+Cover material changes to obligations, rights, commercial terms, dates, liability, termination, compliance, and operational risk. Cite the relevant document number and clause or excerpt for every important finding. Highlight additions, removals, conflicts, and practical recommendations.
+
+Use clear Markdown headings, bullets, and tables where helpful. Base the analysis only on the supplied documents.`,
+      },
+    });
+    console.log('✅ Default contract comparison prompt created');
+  } else {
+    console.log('ℹ️  Default contract comparison prompt already exists, skipping');
+  }
+
   // Default admin user — seeded when SEED_ADMIN_EMAIL is set
   const adminEmail = process.env.SEED_ADMIN_EMAIL;
   const adminPassword = process.env.SEED_ADMIN_PASSWORD;

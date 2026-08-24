@@ -36,6 +36,16 @@ export default function AdminHistoryPage() {
     }
   }, [searchParams, data]);
 
+  useEffect(() => {
+    const compareId = searchParams.get('compareId');
+    if (!compareId || !data?.compareJobs) return;
+    const job = data.compareJobs.find((item) => item.id === compareId);
+    if (job) {
+      setSelectedCompare(job as CompareJob);
+      setCompareDrawerOpen(true);
+    }
+  }, [searchParams, data]);
+
   const handleClose = () => {
     setDrawerOpen(false);
     navigate('/admin/history', { replace: true });
@@ -50,8 +60,6 @@ export default function AdminHistoryPage() {
   const fileFilter = useTextFilter(['document', 'fileName']);
   const templateFilter = useTextFilter(['fieldTemplate', 'name']);
   const promptTemplateFilter = useTextFilter(['promptTemplate', 'name']);
-  const oldFileFilter = useTextFilter(['oldDocument', 'fileName']);
-  const newFileFilter = useTextFilter(['newDocument', 'fileName']);
 
   const analysisColumns: TableColumnsType<AnalysisJob> = [
     {
@@ -193,27 +201,38 @@ export default function AdminHistoryPage() {
       ...userFilter,
     },
     {
-      title: t('history.columns.oldFile'),
-      dataIndex: ['oldDocument', 'fileName'],
-      key: 'old',
-      ...oldFileFilter,
+      title: t('compare.documents'),
+      key: 'documents',
+      render: (_: unknown, record) =>
+        record.documents.map((item) => item.document.fileName).join(', '),
     },
     {
-      title: t('history.columns.newFile'),
-      dataIndex: ['newDocument', 'fileName'],
-      key: 'new',
-      ...newFileFilter,
+      title: t('history.columns.model'),
+      dataIndex: 'modelName',
+      key: 'model',
     },
     {
-      title: t('history.columns.mode'),
-      dataIndex: 'diffMode',
-      key: 'mode',
-      render: (m: string) => (m === 'unified' ? t('compare.unified') : t('compare.sideBySide')),
-      filters: [
-        { text: t('compare.unified'), value: 'unified' },
-        { text: t('compare.sideBySide'), value: 'side_by_side' },
-      ],
-      onFilter: (value: React.Key | boolean, record: CompareJob) => record.diffMode === value,
+      title: t('history.columns.promptTemplate'),
+      dataIndex: ['promptTemplate', 'name'],
+      key: 'promptTemplate',
+      render: (name?: string) => name || '-',
+    },
+    {
+      title: t('history.columns.effort'),
+      dataIndex: 'reasoningEffort',
+      key: 'reasoningEffort',
+      render: (effort: string) => effortLabel(t, effort),
+    },
+    {
+      title: t('history.columns.feedback'),
+      key: 'feedback',
+      render: (_: unknown, record) => {
+        const feedback = getFeedbackSummary(record.feedbacks);
+        if (feedback?.rating === 1) return <Tag color="green">{t('history.feedback.helpful')}</Tag>;
+        if (feedback?.rating === -1)
+          return <Tag color="red">{t('history.feedback.notHelpful')}</Tag>;
+        return feedback?.comment ? `💬 ${feedback.comment}` : null;
+      },
     },
     {
       title: t('history.columns.status'),
@@ -284,6 +303,7 @@ export default function AdminHistoryPage() {
                   onClick: () => {
                     setSelectedCompare(record as CompareJob);
                     setCompareDrawerOpen(true);
+                    navigate(`/admin/history?compareId=${record.id}`, { replace: true });
                   },
                   style: { cursor: 'pointer' },
                 })}
@@ -298,7 +318,10 @@ export default function AdminHistoryPage() {
       <CompareDetailDrawer
         job={selectedCompare}
         open={compareDrawerOpen}
-        onClose={() => setCompareDrawerOpen(false)}
+        onClose={() => {
+          setCompareDrawerOpen(false);
+          navigate('/admin/history', { replace: true });
+        }}
       />
     </>
   );
