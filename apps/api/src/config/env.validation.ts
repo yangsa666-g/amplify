@@ -7,6 +7,7 @@
  */
 
 import { decodeModelCredentialsKey } from '../models/model-credentials-key';
+import { normalizeDatabaseUrl } from './database-url';
 
 /** Placeholder/example values that must never be used as real secrets. */
 const WEAK_SECRETS = new Set([
@@ -32,7 +33,10 @@ export function validateEnv(env: Record<string, unknown>): Record<string, unknow
   const prod = isProduction(env);
 
   // ─── Always required ───────────────────────────────────────────────────────
-  const databaseUrl = asString(env.DATABASE_URL);
+  const databaseUrl = normalizeDatabaseUrl(asString(env.DATABASE_URL));
+  if (databaseUrl && databaseUrl !== env.DATABASE_URL) {
+    env.DATABASE_URL = databaseUrl;
+  }
   if (!databaseUrl) {
     errors.push('DATABASE_URL is required.');
   }

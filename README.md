@@ -202,6 +202,13 @@ make azure-deploy-app
 
 > **App settings (not `.env.azure`).** The container does **not** bundle `.env.azure`; the API reads its configuration from the App Service application settings (environment variables). Make sure `DATABASE_URL`, `JWT_SECRET`, and the Azure OpenAI / Document Intelligence keys are all set there.
 
+When Azure Database for PostgreSQL uses a Private Endpoint, set `DATABASE_URL` to
+`<server>.postgres.database.azure.com` — not
+`<server>.privatelink.postgres.database.azure.com`. The Private DNS zone resolves
+the standard hostname to the private IP, and the standard hostname matches the
+server's TLS certificate. The application also normalizes an existing private-link
+hostname for the API, migrations, and seed process during the transition.
+
 ### Troubleshooting
 
 **`502 Bad Gateway` on `/api/*` after a deploy.** nginx is up but the NestJS process isn't listening — almost always because the API crashed on startup. The most common cause is a missing or weak `JWT_SECRET` app setting (see [Startup validation](#startup-validation-fail-fast)). Inspect the logs and fix the setting:

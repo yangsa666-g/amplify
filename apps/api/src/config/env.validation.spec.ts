@@ -11,6 +11,20 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ ...base, NODE_ENV: 'development' })).not.toThrow();
   });
 
+  it('normalizes an Azure PostgreSQL Private Endpoint hostname', () => {
+    const env = {
+      ...base,
+      DATABASE_URL:
+        'postgresql://user:pass@dev-amplify-pg.privatelink.postgres.database.azure.com:5432/db?sslmode=require',
+    };
+
+    validateEnv(env);
+
+    expect(env.DATABASE_URL).toBe(
+      'postgresql://user:pass@dev-amplify-pg.postgres.database.azure.com:5432/db?sslmode=require',
+    );
+  });
+
   it('throws when DATABASE_URL is missing', () => {
     expect(() => validateEnv({ JWT_SECRET: base.JWT_SECRET })).toThrow(/DATABASE_URL/);
   });

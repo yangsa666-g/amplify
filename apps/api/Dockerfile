@@ -38,6 +38,7 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/generated ./apps/api/generated
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY --from=builder /app/apps/api/prisma.config.ts ./apps/api/prisma.config.ts
+COPY --from=builder /app/apps/api/src/config/database-url.ts ./apps/api/src/config/database-url.ts
 COPY --from=builder /app/apps/api/tsconfig.json ./apps/api/tsconfig.json
 
 WORKDIR /app/apps/api

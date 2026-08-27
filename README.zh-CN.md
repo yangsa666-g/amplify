@@ -200,6 +200,10 @@ make azure-deploy-app
 
 > **配置来自 App Settings（而非 `.env.azure`）。** 容器并**不会**打包 `.env.azure`；API 从 App Service 的应用设置（环境变量）中读取配置。请确保 `DATABASE_URL`、`JWT_SECRET` 以及 Azure OpenAI / Document Intelligence 的密钥都已在那里设置。
 
+使用 Azure Database for PostgreSQL 私有终结点时，`DATABASE_URL` 必须使用
+`<server>.postgres.database.azure.com`，而不是
+`<server>.privatelink.postgres.database.azure.com`。私有 DNS 区域会把标准主机名解析到私有 IP，且标准主机名能够匹配服务器 TLS 证书。为方便迁移，应用会在 API、迁移和种子流程中自动规范化已有的私有链接主机名。
+
 ### 故障排查
 
 **部署后 `/api/*` 返回 `502 Bad Gateway`。** 说明 nginx 正常但 NestJS 进程未在监听 —— 几乎都是 API 启动时崩溃所致，最常见的原因是 `JWT_SECRET` 应用设置缺失或过弱（见上方《启动校验》）。查看日志并修正该设置：
