@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2](https://github.com/shidafu666/amplify/compare/v0.5.1...v0.5.2) (2026-08-27)
+
+
+### Bug Fixes
+
+* **database:** normalize Azure PostgreSQL private link hosts ([#60](https://github.com/shidafu666/amplify/issues/60)) ([a36cb04](https://github.com/shidafu666/amplify/commit/a36cb04b89a64004611b14c7ef4c2dcb23bac69a))
+
 ## [0.5.1](https://github.com/shidafu666/amplify/compare/v0.5.0...v0.5.1) (2026-08-24)
 
 
