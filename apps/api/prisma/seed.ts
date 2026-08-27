@@ -2,8 +2,9 @@ import { PrismaClient, TemplateType } from '../generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import * as bcrypt from 'bcrypt';
+import { normalizeDatabaseUrl } from '../src/config/database-url';
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({ connectionString: normalizeDatabaseUrl(process.env.DATABASE_URL ?? '') });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
