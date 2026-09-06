@@ -1,9 +1,10 @@
-import { ModelIcon } from '@lobehub/icons';
+import { ApiOutlined, RobotOutlined } from '@ant-design/icons';
 import type { Model } from '../types';
 import { modelIconName } from '../utils/modelIcons';
 
 export function ModelProviderIcon({ modelName, size = 16 }: { modelName: string; size?: number }) {
-  return <ModelIcon model={modelName} type="color" size={size} />;
+  const Icon = modelName.toLowerCase().includes('claude') ? RobotOutlined : ApiOutlined;
+  return <Icon style={{ fontSize: size }} />;
 }
 
 export function ModelOptionLabel({ model }: { model: Model }) {

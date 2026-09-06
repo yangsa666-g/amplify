@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { buildComparisonPrompt, CompareService } from './compare.service';
+import type { AuthUser } from '../auth/decorators/current-user.decorator';
 
 const resolvedModel = {
   source: 'environment' as const,
@@ -8,6 +9,17 @@ const resolvedModel = {
   modelName: 'gpt-test',
   supportsReasoning: true,
   reasoningEffort: 'medium' as const,
+};
+
+const authUser: AuthUser = {
+  userId: 'user-1',
+  email: 'user@example.com',
+  name: 'User One',
+  role: 'user',
+  authProvider: 'local',
+  status: 'active',
+  organizationId: 'org-1',
+  selectedOrganizationId: 'org-1',
 };
 
 function makeService(documentCount = 2) {
@@ -48,7 +60,7 @@ describe('CompareService', () => {
   it.each([2, 5])('runs AI analysis for %i ordered documents', async (count) => {
     const { service, prisma, ai } = makeService(count);
     const ids = Array.from({ length: count }, (_, index) => `doc-${index + 1}`);
-    const result = await service.run('user-1', ids, 'gpt-test');
+    const result = await service.run(authUser, ids, 'gpt-test');
 
     expect(result.analysisResult).toBe('# Result');
     expect(result.tokenUsage?.totalTokens).toBe(120);
@@ -72,13 +84,13 @@ describe('CompareService', () => {
     [['doc-1', 'doc-1'], 'must be unique'],
   ])('rejects invalid document lists', async (documentIds, message) => {
     const { service } = makeService();
-    await expect(service.run('user-1', documentIds, 'gpt-test')).rejects.toThrow(message);
+    await expect(service.run(authUser, documentIds, 'gpt-test')).rejects.toThrow(message);
   });
 
   it('rejects missing or unauthorized documents', async () => {
     const { service, prisma } = makeService(1);
     prisma.document.findMany.mockResolvedValueOnce([]);
-    await expect(service.run('user-1', ['doc-1', 'doc-2'], 'gpt-test')).rejects.toBeInstanceOf(
+    await expect(service.run(authUser, ['doc-1', 'doc-2'], 'gpt-test')).rejects.toBeInstanceOf(
       NotFoundException,
     );
   });
@@ -101,7 +113,7 @@ describe('CompareService', () => {
         extractionError: 'OCR failed',
       },
     ]);
-    await expect(service.run('user-1', ['doc-1', 'doc-2'], 'gpt-test')).rejects.toBeInstanceOf(
+    await expect(service.run(authUser, ['doc-1', 'doc-2'], 'gpt-test')).rejects.toBeInstanceOf(
       BadRequestException,
     );
   });
@@ -113,9 +125,9 @@ describe('CompareService', () => {
     );
 
     await expect(
-      service.run('user-1', ['doc-1', 'doc-2'], 'gpt-test', 'risk-prompt'),
+      service.run(authUser, ['doc-1', 'doc-2'], 'gpt-test', 'risk-prompt'),
     ).rejects.toThrow('Prompt template type does not match');
-    expect(prompts.getById).toHaveBeenCalledWith('risk-prompt', 'user-1', 'contract_comparison');
+    expect(prompts.getById).toHaveBeenCalledWith('risk-prompt', authUser, 'contract_comparison');
   });
 });
 

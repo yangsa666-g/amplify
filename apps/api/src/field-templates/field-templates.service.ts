@@ -1,5 +1,7 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import type { AuthUser } from '../auth/decorators/current-user.decorator';
+import { requireOrganizationContext } from '../auth/access-context';
 
 type ItemInput = { fieldName: string; fieldDescription: string; sortOrder: number };
 
@@ -17,68 +19,77 @@ export class FieldTemplatesService {
     };
   }
 
-  // ─── User API ───────────────────────────────────────────────────────────────
-
-  /** List all system templates + this user's personal templates */
-  async listForUser(userId: string) {
-    const [system, personal] = await Promise.all([
-      this.prisma.fieldTemplate.findMany({
-        where: { isSystem: true },
-        include: this.includeItems,
-        orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
-      }),
-      this.prisma.fieldTemplate.findMany({
-        where: { userId, isSystem: false },
-        include: this.includeItems,
-        orderBy: { updatedAt: 'desc' },
-      }),
-    ]);
-    return [
-      ...system.map((t) => ({ ...t, scope: 'system' as const })),
-      ...personal.map((t) => ({ ...t, scope: 'personal' as const })),
-    ];
+  async listForUser(user: AuthUser) {
+    const ctx = requireOrganizationContext(user);
+    const templates = await this.prisma.fieldTemplate.findMany({
+      where: {
+        OR: [
+          { scope: 'platform' },
+          { scope: 'organization', organizationId: ctx.organizationId },
+          { scope: 'personal', organizationId: ctx.organizationId, userId: user.userId },
+        ],
+      },
+      include: this.includeItems,
+      orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }],
+    });
+    return templates.map((template) => this.withCompatScope(template));
   }
 
-  /** Get a single template by ID; accessible if it's system or owned by user */
-  async getById(id: string, userId: string) {
+  async getById(id: string, user: AuthUser) {
+    const ctx = requireOrganizationContext(user);
     const tmpl = await this.prisma.fieldTemplate.findUnique({
       where: { id },
       include: this.includeItems,
     });
     if (!tmpl) throw new NotFoundException('Field template not found');
-    if (!tmpl.isSystem && tmpl.userId !== userId) throw new ForbiddenException();
-    return { ...tmpl, scope: tmpl.isSystem ? 'system' : ('personal' as const) };
+    if (
+      tmpl.scope !== 'platform' &&
+      (tmpl.organizationId !== ctx.organizationId ||
+        (tmpl.scope === 'personal' && tmpl.userId !== user.userId))
+    ) {
+      throw new ForbiddenException();
+    }
+    return this.withCompatScope(tmpl);
   }
 
-  /** Get the system default (used as fallback when no template ID is provided) */
-  async getSystemDefault() {
-    const tmpl = await this.prisma.fieldTemplate.findFirst({
-      where: { isSystem: true, isDefault: true },
-      include: this.includeItems,
-    });
-    if (!tmpl) throw new NotFoundException('No system default field template found');
-    return { ...tmpl, scope: 'system' as const };
+  async getSystemDefault(organizationId?: string | null) {
+    const tmpl =
+      (organizationId
+        ? await this.prisma.fieldTemplate.findFirst({
+            where: { scope: 'organization', organizationId, isDefault: true },
+            include: this.includeItems,
+          })
+        : null) ??
+      (await this.prisma.fieldTemplate.findFirst({
+        where: { scope: 'platform', isDefault: true },
+        include: this.includeItems,
+      }));
+    if (!tmpl) throw new NotFoundException('No default field template found');
+    return this.withCompatScope(tmpl);
   }
 
-  /** Create a new personal template for this user */
-  async createUserTemplate(userId: string, data: { name: string; items: ItemInput[] }) {
+  async createUserTemplate(user: AuthUser, data: { name: string; items: ItemInput[] }) {
+    const ctx = requireOrganizationContext(user);
     return this.prisma.fieldTemplate.create({
       data: {
-        userId,
+        userId: user.userId,
+        organizationId: ctx.organizationId,
         name: data.name,
         isDefault: false,
         isSystem: false,
+        scope: 'personal',
         items: { create: data.items.map((item, idx) => this.pickItem(item, idx)) },
       },
       include: this.includeItems,
     });
   }
 
-  /** Update an existing personal template (must be owned by this user) */
-  async updateUserTemplate(userId: string, id: string, data: { name: string; items: ItemInput[] }) {
+  async updateUserTemplate(user: AuthUser, id: string, data: { name: string; items: ItemInput[] }) {
     const existing = await this.prisma.fieldTemplate.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Field template not found');
-    if (existing.isSystem || existing.userId !== userId) throw new ForbiddenException('Cannot edit this template');
+    if (existing.scope !== 'personal' || existing.userId !== user.userId) {
+      throw new ForbiddenException('Cannot edit this template');
+    }
 
     return this.prisma.$transaction(async (tx) => {
       await tx.fieldTemplateItem.deleteMany({ where: { templateId: id } });
@@ -93,55 +104,53 @@ export class FieldTemplatesService {
     });
   }
 
-  /** Delete a personal template owned by this user */
-  async deleteUserTemplate(userId: string, id: string) {
+  async deleteUserTemplate(user: AuthUser, id: string) {
     const existing = await this.prisma.fieldTemplate.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Field template not found');
-    if (existing.isSystem || existing.userId !== userId) throw new ForbiddenException('Cannot delete this template');
+    if (existing.scope !== 'personal' || existing.userId !== user.userId) {
+      throw new ForbiddenException('Cannot delete this template');
+    }
     await this.prisma.fieldTemplate.delete({ where: { id } });
     return { deleted: true };
   }
 
-  /** Duplicate a system template into the user's personal templates */
-  async duplicateSystemTemplate(userId: string, systemId: string) {
-    const system = await this.prisma.fieldTemplate.findUnique({
-      where: { id: systemId },
-      include: this.includeItems,
-    });
-    if (!system || !system.isSystem) throw new NotFoundException('System template not found');
+  async duplicateSystemTemplate(user: AuthUser, systemId: string) {
+    const source = await this.getById(systemId, user);
+    if (source.scope === 'personal') throw new NotFoundException('System template not found');
+    const ctx = requireOrganizationContext(user);
 
     const created = await this.prisma.fieldTemplate.create({
       data: {
-        userId,
-        name: `${system.name} (copy)`,
+        userId: user.userId,
+        organizationId: ctx.organizationId,
+        name: `${source.name} (copy)`,
         isDefault: false,
         isSystem: false,
-        items: {
-          create: system.items.map((item, idx) => this.pickItem(item, idx)),
-        },
+        scope: 'personal',
+        items: { create: source.items.map((item: any, idx: number) => this.pickItem(item, idx)) },
       },
       include: this.includeItems,
     });
-    return { ...created, scope: 'personal' as const };
+    return this.withCompatScope(created);
   }
 
-  // ─── Admin API ───────────────────────────────────────────────────────────────
-
-  /** List all system templates */
-  async listSystemTemplates() {
+  async listSystemTemplates(user: AuthUser) {
+    const where = this.adminTemplateWhere(user);
     return this.prisma.fieldTemplate.findMany({
-      where: { isSystem: true },
+      where,
       include: this.includeItems,
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
     });
   }
 
-  /** Create a new system template */
-  async createSystemTemplate(data: { name: string; items: ItemInput[] }) {
+  async createSystemTemplate(user: AuthUser, data: { name: string; items: ItemInput[] }) {
+    const target = this.adminTemplateTarget(user);
     return this.prisma.fieldTemplate.create({
       data: {
         name: data.name,
-        isSystem: true,
+        organizationId: target.organizationId,
+        isSystem: target.scope === 'platform',
+        scope: target.scope,
         isDefault: false,
         items: { create: data.items.map((item, idx) => this.pickItem(item, idx)) },
       },
@@ -149,11 +158,12 @@ export class FieldTemplatesService {
     });
   }
 
-  /** Update a system template */
-  async updateSystemTemplate(id: string, data: { name: string; items: ItemInput[] }) {
-    const existing = await this.prisma.fieldTemplate.findUnique({ where: { id } });
-    if (!existing || !existing.isSystem) throw new NotFoundException('System template not found');
-
+  async updateSystemTemplate(
+    user: AuthUser,
+    id: string,
+    data: { name: string; items: ItemInput[] },
+  ) {
+    await this.assertCanManageAdminTemplate(user, id);
     return this.prisma.$transaction(async (tx) => {
       await tx.fieldTemplateItem.deleteMany({ where: { templateId: id } });
       return tx.fieldTemplate.update({
@@ -167,20 +177,59 @@ export class FieldTemplatesService {
     });
   }
 
-  /** Delete a system template */
-  async deleteSystemTemplate(id: string) {
-    const existing = await this.prisma.fieldTemplate.findUnique({ where: { id } });
-    if (!existing || !existing.isSystem) throw new NotFoundException('System template not found');
+  async deleteSystemTemplate(user: AuthUser, id: string) {
+    await this.assertCanManageAdminTemplate(user, id);
     await this.prisma.fieldTemplate.delete({ where: { id } });
     return { deleted: true };
   }
 
-  /** Set a system template as the default (clears old default first) */
-  async setSystemDefault(id: string) {
-    const existing = await this.prisma.fieldTemplate.findUnique({ where: { id } });
-    if (!existing || !existing.isSystem) throw new NotFoundException('System template not found');
+  async setSystemDefault(user: AuthUser, id: string) {
+    const existing = await this.assertCanManageAdminTemplate(user, id);
+    await this.prisma.fieldTemplate.updateMany({
+      where:
+        existing.scope === 'platform'
+          ? { scope: 'platform', isDefault: true }
+          : { scope: 'organization', organizationId: existing.organizationId, isDefault: true },
+      data: { isDefault: false },
+    });
+    return this.prisma.fieldTemplate.update({
+      where: { id },
+      data: { isDefault: true },
+      include: this.includeItems,
+    });
+  }
 
-    await this.prisma.fieldTemplate.updateMany({ where: { isSystem: true, isDefault: true }, data: { isDefault: false } });
-    return this.prisma.fieldTemplate.update({ where: { id }, data: { isDefault: true }, include: this.includeItems });
+  private adminTemplateTarget(user: AuthUser) {
+    if (user.role === 'super_admin' && !user.selectedOrganizationId) {
+      return { scope: 'platform' as const, organizationId: null };
+    }
+    const ctx = requireOrganizationContext(user);
+    return { scope: 'organization' as const, organizationId: ctx.organizationId };
+  }
+
+  private adminTemplateWhere(user: AuthUser) {
+    const target = this.adminTemplateTarget(user);
+    return target.scope === 'platform'
+      ? { scope: 'platform' as const }
+      : { scope: 'organization' as const, organizationId: target.organizationId };
+  }
+
+  private async assertCanManageAdminTemplate(user: AuthUser, id: string) {
+    const existing = await this.prisma.fieldTemplate.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Field template not found');
+    const where = this.adminTemplateWhere(user);
+    if (
+      existing.scope !== where.scope ||
+      ('organizationId' in where && existing.organizationId !== where.organizationId)
+    ) {
+      throw new ForbiddenException('Cannot manage this template');
+    }
+    return existing;
+  }
+
+  private withCompatScope<T extends { scope: string; isSystem: boolean }>(template: T) {
+    const scope =
+      template.scope === 'platform' || template.scope === 'organization' ? 'system' : 'personal';
+    return { ...template, scope };
   }
 }

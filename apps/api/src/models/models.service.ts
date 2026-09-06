@@ -26,6 +26,7 @@ import {
 } from './dto/model-catalog.dto';
 import { ModelCredentialsService } from './model-credentials.service';
 import { OpenAICompatibleService } from './openai-compatible.service';
+import { PLATFORM_DEFAULTS_ORGANIZATION_ID } from '../auth/access-context';
 
 @Injectable()
 export class ModelsService {
@@ -61,7 +62,10 @@ export class ModelsService {
     );
   }
 
-  private async modelSettings() {
+  private async modelSettings(organizationId?: string | null) {
+    if (organizationId && organizationId !== PLATFORM_DEFAULTS_ORGANIZATION_ID) {
+      return this.prisma.organizationModelSetting.findMany({ where: { organizationId } });
+    }
     return this.prisma.modelCatalogSetting.findMany();
   }
 
@@ -136,16 +140,22 @@ export class ModelsService {
       .sort((a, b) => a.sortOrder - b.sortOrder || a.label.localeCompare(b.label));
   }
 
-  private async rawAdminModels(): Promise<AdminModelCatalogEntry[]> {
-    const customModels = await this.prisma.openAICompatibleModel.findMany();
+  private async rawAdminModels(organizationId?: string | null): Promise<AdminModelCatalogEntry[]> {
+    const customModels =
+      organizationId && organizationId !== PLATFORM_DEFAULTS_ORGANIZATION_ID
+        ? await this.prisma.openAICompatibleModel.findMany({ where: { organizationId } })
+        : [];
     return [
       ...this.environmentModels(),
       ...customModels.map((model) => this.customCatalogEntry(model)),
     ];
   }
 
-  async getModels(): Promise<ModelCatalogEntry[]> {
-    const [rawModels, settings] = await Promise.all([this.rawAdminModels(), this.modelSettings()]);
+  async getModels(organizationId?: string | null): Promise<ModelCatalogEntry[]> {
+    const [rawModels, settings] = await Promise.all([
+      this.rawAdminModels(organizationId),
+      this.modelSettings(organizationId),
+    ]);
     const usableModels = rawModels.filter(
       (model) => model.source === 'environment' || model.credentialStatus === 'ready',
     );
@@ -165,8 +175,11 @@ export class ModelsService {
       }));
   }
 
-  async getAdminModels(): Promise<AdminModelCatalogEntry[]> {
-    const [models, settings] = await Promise.all([this.rawAdminModels(), this.modelSettings()]);
+  async getAdminModels(organizationId?: string | null): Promise<AdminModelCatalogEntry[]> {
+    const [models, settings] = await Promise.all([
+      this.rawAdminModels(organizationId),
+      this.modelSettings(organizationId),
+    ]);
     return this.mergeSettings(models, settings);
   }
 
@@ -174,14 +187,18 @@ export class ModelsService {
     return { customModelsEnabled: this.credentials.isConfigured() };
   }
 
-  async getProvider(name: string): Promise<ModelProvider> {
-    const model = (await this.getModels()).find((item) => item.name === name);
+  async getProvider(name: string, organizationId?: string | null): Promise<ModelProvider> {
+    const model = (await this.getModels(organizationId)).find((item) => item.name === name);
     if (!model) throw new BadRequestException('Model is not available');
     return model.provider;
   }
 
-  async normalizeReasoningEffort(name: string, effort?: ReasoningEffort): Promise<ReasoningEffort> {
-    const model = (await this.getModels()).find((item) => item.name === name);
+  async normalizeReasoningEffort(
+    name: string,
+    effort?: ReasoningEffort,
+    organizationId?: string | null,
+  ): Promise<ReasoningEffort> {
+    const model = (await this.getModels(organizationId)).find((item) => item.name === name);
     if (!model) throw new BadRequestException('Model is not available');
     const requestedEffort = effort ?? model.defaultReasoningEffort;
     return model.reasoningEfforts.includes(requestedEffort)
@@ -189,14 +206,22 @@ export class ModelsService {
       : model.defaultReasoningEffort;
   }
 
-  async resolveForExecution(name: string, effort?: ReasoningEffort): Promise<ResolvedModel> {
-    const model = (await this.getModels()).find((item) => item.name === name);
+  async resolveForExecution(
+    name: string,
+    effort?: ReasoningEffort,
+    organizationId?: string | null,
+  ): Promise<ResolvedModel> {
+    const model = (await this.getModels(organizationId)).find((item) => item.name === name);
     if (!model) throw new BadRequestException('Model is not available');
     const requestedEffort = effort ?? model.defaultReasoningEffort;
     const reasoningEffort = model.reasoningEfforts.includes(requestedEffort)
       ? requestedEffort
       : model.defaultReasoningEffort;
-    const custom = await this.prisma.openAICompatibleModel.findUnique({ where: { name } });
+    const custom = organizationId
+      ? await this.prisma.openAICompatibleModel.findUnique({
+          where: { organizationId_name: { organizationId, name } },
+        })
+      : null;
     if (!custom) {
       return {
         source: 'environment',
@@ -219,7 +244,9 @@ export class ModelsService {
     };
   }
 
-  async createAdminModel(input: CreateOpenAICompatibleModelDto) {
+  async createAdminModel(input: CreateOpenAICompatibleModelDto, organizationId?: string | null) {
+    if (!organizationId)
+      throw new BadRequestException('Organization context is required for custom models');
     const apiKey = input.apiKey.trim();
     const label = input.label.trim();
     const upstreamModelName = input.upstreamModelName.trim();
@@ -231,16 +258,21 @@ export class ModelsService {
     if (this.environmentModels().some((model) => model.name === input.name)) {
       throw new ConflictException('Model name conflicts with an environment model');
     }
-    if (await this.prisma.openAICompatibleModel.findUnique({ where: { name: input.name } })) {
+    if (
+      await this.prisma.openAICompatibleModel.findUnique({
+        where: { organizationId_name: { organizationId, name: input.name } },
+      })
+    ) {
       throw new ConflictException('Model name is already configured');
     }
 
-    const currentModels = await this.getAdminModels();
+    const currentModels = await this.getAdminModels(organizationId);
     const nextSortOrder = Math.max(0, ...currentModels.map((model) => model.sortOrder)) + 10;
     try {
       await this.prisma.$transaction([
         this.prisma.openAICompatibleModel.create({
           data: {
+            organizationId,
             name: input.name,
             endpoint: this.normalizeEndpoint(input.endpoint),
             upstreamModelName,
@@ -249,9 +281,10 @@ export class ModelsService {
             supportsReasoning: input.supportsReasoning,
           },
         }),
-        this.prisma.modelCatalogSetting.upsert({
-          where: { modelName: input.name },
+        this.prisma.organizationModelSetting.upsert({
+          where: { organizationId_modelName: { organizationId, modelName: input.name } },
           create: {
+            organizationId,
             modelName: input.name,
             label,
             enabled: input.enabled,
@@ -278,11 +311,17 @@ export class ModelsService {
       }
       throw error;
     }
-    return (await this.getAdminModels()).find((model) => model.name === input.name);
+    return (await this.getAdminModels(organizationId)).find((model) => model.name === input.name);
   }
 
-  async updateAdminModel(modelName: string, input: UpdateModelCatalogDto) {
-    const model = (await this.getAdminModels()).find((item) => item.name === modelName);
+  async updateAdminModel(
+    modelName: string,
+    input: UpdateModelCatalogDto,
+    organizationId?: string | null,
+  ) {
+    const model = (await this.getAdminModels(organizationId)).find(
+      (item) => item.name === modelName,
+    );
     if (!model) throw new NotFoundException('Model is not configured');
 
     const hasConnectionUpdate =
@@ -291,9 +330,11 @@ export class ModelsService {
       input.apiProtocol !== undefined ||
       input.apiKey !== undefined ||
       input.supportsReasoning !== undefined;
-    const custom = await this.prisma.openAICompatibleModel.findUnique({
-      where: { name: modelName },
-    });
+    const custom = organizationId
+      ? await this.prisma.openAICompatibleModel.findUnique({
+          where: { organizationId_name: { organizationId, name: modelName } },
+        })
+      : null;
     if (hasConnectionUpdate && !custom) {
       throw new BadRequestException('Environment model connection settings are read-only');
     }
@@ -310,7 +351,7 @@ export class ModelsService {
         throw new BadRequestException('Upstream model name cannot be empty');
       }
       await this.prisma.openAICompatibleModel.update({
-        where: { name: modelName },
+        where: { organizationId_name: { organizationId: organizationId!, name: modelName } },
         data: {
           endpoint: input.endpoint ? this.normalizeEndpoint(input.endpoint) : undefined,
           upstreamModelName,
@@ -330,12 +371,81 @@ export class ModelsService {
       if (!model.enabled && input.enabled !== true) {
         throw new BadRequestException('A disabled model cannot be the default');
       }
-      await this.prisma.$transaction([
-        this.prisma.modelCatalogSetting.updateMany({
-          where: { isDefault: true, modelName: { not: modelName } },
-          data: { isDefault: false },
-        }),
-        this.prisma.modelCatalogSetting.upsert({
+      if (organizationId) {
+        await this.prisma.$transaction([
+          this.prisma.organizationModelSetting.updateMany({
+            where: { organizationId, isDefault: true, modelName: { not: modelName } },
+            data: { isDefault: false },
+          }),
+          this.prisma.organizationModelSetting.upsert({
+            where: { organizationId_modelName: { organizationId, modelName } },
+            create: {
+              organizationId,
+              modelName,
+              label: input.label,
+              enabled: input.enabled ?? true,
+              defaultReasoningEffort,
+              sortOrder: input.sortOrder,
+              isDefault: true,
+            },
+            update: {
+              label: input.label,
+              enabled: input.enabled,
+              defaultReasoningEffort,
+              sortOrder: input.sortOrder,
+              isDefault: true,
+            },
+          }),
+        ]);
+      } else {
+        await this.prisma.$transaction([
+          this.prisma.modelCatalogSetting.updateMany({
+            where: { isDefault: true, modelName: { not: modelName } },
+            data: { isDefault: false },
+          }),
+          this.prisma.modelCatalogSetting.upsert({
+            where: { modelName },
+            create: {
+              modelName,
+              label: input.label,
+              enabled: input.enabled ?? true,
+              defaultReasoningEffort,
+              sortOrder: input.sortOrder,
+              isDefault: true,
+            },
+            update: {
+              label: input.label,
+              enabled: input.enabled,
+              defaultReasoningEffort,
+              sortOrder: input.sortOrder,
+              isDefault: true,
+            },
+          }),
+        ]);
+      }
+    } else {
+      if (organizationId) {
+        await this.prisma.organizationModelSetting.upsert({
+          where: { organizationId_modelName: { organizationId, modelName } },
+          create: {
+            organizationId,
+            modelName,
+            label: input.label,
+            enabled: input.enabled ?? true,
+            defaultReasoningEffort,
+            sortOrder: input.sortOrder,
+            isDefault: false,
+          },
+          update: {
+            label: input.label,
+            enabled: input.enabled,
+            defaultReasoningEffort,
+            sortOrder: input.sortOrder,
+            isDefault: input.isDefault,
+          },
+        });
+      } else {
+        await this.prisma.modelCatalogSetting.upsert({
           where: { modelName },
           create: {
             modelName,
@@ -343,44 +453,27 @@ export class ModelsService {
             enabled: input.enabled ?? true,
             defaultReasoningEffort,
             sortOrder: input.sortOrder,
-            isDefault: true,
+            isDefault: false,
           },
           update: {
             label: input.label,
             enabled: input.enabled,
             defaultReasoningEffort,
             sortOrder: input.sortOrder,
-            isDefault: true,
+            isDefault: input.isDefault,
           },
-        }),
-      ]);
-    } else {
-      await this.prisma.modelCatalogSetting.upsert({
-        where: { modelName },
-        create: {
-          modelName,
-          label: input.label,
-          enabled: input.enabled ?? true,
-          defaultReasoningEffort,
-          sortOrder: input.sortOrder,
-          isDefault: false,
-        },
-        update: {
-          label: input.label,
-          enabled: input.enabled,
-          defaultReasoningEffort,
-          sortOrder: input.sortOrder,
-          isDefault: input.isDefault,
-        },
-      });
+        });
+      }
     }
-    return (await this.getAdminModels()).find((item) => item.name === modelName);
+    return (await this.getAdminModels(organizationId)).find((item) => item.name === modelName);
   }
 
-  async deleteAdminModel(modelName: string) {
-    const custom = await this.prisma.openAICompatibleModel.findUnique({
-      where: { name: modelName },
-    });
+  async deleteAdminModel(modelName: string, organizationId?: string | null) {
+    const custom = organizationId
+      ? await this.prisma.openAICompatibleModel.findUnique({
+          where: { organizationId_name: { organizationId, name: modelName } },
+        })
+      : null;
     if (!custom) {
       if (this.environmentModels().some((model) => model.name === modelName)) {
         throw new BadRequestException('Environment models cannot be deleted');
@@ -388,14 +481,20 @@ export class ModelsService {
       throw new NotFoundException('Custom model is not configured');
     }
     await this.prisma.$transaction([
-      this.prisma.openAICompatibleModel.delete({ where: { name: modelName } }),
-      this.prisma.modelCatalogSetting.deleteMany({ where: { modelName } }),
+      this.prisma.openAICompatibleModel.delete({
+        where: { organizationId_name: { organizationId: organizationId!, name: modelName } },
+      }),
+      this.prisma.organizationModelSetting.deleteMany({
+        where: { organizationId: organizationId!, modelName },
+      }),
     ]);
     return { deleted: true };
   }
 
-  async reorderAdminModels(input: ReorderModelCatalogDto) {
-    const configuredNames = new Set((await this.getAdminModels()).map((model) => model.name));
+  async reorderAdminModels(input: ReorderModelCatalogDto, organizationId?: string | null) {
+    const configuredNames = new Set(
+      (await this.getAdminModels(organizationId)).map((model) => model.name),
+    );
     const items = input.models.map((item) => {
       if (!configuredNames.has(item.modelName)) {
         throw new BadRequestException(`Model is not configured: ${item.modelName}`);
@@ -404,22 +503,37 @@ export class ModelsService {
     });
     await this.prisma.$transaction(
       items.map((item) =>
-        this.prisma.modelCatalogSetting.upsert({
-          where: { modelName: item.modelName },
-          create: { modelName: item.modelName, enabled: true, sortOrder: item.sortOrder },
-          update: { sortOrder: item.sortOrder },
-        }),
+        organizationId
+          ? this.prisma.organizationModelSetting.upsert({
+              where: { organizationId_modelName: { organizationId, modelName: item.modelName } },
+              create: {
+                organizationId,
+                modelName: item.modelName,
+                enabled: true,
+                sortOrder: item.sortOrder,
+              },
+              update: { sortOrder: item.sortOrder },
+            })
+          : this.prisma.modelCatalogSetting.upsert({
+              where: { modelName: item.modelName },
+              create: { modelName: item.modelName, enabled: true, sortOrder: item.sortOrder },
+              update: { sortOrder: item.sortOrder },
+            }),
       ),
     );
-    return this.getAdminModels();
+    return this.getAdminModels(organizationId);
   }
 
-  async testConnection(input: TestOpenAICompatibleModelDto) {
+  async testConnection(input: TestOpenAICompatibleModelDto, organizationId?: string | null) {
     if (!this.credentials.isConfigured()) {
       throw new BadRequestException('Custom model credential encryption is not configured');
     }
     const stored = input.name
-      ? await this.prisma.openAICompatibleModel.findUnique({ where: { name: input.name } })
+      ? organizationId
+        ? await this.prisma.openAICompatibleModel.findUnique({
+            where: { organizationId_name: { organizationId, name: input.name } },
+          })
+        : null
       : null;
     const endpoint = input.endpoint ?? stored?.endpoint;
     const upstreamModelName = (input.upstreamModelName ?? stored?.upstreamModelName)?.trim();

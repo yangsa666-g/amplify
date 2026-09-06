@@ -34,6 +34,7 @@ import { message } from '../utils/message';
 import { effortLabel, statusLabel } from '../utils/labels';
 import { templateDisplayName } from '../utils/templateLabels';
 import { useCompareStore } from '../stores/compareStore';
+import { useAuthStore } from '../stores/authStore';
 import type { ApiError, Model, PromptTemplate, ReasoningEffort } from '../types';
 
 const { Dragger } = Upload;
@@ -68,6 +69,7 @@ export default function ComparePage() {
   const navigate = useNavigate();
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
+  const { selectedOrganizationId } = useAuthStore();
   const {
     documents,
     selectedModel,
@@ -79,21 +81,22 @@ export default function ComparePage() {
     setSelectedModel,
     setSelectedReasoningEffort,
     setResult,
+    resetForOrganizationChange,
   } = useCompareStore();
   const [selectedPromptTemplateId, setSelectedPromptTemplateId] = useState<string | undefined>(
     () => localStorage.getItem(LAST_COMPARE_PROMPT_KEY) ?? undefined,
   );
 
   const { data: models = [] } = useQuery({
-    queryKey: ['models'],
+    queryKey: ['models', selectedOrganizationId],
     queryFn: () => getModels().then((response) => response.data),
   });
   const { data: promptTemplates = [], isLoading: promptsLoading } = useQuery({
-    queryKey: ['prompt-templates', 'contract_comparison'],
+    queryKey: ['prompt-templates', 'contract_comparison', selectedOrganizationId],
     queryFn: () => listPromptTemplates('contract_comparison').then((response) => response.data),
   });
   const { data: recent = [], refetch: refetchRecent } = useQuery({
-    queryKey: ['compare-recent'],
+    queryKey: ['compare-recent', selectedOrganizationId],
     queryFn: () => getRecentCompare().then((response) => response.data),
   });
 
@@ -104,6 +107,10 @@ export default function ComparePage() {
   const efforts = selectedModelInfo?.reasoningEfforts?.length
     ? selectedModelInfo.reasoningEfforts
     : ALL_EFFORTS;
+
+  useEffect(() => {
+    resetForOrganizationChange();
+  }, [selectedOrganizationId, resetForOrganizationChange]);
 
   useEffect(() => {
     if (models.length && !models.some((model) => model.name === selectedModel)) {
@@ -278,6 +285,7 @@ export default function ComparePage() {
             setResult(null);
           }}
           placeholder={t('analysis.selectPromptTemplate')}
+          disabled={promptsLoading}
         />
       </Card>
 
@@ -293,6 +301,7 @@ export default function ComparePage() {
               style={{ width: isMobile ? '100%' : 240 }}
               value={selectedModel || undefined}
               onChange={setSelectedModel}
+              disabled={compareMutation.isPending}
               options={models.map((model: Model) => ({
                 value: model.name,
                 label: <ModelOptionLabel model={model} />,
@@ -305,6 +314,7 @@ export default function ComparePage() {
               style={{ width: isMobile ? '100%' : 210 }}
               value={selectedReasoningEffort}
               onChange={setSelectedReasoningEffort}
+              disabled={compareMutation.isPending || selectedModelInfo?.supportsReasoning === false}
               options={efforts.map((effort) => ({ value: effort, label: effortLabel(t, effort) }))}
             />
           </Space>

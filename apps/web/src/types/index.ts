@@ -6,10 +6,27 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'user';
+  role: 'super_admin' | 'admin' | 'user';
   authProvider: 'local' | 'entra';
   status?: 'active' | 'disabled';
+  organizationId?: string | null;
+  organizationName?: string | null;
+  organization?: Organization | null;
   createdAt?: string;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  status: 'active' | 'disabled';
+  createdAt?: string;
+  updatedAt?: string;
+  _count?: {
+    users?: number;
+    documents?: number;
+    analysisJobs?: number;
+    compareJobs?: number;
+  };
 }
 
 export interface Model {

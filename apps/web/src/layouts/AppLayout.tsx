@@ -15,6 +15,7 @@ import {
   Grid,
   theme,
   message,
+  Select,
 } from 'antd';
 import type { MenuProps } from 'antd';
 import {
@@ -46,6 +47,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useUiStore, type ThemeMode } from '../stores/uiStore';
 import { logout } from '../api/auth';
 import { getNotifications, getUnreadCount, markRead, markAllRead } from '../api/notifications';
+import { getOrganizations } from '../api/organizations';
 import { usePwaInstallPrompt } from '../pwa/usePwaInstallPrompt';
 import Logo from '../components/Logo';
 import type { Notification } from '../types';
@@ -53,6 +55,7 @@ import type { Notification } from '../types';
 const { Sider, Content, Header } = Layout;
 
 const SIDER_BG = '#001529';
+const PLATFORM_CONTEXT_VALUE = '__platform__';
 
 function NotificationBell() {
   const qc = useQueryClient();
@@ -210,14 +213,23 @@ export default function AppLayout() {
   const isMobile = !screens.md;
   const isAdminDashboard = location.pathname === '/admin/dashboard';
 
-  const { user, clearAuth, refreshToken } = useAuthStore();
+  const queryClient = useQueryClient();
+  const { user, clearAuth, refreshToken, selectedOrganizationId, setSelectedOrganizationId } =
+    useAuthStore();
   const themeMode = useUiStore((s) => s.themeMode);
   const setThemeMode = useUiStore((s) => s.setThemeMode);
   const { canInstall, promptInstall } = usePwaInstallPrompt();
   const lang = i18n.language.startsWith('zh') ? 'zh' : 'en';
-  const isAdmin = user?.role === 'admin';
+  const isSuperAdmin = user?.role === 'super_admin';
+  const isAdmin = user?.role === 'admin' || isSuperAdmin;
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const { data: organizations = [] } = useQuery({
+    queryKey: ['organizations'],
+    queryFn: () => getOrganizations().then((res) => res.data),
+    enabled: isSuperAdmin,
+  });
 
   const installApp = async () => {
     const outcome = await promptInstall();
@@ -300,6 +312,11 @@ export default function AppLayout() {
       if (key.startsWith('theme:')) setThemeMode(key.slice(6) as ThemeMode);
       if (key.startsWith('lang:')) void i18n.changeLanguage(key.slice(5));
     },
+  };
+
+  const handleOrganizationChange = (value: string) => {
+    setSelectedOrganizationId(value === PLATFORM_CONTEXT_VALUE ? null : value);
+    void queryClient.invalidateQueries();
   };
 
   const handleNav = (key: string) => {
@@ -416,6 +433,22 @@ export default function AppLayout() {
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 16 }}>
+            {isSuperAdmin && (
+              <Select
+                size="small"
+                value={selectedOrganizationId ?? PLATFORM_CONTEXT_VALUE}
+                style={{ minWidth: isMobile ? 150 : 220 }}
+                onChange={handleOrganizationChange}
+                options={[
+                  { value: PLATFORM_CONTEXT_VALUE, label: 'Platform Defaults' },
+                  ...organizations.map((org) => ({
+                    value: org.id,
+                    label: org.status === 'disabled' ? `${org.name} (disabled)` : org.name,
+                    disabled: org.status === 'disabled',
+                  })),
+                ]}
+              />
+            )}
             <NotificationBell />
             <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
               <Button

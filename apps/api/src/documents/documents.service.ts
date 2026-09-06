@@ -1,5 +1,11 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import type { AuthUser } from '../auth/decorators/current-user.decorator';
+import {
+  businessWhere,
+  ownBusinessWhere,
+  requireOrganizationContext,
+} from '../auth/access-context';
 import { ParserService } from './parser.service';
 import { isAzureStorageConfigured, uploadBlob, streamBlobToResponse } from '../common/blob-storage';
 import { getUploadDir } from '../common/storage';
@@ -30,7 +36,8 @@ export class DocumentsService {
     private parser: ParserService,
   ) {}
 
-  async upload(userId: string, file: Express.Multer.File) {
+  async upload(user: AuthUser, file: Express.Multer.File) {
+    const ctx = requireOrganizationContext(user);
     if (file.size > MAX_SIZE_MB * 1024 * 1024) {
       throw new BadRequestException(`File exceeds ${MAX_SIZE_MB}MB limit`);
     }
@@ -53,7 +60,13 @@ export class DocumentsService {
     // Persist the file
     let storagePath: string;
     if (isAzureStorageConfigured()) {
-      storagePath = await uploadBlob(userId, originalName, buffer, file.mimetype);
+      storagePath = await uploadBlob(
+        ctx.organizationId,
+        user.userId,
+        originalName,
+        buffer,
+        file.mimetype,
+      );
       this.logger.log(`Uploaded to Azure Blob: ${storagePath}`);
     } else {
       // Local dev: write to disk
@@ -66,7 +79,8 @@ export class DocumentsService {
 
     const doc = await this.prisma.document.create({
       data: {
-        userId,
+        userId: user.userId,
+        organizationId: ctx.organizationId,
         fileName: originalName,
         fileType: file.mimetype,
         fileSize: file.size,
@@ -111,17 +125,19 @@ export class DocumentsService {
     };
   }
 
-  async findOne(id: string, userId: string, role?: string) {
-    const isAdmin = role === 'admin';
+  async findOne(id: string, user: AuthUser) {
     const doc = await this.prisma.document.findFirst({
-      where: isAdmin ? { id } : { id, userId },
+      where: { id, ...businessWhere(user) },
     });
     if (!doc) throw new NotFoundException('Document not found');
     return doc;
   }
 
-  async getExtractedText(id: string, userId: string, role?: string): Promise<string> {
-    const doc = await this.findOne(id, userId, role);
+  async getExtractedText(id: string, user: AuthUser, ownOnly = false): Promise<string> {
+    const doc = await this.prisma.document.findFirst({
+      where: { id, ...(ownOnly ? ownBusinessWhere(user) : businessWhere(user)) },
+    });
+    if (!doc) throw new NotFoundException('Document not found');
     if (doc.textExtractionStatus !== 'success' || !doc.extractedText) {
       const reason = (doc as any).extractionError ? `: ${(doc as any).extractionError}` : '';
       throw new BadRequestException(`Text extraction failed${reason}`);
@@ -129,8 +145,8 @@ export class DocumentsService {
     return doc.extractedText;
   }
 
-  async downloadToResponse(id: string, userId: string, res: any, role?: string): Promise<void> {
-    const doc = await this.findOne(id, userId, role);
+  async downloadToResponse(id: string, user: AuthUser, res: any): Promise<void> {
+    const doc = await this.findOne(id, user);
     if (isAzureStorageConfigured()) {
       await streamBlobToResponse(doc.storagePath, doc.fileName, res);
     } else {

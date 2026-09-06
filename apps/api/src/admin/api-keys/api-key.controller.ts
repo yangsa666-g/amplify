@@ -13,17 +13,17 @@ export class ApiKeyController {
   constructor(private apiKeyService: ApiKeyService) {}
 
   @Get()
-  getCurrent() {
-    return this.apiKeyService.getCurrent();
+  getCurrent(@CurrentUser() user: AuthUser) {
+    return this.apiKeyService.getCurrent(user);
   }
 
   @Post()
   create(@CurrentUser() user: AuthUser, @Body() body: CreateApiKeyDto) {
-    return this.apiKeyService.create(user.userId, body.expiry ?? '1m');
+    return this.apiKeyService.create(user, body.expiry ?? '1m');
   }
 
   @Delete(':id')
-  delete(@Param('id') id: string) {
-    return this.apiKeyService.delete(id);
+  delete(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.apiKeyService.delete(user, id);
   }
 }

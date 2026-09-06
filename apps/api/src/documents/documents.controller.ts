@@ -29,22 +29,22 @@ export class DocumentsController {
   )
   async upload(@UploadedFile() file: Express.Multer.File, @CurrentUser() user: AuthUser) {
     if (!file) throw new BadRequestException('No file uploaded');
-    return this.documentsService.upload(user.userId, file);
+    return this.documentsService.upload(user, file);
   }
 
   @Get(':id/text')
   async getText(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    const text = await this.documentsService.getExtractedText(id, user.userId, user.role);
+    const text = await this.documentsService.getExtractedText(id, user);
     return { text };
   }
 
   @Get(':id/download')
   async download(@Param('id') id: string, @CurrentUser() user: AuthUser, @Res() res: any) {
-    await this.documentsService.downloadToResponse(id, user.userId, res, user.role);
+    await this.documentsService.downloadToResponse(id, user, res);
   }
 
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.documentsService.findOne(id, user.userId);
+    return this.documentsService.findOne(id, user);
   }
 }

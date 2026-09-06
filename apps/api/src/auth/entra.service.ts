@@ -127,15 +127,8 @@ export class EntraService {
       return this.usersService.linkEntraOid(byEmail.id, oid);
     }
 
-    // 3) First-time tenant user — JIT provision with the default 'user' role.
-    try {
-      return await this.usersService.createEntraUser({ entraOid: oid, email, name });
-    } catch (e) {
-      // Lost a race with a concurrent callback for the same user; re-read.
-      const existing =
-        (await this.usersService.findByEntraOid(oid)) ?? (await this.usersService.findByEmail(email));
-      if (existing) return existing;
-      throw e;
-    }
+    // 3) Unknown tenant users are not created just-in-time. Company Admins or
+    // Super Admins must pre-provision them so every account has a company.
+    throw new UnauthorizedException('Account must be provisioned before Entra SSO login');
   }
 }

@@ -34,6 +34,7 @@ import { getModels } from '../api/models';
 import { listFieldTemplates } from '../api/fieldTemplates';
 import { listPromptTemplates } from '../api/promptTemplates';
 import { useAnalysisStore } from '../stores/analysisStore';
+import { useAuthStore } from '../stores/authStore';
 import AnalysisProgress from '../components/AnalysisProgress';
 import UploadProgress from '../components/UploadProgress';
 import RunTimings from '../components/RunTimings';
@@ -89,6 +90,7 @@ export default function AnalysisPage() {
   const { token } = theme.useToken();
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md;
+  const { selectedOrganizationId } = useAuthStore();
   const {
     uploadedDoc,
     selectedModel,
@@ -110,7 +112,7 @@ export default function AnalysisPage() {
   );
 
   const { data: models = [] } = useQuery({
-    queryKey: ['models'],
+    queryKey: ['models', selectedOrganizationId],
     queryFn: () => getModels().then((r) => r.data),
     staleTime: 0,
     refetchOnMount: 'always',
@@ -135,7 +137,7 @@ export default function AnalysisPage() {
     isLoading: fieldTemplatesLoading,
     isError: fieldTemplatesError,
   } = useQuery({
-    queryKey: ['field-templates'],
+    queryKey: ['field-templates', selectedOrganizationId],
     queryFn: () => listFieldTemplates().then((r) => r.data),
   });
   const {
@@ -143,9 +145,15 @@ export default function AnalysisPage() {
     isLoading: promptTemplatesLoading,
     isError: promptTemplatesError,
   } = useQuery({
-    queryKey: ['prompt-templates', 'risk_analysis'],
+    queryKey: ['prompt-templates', 'risk_analysis', selectedOrganizationId],
     queryFn: () => listPromptTemplates().then((r) => r.data),
   });
+
+  useEffect(() => {
+    setUploadedDoc(null);
+    setResult(null);
+    setOcrPreviewOpen(false);
+  }, [selectedOrganizationId, setUploadedDoc, setResult, setOcrPreviewOpen]);
 
   useEffect(() => {
     if (models.length === 0) return;
@@ -193,7 +201,7 @@ export default function AnalysisPage() {
   }, [promptTemplates]);
 
   const { data: recent = [], refetch: refetchRecent } = useQuery({
-    queryKey: ['analysis-recent'],
+    queryKey: ['analysis-recent', selectedOrganizationId],
     queryFn: () => getRecentAnalysis().then((r) => r.data),
   });
 

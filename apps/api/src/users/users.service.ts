@@ -1,110 +1,274 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { PrismaService } from '../prisma/prisma.service';
+import type { AuthUser } from '../auth/decorators/current-user.decorator';
+import type { UserRoleInput } from './dto/users.dto';
+
+type CreateUserInput = {
+  name: string;
+  email: string;
+  password?: string;
+  role?: UserRoleInput;
+  organizationId?: string;
+  authProvider?: 'local' | 'entra';
+};
 
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
+  private userSelect = {
+    id: true,
+    email: true,
+    name: true,
+    role: true,
+    status: true,
+    authProvider: true,
+    organizationId: true,
+    organization: { select: { id: true, name: true, status: true } },
+    createdAt: true,
+  };
+
   async findByEmail(email: string) {
-    return this.prisma.user.findUnique({ where: { email } });
+    return this.prisma.user.findUnique({ where: { email }, include: { organization: true } });
   }
 
   async findById(id: string) {
-    return this.prisma.user.findUnique({ where: { id } });
+    return this.prisma.user.findUnique({ where: { id }, include: { organization: true } });
   }
 
-  async findByIdPublic(id: string) {
-    return this.prisma.user.findUnique({
+  async findByIdPublic(id: string, actor?: AuthUser) {
+    const user = await this.prisma.user.findUnique({
       where: { id },
-      select: { id: true, email: true, name: true, role: true, status: true, authProvider: true, createdAt: true },
+      select: this.userSelect,
     });
+    if (!user) throw new NotFoundException('User not found');
+    this.assertCanSeeUser(actor, user);
+    return user;
   }
 
   async updatePasswordHash(id: string, passwordHash: string) {
     return this.prisma.user.update({ where: { id }, data: { passwordHash } });
   }
 
-  async findAll() {
+  async findAll(
+    actor?: AuthUser,
+    filters?: { organizationId?: string; role?: UserRoleInput; status?: string; q?: string },
+  ) {
+    const where: any = {};
+
+    if (actor?.role === 'admin') {
+      where.organizationId = actor.organizationId;
+      where.role = { in: ['admin', 'user'] };
+    } else if (actor?.role === 'super_admin') {
+      if (filters?.organizationId) where.organizationId = filters.organizationId;
+    }
+
+    if (filters?.role) where.role = filters.role;
+    if (filters?.status) where.status = filters.status;
+    if (filters?.q?.trim()) {
+      const q = filters.q.trim();
+      where.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { email: { contains: q, mode: 'insensitive' } },
+        { organization: { is: { name: { contains: q, mode: 'insensitive' } } } },
+      ];
+    }
+
     return this.prisma.user.findMany({
-      select: { id: true, email: true, name: true, role: true, status: true, authProvider: true, createdAt: true },
+      where,
+      select: this.userSelect,
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async createUser(name: string, email: string, password: string, role: 'admin' | 'user' = 'user') {
-    const existing = await this.prisma.user.findUnique({ where: { email } });
+  async createUser(input: CreateUserInput, actor?: AuthUser) {
+    const existing = await this.prisma.user.findUnique({ where: { email: input.email } });
     if (existing) throw new ConflictException('A user with this email already exists');
-    const passwordHash = await bcrypt.hash(password, 10);
+
+    const role = input.role ?? 'user';
+    const organizationId = this.resolveTargetOrganization(actor, role, input.organizationId);
+    await this.assertOrganizationActiveForMember(role, organizationId);
+
+    const authProvider = input.authProvider ?? 'local';
+    if (authProvider === 'local' && !input.password) {
+      throw new BadRequestException('Password is required for local users');
+    }
+
+    const passwordHash = input.password ? await bcrypt.hash(input.password, 10) : null;
     return this.prisma.user.create({
-      data: { name, email, passwordHash, role, authProvider: 'local', status: 'active' },
-      select: { id: true, email: true, name: true, role: true, status: true, authProvider: true, createdAt: true },
+      data: {
+        name: input.name,
+        email: input.email,
+        passwordHash,
+        role,
+        organizationId,
+        authProvider,
+        status: 'active',
+      },
+      select: this.userSelect,
     });
   }
 
   async findByEntraOid(entraOid: string) {
-    return this.prisma.user.findUnique({ where: { entraOid } });
+    return this.prisma.user.findUnique({ where: { entraOid }, include: { organization: true } });
   }
 
-  // Creates an SSO user provisioned just-in-time from Entra claims (no password).
-  async createEntraUser(data: { entraOid: string; email: string; name: string }) {
-    return this.prisma.user.create({
-      data: {
-        email: data.email,
-        name: data.name,
-        entraOid: data.entraOid,
-        authProvider: 'entra',
-        passwordHash: null,
-        role: 'user',
-        status: 'active',
-      },
-    });
+  // Entra users must be created by an Admin/Super Admin first; SSO only links
+  // the verified Microsoft identity to that pre-provisioned account.
+  async createEntraUser() {
+    throw new UnauthorizedException('Account must be provisioned before Entra SSO login');
   }
 
-  // Links an Entra identity onto an existing (local) account and switches it to SSO.
   async linkEntraOid(id: string, entraOid: string) {
     return this.prisma.user.update({
       where: { id },
       data: { entraOid, authProvider: 'entra' },
+      include: { organization: true },
     });
   }
 
-  // Keeps the display name in sync with Entra on each login. Email is intentionally
-  // left untouched: it is @unique and changing it could collide with another row.
   async syncEntraProfile(id: string, name: string) {
-    return this.prisma.user.update({ where: { id }, data: { name } });
+    return this.prisma.user.update({
+      where: { id },
+      data: { name },
+      include: { organization: true },
+    });
   }
 
-  async updateUser(id: string, data: { name?: string; email?: string }) {
+  async updateUser(id: string, data: { name?: string; email?: string }, actor?: AuthUser) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
+    this.assertCanManageUser(actor, user);
     if (data.email && data.email !== user.email) {
       const existing = await this.prisma.user.findUnique({ where: { email: data.email } });
       if (existing) throw new ConflictException('Email already in use');
     }
     return this.prisma.user.update({
       where: { id },
-      data: { ...(data.name ? { name: data.name } : {}), ...(data.email ? { email: data.email } : {}) },
-      select: { id: true, email: true, name: true, role: true, status: true, authProvider: true, createdAt: true },
+      data: {
+        ...(data.name ? { name: data.name } : {}),
+        ...(data.email ? { email: data.email } : {}),
+      },
+      select: this.userSelect,
     });
   }
 
-  async updateStatus(id: string, status: 'active' | 'disabled') {
+  async updateStatus(id: string, status: 'active' | 'disabled', actor?: AuthUser) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
-    return this.prisma.user.update({ where: { id }, data: { status } });
+    this.assertCanManageUser(actor, user);
+    if (status === 'disabled') await this.assertNotLastActiveAdmin(user.id, user.organizationId);
+    const updated = await this.prisma.user.update({
+      where: { id },
+      data: { status },
+      select: this.userSelect,
+    });
+    await this.revokeRefreshTokens(id);
+    return updated;
   }
 
-  async updateRole(id: string, role: 'admin' | 'user') {
+  async updateRole(
+    id: string,
+    role: UserRoleInput,
+    actor?: AuthUser,
+    organizationId?: string | null,
+  ) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
-    return this.prisma.user.update({ where: { id }, data: { role } });
+    this.assertCanManageUser(actor, user);
+
+    if (actor?.role === 'admin' && role === 'super_admin') {
+      throw new ForbiddenException('Company Admin cannot create Super Admins');
+    }
+    if (user.role === 'admin' && role !== 'admin') {
+      await this.assertNotLastActiveAdmin(user.id, user.organizationId);
+    }
+
+    const targetOrganizationId = this.resolveTargetOrganization(
+      actor,
+      role,
+      organizationId ?? user.organizationId,
+    );
+    await this.assertOrganizationActiveForMember(role, targetOrganizationId);
+    const updated = await this.prisma.user.update({
+      where: { id },
+      data: { role, organizationId: targetOrganizationId },
+      select: this.userSelect,
+    });
+    await this.revokeRefreshTokens(id);
+    return updated;
   }
 
-  async deleteUser(id: string) {
-    const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user) throw new NotFoundException('User not found');
-    await this.prisma.user.delete({ where: { id } });
-    return { success: true };
+  async deleteUser(id: string, actor?: AuthUser) {
+    return this.updateStatus(id, 'disabled', actor);
+  }
+
+  private resolveTargetOrganization(
+    actor: AuthUser | undefined,
+    role: UserRoleInput,
+    organizationId?: string | null,
+  ) {
+    if (role === 'super_admin') {
+      if (actor?.role !== 'super_admin') {
+        throw new ForbiddenException('Only Super Admin can assign Super Admin role');
+      }
+      return null;
+    }
+    if (actor?.role === 'admin') return actor.organizationId;
+    if (!organizationId) throw new BadRequestException('Organization is required');
+    return organizationId;
+  }
+
+  private async assertOrganizationActiveForMember(
+    role: UserRoleInput,
+    organizationId: string | null,
+  ) {
+    if (role === 'super_admin') return;
+    if (!organizationId) throw new BadRequestException('Organization is required');
+    const org = await this.prisma.organization.findUnique({ where: { id: organizationId } });
+    if (!org) throw new BadRequestException('Organization not found');
+    if (org.status !== 'active') throw new BadRequestException('Organization is disabled');
+  }
+
+  private assertCanSeeUser(
+    actor: AuthUser | undefined,
+    user: { organizationId: string | null; role: string },
+  ) {
+    if (!actor || actor.role === 'super_admin') return;
+    if (user.role === 'super_admin' || user.organizationId !== actor.organizationId) {
+      throw new ForbiddenException('Cannot access user outside your organization');
+    }
+  }
+
+  private assertCanManageUser(
+    actor: AuthUser | undefined,
+    user: { id: string; organizationId: string | null; role: string },
+  ) {
+    if (!actor || actor.role === 'super_admin') return;
+    if (user.role === 'super_admin' || user.organizationId !== actor.organizationId) {
+      throw new ForbiddenException('Cannot manage user outside your organization');
+    }
+  }
+
+  private async assertNotLastActiveAdmin(userId: string, organizationId: string | null) {
+    if (!organizationId) return;
+    const activeAdminCount = await this.prisma.user.count({
+      where: { organizationId, role: 'admin', status: 'active', id: { not: userId } },
+    });
+    if (activeAdminCount === 0) {
+      throw new BadRequestException('Each organization must keep at least one active Admin');
+    }
+  }
+
+  private async revokeRefreshTokens(userId: string) {
+    await this.prisma.refreshToken.deleteMany({ where: { userId } });
   }
 }

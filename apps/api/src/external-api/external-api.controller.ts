@@ -312,8 +312,8 @@ export class ExternalApiController {
   @Get('models')
   @ApiOperation({ summary: 'List enabled AI models' })
   @ApiOkResponse({ description: 'Enabled model catalog' })
-  listModels() {
-    return this.modelsService.getModels();
+  listModels(@CurrentUser() user: AuthUser) {
+    return this.modelsService.getModels(user.organizationId);
   }
 
   @Get('prompt-templates')
@@ -327,7 +327,7 @@ export class ExternalApiController {
     if (type !== 'contract_comparison') {
       throw new BadRequestException('External API only exposes contract_comparison templates');
     }
-    const templates = await this.promptTemplatesService.listForUser(user.userId, type);
+    const templates = await this.promptTemplatesService.listForUser(user, type);
     return templates.map(({ id, name, templateType, isDefault, scope }) => ({
       id,
       name,
@@ -374,7 +374,7 @@ export class ExternalApiController {
   )
   async uploadDocument(@UploadedFile() file: Express.Multer.File, @CurrentUser() user: AuthUser) {
     if (!file) throw new BadRequestException('No file uploaded');
-    return this.documentsService.upload(user.userId, file);
+    return this.documentsService.upload(user, file);
   }
 
   @Post('analysis/run')
@@ -390,7 +390,7 @@ export class ExternalApiController {
   @ApiBadRequestResponse({ description: 'Document text is empty or AI returned invalid response' })
   runAnalysis(@CurrentUser() user: AuthUser, @Body() body: RunAnalysisBody) {
     return this.analysisService.run(
-      user.userId,
+      user,
       body.documentId,
       body.model,
       body.fieldTemplateId,
@@ -408,7 +408,7 @@ export class ExternalApiController {
   @ApiOkResponse({ description: 'Analysis job found', type: RunAnalysisResponse })
   @ApiNotFoundResponse({ description: 'Analysis job not found' })
   getAnalysis(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.analysisService.findOne(id, user.userId);
+    return this.analysisService.findOne(id, user);
   }
 
   @Post('compare/run')
@@ -422,7 +422,7 @@ export class ExternalApiController {
   @ApiCreatedResponse({ description: 'Comparison completed', type: RunCompareResponse })
   runCompare(@CurrentUser() user: AuthUser, @Body() body: RunCompareBody) {
     return this.compareService.run(
-      user.userId,
+      user,
       body.documentIds,
       body.model,
       body.promptTemplateId,
@@ -440,6 +440,6 @@ export class ExternalApiController {
   @ApiOkResponse({ description: 'Compare job found', type: CompareJobResponse })
   @ApiNotFoundResponse({ description: 'Compare job not found' })
   getCompare(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.compareService.findOne(id, user.userId);
+    return this.compareService.findOne(id, user);
   }
 }

@@ -8,6 +8,8 @@ import {
   MaxLength,
 } from 'class-validator';
 
+export type UserRoleInput = 'super_admin' | 'admin' | 'user';
+
 export class CreateUserDto {
   @IsString()
   @IsNotEmpty()
@@ -18,13 +20,22 @@ export class CreateUserDto {
   email!: string;
 
   @IsString()
+  @IsOptional()
   @MinLength(8)
   @MaxLength(200)
-  password!: string;
+  password?: string;
 
   @IsOptional()
-  @IsIn(['admin', 'user'])
-  role?: 'admin' | 'user';
+  @IsIn(['admin', 'user', 'super_admin'])
+  role?: UserRoleInput;
+
+  @IsOptional()
+  @IsString()
+  organizationId?: string;
+
+  @IsOptional()
+  @IsIn(['local', 'entra'])
+  authProvider?: 'local' | 'entra';
 }
 
 export class UpdateUserDto {
@@ -44,6 +55,10 @@ export class UpdateStatusDto {
 }
 
 export class UpdateRoleDto {
-  @IsIn(['admin', 'user'])
-  role!: 'admin' | 'user';
+  @IsIn(['admin', 'user', 'super_admin'])
+  role!: UserRoleInput;
+
+  @IsOptional()
+  @IsString()
+  organizationId?: string | null;
 }

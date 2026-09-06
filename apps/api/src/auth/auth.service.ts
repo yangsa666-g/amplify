@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -23,12 +28,26 @@ export class AuthService {
     if (user.status === 'disabled') {
       throw new ForbiddenException('Account is disabled');
     }
+    if (user.role !== 'super_admin') {
+      const organization = (user as any).organization;
+      if (!organization || organization.status === 'disabled') {
+        throw new ForbiddenException('Organization is disabled');
+      }
+    }
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
     return user;
   }
 
-  async login(user: { id: string; email: string; name: string; role: string; authProvider: string }) {
+  async login(user: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    authProvider: string;
+    organizationId?: string | null;
+    organization?: { name: string } | null;
+  }) {
     const payload = { sub: user.id, email: user.email, role: user.role };
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = await this.generateRefreshToken(user.id);
@@ -41,6 +60,8 @@ export class AuthService {
         name: user.name,
         role: user.role,
         authProvider: user.authProvider,
+        organizationId: user.organizationId ?? null,
+        organizationName: user.organization?.name ?? null,
       },
     };
   }
@@ -59,6 +80,13 @@ export class AuthService {
       await this.prisma.refreshToken.delete({ where: { tokenHash } });
       throw new UnauthorizedException('User not found or disabled');
     }
+    if (user.role !== 'super_admin') {
+      const organization = (user as any).organization;
+      if (!organization || organization.status === 'disabled') {
+        await this.prisma.refreshToken.delete({ where: { tokenHash } });
+        throw new UnauthorizedException('Organization is disabled');
+      }
+    }
 
     // Token rotation: delete old, issue new
     await this.prisma.refreshToken.delete({ where: { tokenHash } });
@@ -68,6 +96,10 @@ export class AuthService {
     const refreshToken = await this.generateRefreshToken(user.id);
 
     return { accessToken, refreshToken };
+  }
+
+  async revokeUserRefreshTokens(userId: string) {
+    await this.prisma.refreshToken.deleteMany({ where: { userId } });
   }
 
   async revokeRefreshToken(rawToken: string) {
@@ -82,7 +114,8 @@ export class AuthService {
     }
     const valid = await bcrypt.compare(oldPassword, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Old password is incorrect');
-    if (newPassword.length < 8) throw new BadRequestException('New password must be at least 8 characters');
+    if (newPassword.length < 8)
+      throw new BadRequestException('New password must be at least 8 characters');
     const hash = await bcrypt.hash(newPassword, 12);
     await this.usersService.updatePasswordHash(userId, hash);
   }

@@ -5,6 +5,12 @@ import { ModelsService } from '../models/models.service';
 import { AiService } from '../analysis/ai.service';
 import type { ReasoningEffort } from '../models/model-registry';
 import type { TokenUsage } from '../analysis/token-usage';
+import type { AuthUser } from '../auth/decorators/current-user.decorator';
+import {
+  businessWhere,
+  ownBusinessWhere,
+  requireOrganizationContext,
+} from '../auth/access-context';
 
 type ComparisonDocument = { id: string; fileName: string; extractedText: string };
 
@@ -44,12 +50,13 @@ export class CompareService {
   ) {}
 
   async run(
-    userId: string,
+    user: AuthUser,
     documentIds: string[],
     model: string,
     promptTemplateId?: string,
     reasoningEffort?: ReasoningEffort,
   ) {
+    const ctx = requireOrganizationContext(user);
     if (documentIds.length < 2 || documentIds.length > 5) {
       throw new BadRequestException('Comparison requires between 2 and 5 documents');
     }
@@ -57,13 +64,17 @@ export class CompareService {
       throw new BadRequestException('Comparison documents must be unique');
     }
 
-    const resolvedModel = await this.models.resolveForExecution(model, reasoningEffort);
+    const resolvedModel = await this.models.resolveForExecution(
+      model,
+      reasoningEffort,
+      ctx.organizationId,
+    );
     const promptTemplate = promptTemplateId
-      ? await this.prompts.getById(promptTemplateId, userId, 'contract_comparison')
-      : await this.prompts.getSystemDefault('contract_comparison');
+      ? await this.prompts.getById(promptTemplateId, user, 'contract_comparison')
+      : await this.prompts.getSystemDefault('contract_comparison', ctx.organizationId);
 
     const records = await this.prisma.document.findMany({
-      where: { id: { in: documentIds }, userId },
+      where: { id: { in: documentIds }, ...ownBusinessWhere(user) },
       select: {
         id: true,
         fileName: true,
@@ -92,7 +103,8 @@ export class CompareService {
     const prompt = buildComparisonPrompt(promptTemplate.content, orderedDocuments);
     const job = await this.prisma.compareJob.create({
       data: {
-        userId,
+        userId: user.userId,
+        organizationId: ctx.organizationId,
         modelName: model,
         reasoningEffort: resolvedModel.reasoningEffort,
         promptTemplateId: promptTemplate.id,
@@ -144,9 +156,9 @@ export class CompareService {
     }
   }
 
-  async findOne(id: string, userId: string, role?: string) {
+  async findOne(id: string, user: AuthUser) {
     const job = await this.prisma.compareJob.findFirst({
-      where: role === 'admin' ? { id } : { id, userId },
+      where: { id, ...businessWhere(user) },
       include: {
         documents: {
           orderBy: { sortOrder: 'asc' },
@@ -159,9 +171,9 @@ export class CompareService {
     return { ...job, tokenUsage: job.tokenUsageJson as TokenUsage | null };
   }
 
-  async findRecent(userId: string) {
+  async findRecent(user: AuthUser) {
     return this.prisma.compareJob.findMany({
-      where: { userId },
+      where: businessWhere(user),
       orderBy: { createdAt: 'desc' },
       take: 10,
       include: {
@@ -174,21 +186,23 @@ export class CompareService {
     });
   }
 
-  async submitFeedback(jobId: string, userId: string, rating: number, comment?: string) {
-    const job = await this.prisma.compareJob.findFirst({ where: { id: jobId, userId } });
+  async submitFeedback(jobId: string, user: AuthUser, rating: number, comment?: string) {
+    const job = await this.prisma.compareJob.findFirst({
+      where: { id: jobId, ...ownBusinessWhere(user) },
+    });
     if (!job) throw new NotFoundException('Compare job not found');
 
     return this.prisma.compareJobFeedback.upsert({
-      where: { compareJobId_userId: { compareJobId: jobId, userId } },
-      create: { compareJobId: jobId, userId, rating, comment },
+      where: { compareJobId_userId: { compareJobId: jobId, userId: user.userId } },
+      create: { compareJobId: jobId, userId: user.userId, rating, comment },
       update: { rating, comment },
       include: { user: { select: { id: true, name: true } } },
     });
   }
 
-  async getFeedback(jobId: string, userId: string, role?: string) {
+  async getFeedback(jobId: string, user: AuthUser) {
     const job = await this.prisma.compareJob.findFirst({
-      where: role === 'admin' ? { id: jobId } : { id: jobId, userId },
+      where: { id: jobId, ...businessWhere(user) },
     });
     if (!job) throw new NotFoundException('Compare job not found');
     return this.prisma.compareJobFeedback.findMany({

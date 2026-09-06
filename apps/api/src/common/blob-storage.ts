@@ -18,6 +18,7 @@ export function isAzureStorageConfigured(): boolean {
  * Returns the blob name (used as storagePath in the database).
  */
 export async function uploadBlob(
+  organizationId: string,
   userId: string,
   originalName: string,
   buffer: Buffer,
@@ -27,7 +28,7 @@ export async function uploadBlob(
   await containerClient.createIfNotExists();
 
   const ext = path.extname(originalName);
-  const blobName = `${userId}/${crypto.randomBytes(12).toString('hex')}${ext}`;
+  const blobName = `${organizationId}/${userId}/${crypto.randomBytes(12).toString('hex')}${ext}`;
   const blockBlobClient = containerClient.getBlockBlobClient(blobName);
   await blockBlobClient.uploadData(buffer, {
     blobHTTPHeaders: { blobContentType: contentType },

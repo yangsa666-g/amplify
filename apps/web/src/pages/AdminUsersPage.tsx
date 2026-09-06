@@ -11,6 +11,7 @@ import {
   Select,
   Popconfirm,
   Tooltip,
+  Tabs,
 } from 'antd';
 import type { TableColumnsType } from 'antd';
 import {
@@ -30,33 +31,63 @@ import {
   updateAdminUserStatus,
   deleteAdminUser,
 } from '../api/adminUsers';
+import {
+  createOrganization,
+  getOrganizations,
+  updateOrganization,
+  updateOrganizationStatus,
+} from '../api/organizations';
 import { useAuthStore } from '../stores/authStore';
 import { message } from '../utils/message';
 import { formatDate } from '../utils/format';
-import type { User, ApiError } from '../types';
+import type { User, ApiError, Organization } from '../types';
 
 type ModalMode = 'create' | 'edit';
+type OrganizationModalMode = 'create' | 'edit';
 
 export default function AdminUsersPage() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuthStore();
+  const selectedOrganizationId = useAuthStore((s) => s.selectedOrganizationId);
   const [form] = Form.useForm();
+  const [organizationForm] = Form.useForm();
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<ModalMode>('create');
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [organizationModalOpen, setOrganizationModalOpen] = useState(false);
+  const [organizationModalMode, setOrganizationModalMode] =
+    useState<OrganizationModalMode>('create');
+  const [editingOrganization, setEditingOrganization] = useState<Organization | null>(null);
+  const isSuperAdmin = currentUser?.role === 'super_admin';
 
   const roleLabel = (role: string) =>
-    role === 'admin' ? t('admin.users.roleAdmin') : t('admin.users.roleUser');
+    role === 'super_admin'
+      ? 'Super Admin'
+      : role === 'admin'
+        ? t('admin.users.roleAdmin')
+        : t('admin.users.roleUser');
   const userStatusLabel = (status: string) =>
     status === 'active' ? t('admin.users.statusActive') : t('admin.users.statusDisabled');
 
   const { data: users, isLoading } = useQuery({
-    queryKey: ['admin-users'],
-    queryFn: () => getAdminUsers().then((r) => r.data),
+    queryKey: ['admin-users', selectedOrganizationId],
+    queryFn: () =>
+      getAdminUsers({ organizationId: isSuperAdmin ? selectedOrganizationId : undefined }).then(
+        (r) => r.data,
+      ),
   });
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+  const { data: organizations = [], isLoading: organizationsLoading } = useQuery({
+    queryKey: ['organizations'],
+    queryFn: () => getOrganizations().then((r) => r.data),
+    enabled: isSuperAdmin,
+  });
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    queryClient.invalidateQueries({ queryKey: ['organizations'] });
+  };
 
   const createMutation = useMutation({
     mutationFn: createAdminUser,
@@ -82,8 +113,15 @@ export default function AdminUsersPage() {
   });
 
   const roleMutation = useMutation({
-    mutationFn: ({ id, role }: { id: string; role: 'admin' | 'user' }) =>
-      updateAdminUserRole(id, role),
+    mutationFn: ({
+      id,
+      role,
+      organizationId,
+    }: {
+      id: string;
+      role: User['role'];
+      organizationId?: string | null;
+    }) => updateAdminUserRole(id, role, organizationId),
     onSuccess: () => {
       message.success(t('admin.users.roleUpdated'));
       invalidate();
@@ -113,11 +151,57 @@ export default function AdminUsersPage() {
       message.error(e?.response?.data?.message ?? t('admin.users.deleteFailed')),
   });
 
+  const createOrganizationMutation = useMutation({
+    mutationFn: createOrganization,
+    onSuccess: () => {
+      message.success('Company created');
+      setOrganizationModalOpen(false);
+      invalidate();
+    },
+    onError: (e: ApiError) => message.error(e?.response?.data?.message ?? 'Create company failed'),
+  });
+
+  const updateOrganizationMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { name?: string } }) =>
+      updateOrganization(id, data),
+    onSuccess: () => {
+      message.success('Company updated');
+      setOrganizationModalOpen(false);
+      invalidate();
+    },
+    onError: (e: ApiError) => message.error(e?.response?.data?.message ?? 'Update company failed'),
+  });
+
+  const organizationStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: 'active' | 'disabled' }) =>
+      updateOrganizationStatus(id, status),
+    onSuccess: () => {
+      message.success('Company status updated');
+      invalidate();
+    },
+    onError: (e: ApiError) =>
+      message.error(e?.response?.data?.message ?? 'Update company status failed'),
+  });
+
   const openCreate = () => {
     setModalMode('create');
     setEditingUser(null);
     form.resetFields();
     setModalOpen(true);
+  };
+
+  const openCreateOrganization = () => {
+    setOrganizationModalMode('create');
+    setEditingOrganization(null);
+    organizationForm.resetFields();
+    setOrganizationModalOpen(true);
+  };
+
+  const openEditOrganization = (organization: Organization) => {
+    setOrganizationModalMode('edit');
+    setEditingOrganization(organization);
+    organizationForm.setFieldsValue({ name: organization.name });
+    setOrganizationModalOpen(true);
   };
 
   const openEdit = (u: User) => {
@@ -135,6 +219,26 @@ export default function AdminUsersPage() {
       updateMutation.mutate({
         id: editingUser.id,
         data: { name: values.name, email: values.email },
+      });
+    }
+  };
+
+  const handleOrganizationSubmit = async () => {
+    const values = await organizationForm.validateFields();
+    if (organizationModalMode === 'create') {
+      createOrganizationMutation.mutate({
+        name: values.name,
+        firstAdmin: {
+          name: values.adminName,
+          email: values.adminEmail,
+          password: values.adminPassword,
+          authProvider: 'local',
+        },
+      });
+    } else if (editingOrganization) {
+      updateOrganizationMutation.mutate({
+        id: editingOrganization.id,
+        data: { name: values.name },
       });
     }
   };
@@ -160,6 +264,7 @@ export default function AdminUsersPage() {
       filters: [
         { text: t('admin.users.roleAdmin'), value: 'admin' },
         { text: t('admin.users.roleUser'), value: 'user' },
+        ...(isSuperAdmin ? [{ text: 'Super Admin', value: 'super_admin' }] : []),
       ],
       onFilter: (v: React.Key | boolean, r: User) => r.role === v,
       render: (role: string, record: User) =>
@@ -173,13 +278,29 @@ export default function AdminUsersPage() {
             options={[
               { value: 'admin', label: t('admin.users.roleAdmin') },
               { value: 'user', label: t('admin.users.roleUser') },
+              ...(isSuperAdmin ? [{ value: 'super_admin', label: 'Super Admin' }] : []),
             ]}
             onChange={(val) =>
-              roleMutation.mutate({ id: record.id, role: val as 'admin' | 'user' })
+              roleMutation.mutate({
+                id: record.id,
+                role: val as User['role'],
+                organizationId: record.organizationId,
+              })
             }
           />
         ),
     },
+    ...(isSuperAdmin
+      ? ([
+          {
+            title: 'Company',
+            dataIndex: ['organization', 'name'],
+            key: 'organization',
+            render: (_: unknown, record: User) =>
+              record.role === 'super_admin' ? <Tag>Platform</Tag> : record.organization?.name,
+          },
+        ] satisfies TableColumnsType<User>)
+      : []),
     {
       title: t('admin.users.colStatus'),
       dataIndex: 'status',
@@ -258,8 +379,55 @@ export default function AdminUsersPage() {
     },
   ];
 
-  return (
-    <div>
+  const organizationColumns: TableColumnsType<Organization> = [
+    { title: 'Company', dataIndex: 'name', key: 'name' },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: Organization['status']) => (
+        <Tag color={status === 'active' ? 'green' : 'red'}>{status}</Tag>
+      ),
+    },
+    {
+      title: 'Users',
+      key: 'users',
+      render: (_: unknown, record: Organization) => record._count?.users ?? 0,
+    },
+    {
+      title: 'Created',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (date: string) => formatDate(date, i18n.language),
+    },
+    {
+      title: t('admin.users.colActions'),
+      key: 'actions',
+      render: (_: unknown, record: Organization) => (
+        <Space size="small">
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => openEditOrganization(record)}
+          />
+          <Button
+            size="small"
+            icon={record.status === 'active' ? <LockOutlined /> : <UnlockOutlined />}
+            danger={record.status === 'active'}
+            onClick={() =>
+              organizationStatusMutation.mutate({
+                id: record.id,
+                status: record.status === 'active' ? 'disabled' : 'active',
+              })
+            }
+          />
+        </Space>
+      ),
+    },
+  ];
+
+  const usersTable = (
+    <>
       <div
         style={{
           display: 'flex',
@@ -287,6 +455,52 @@ export default function AdminUsersPage() {
         scroll={{ x: 'max-content' }}
         pagination={{ pageSize: 20, showSizeChanger: true }}
       />
+    </>
+  );
+
+  const organizationsTable = (
+    <>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 16,
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
+        <Typography.Title level={4} style={{ margin: 0 }}>
+          Companies
+        </Typography.Title>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreateOrganization}>
+          Create Company
+        </Button>
+      </div>
+      <Table
+        loading={organizationsLoading}
+        dataSource={organizations}
+        columns={organizationColumns}
+        rowKey="id"
+        size="small"
+        scroll={{ x: 'max-content' }}
+        pagination={{ pageSize: 20, showSizeChanger: true }}
+      />
+    </>
+  );
+
+  return (
+    <div>
+      {isSuperAdmin ? (
+        <Tabs
+          items={[
+            { key: 'users', label: 'Users', children: usersTable },
+            { key: 'companies', label: 'Companies', children: organizationsTable },
+          ]}
+        />
+      ) : (
+        usersTable
+      )}
 
       <Modal
         title={modalMode === 'create' ? t('admin.users.createUser') : t('admin.users.editUser')}
@@ -333,8 +547,82 @@ export default function AdminUsersPage() {
                   options={[
                     { value: 'user', label: t('admin.users.roleUser') },
                     { value: 'admin', label: t('admin.users.roleAdmin') },
+                    ...(isSuperAdmin ? [{ value: 'super_admin', label: 'Super Admin' }] : []),
                   ]}
                 />
+              </Form.Item>
+              {isSuperAdmin && (
+                <Form.Item
+                  name="organizationId"
+                  label="Company"
+                  rules={[
+                    ({ getFieldValue }) => ({
+                      validator: (_, value) =>
+                        getFieldValue('role') === 'super_admin' || value
+                          ? Promise.resolve()
+                          : Promise.reject(new Error('Company is required')),
+                    }),
+                  ]}
+                >
+                  <Select
+                    allowClear
+                    options={organizations.map((org) => ({ value: org.id, label: org.name }))}
+                  />
+                </Form.Item>
+              )}
+            </>
+          )}
+        </Form>
+      </Modal>
+
+      <Modal
+        title={organizationModalMode === 'create' ? 'Create Company' : 'Edit Company'}
+        open={organizationModalOpen}
+        onOk={handleOrganizationSubmit}
+        onCancel={() => setOrganizationModalOpen(false)}
+        confirmLoading={
+          createOrganizationMutation.isPending || updateOrganizationMutation.isPending
+        }
+        okText={organizationModalMode === 'create' ? t('common.create') : t('common.save')}
+        cancelText={t('common.cancel')}
+        destroyOnHidden
+      >
+        <Form form={organizationForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item
+            name="name"
+            label="Company Name"
+            rules={[{ required: true, message: 'Company name is required' }]}
+          >
+            <Input />
+          </Form.Item>
+          {organizationModalMode === 'create' && (
+            <>
+              <Form.Item
+                name="adminName"
+                label="First Admin Name"
+                rules={[{ required: true, message: 'First admin name is required' }]}
+              >
+                <Input />
+              </Form.Item>
+              <Form.Item
+                name="adminEmail"
+                label="First Admin Email"
+                rules={[
+                  { required: true, message: 'First admin email is required' },
+                  { type: 'email', message: t('admin.users.validEmail') },
+                ]}
+              >
+                <Input />
+              </Form.Item>
+              <Form.Item
+                name="adminPassword"
+                label={t('admin.users.password')}
+                rules={[
+                  { required: true, message: t('admin.users.passwordRequired') },
+                  { min: 8, message: t('admin.users.minChars') },
+                ]}
+              >
+                <Input.Password />
               </Form.Item>
             </>
           )}

@@ -24,18 +24,35 @@ export class NotificationsService {
   }
 
   async markAllRead(userId: string) {
-    return this.prisma.notification.updateMany({ where: { userId, isRead: false }, data: { isRead: true } });
-  }
-
-  async create(userId: string, type: NotificationType, title: string, body: string, requestId?: string) {
-    return this.prisma.notification.create({
-      data: { userId, type, title, body, requestId },
+    return this.prisma.notification.updateMany({
+      where: { userId, isRead: false },
+      data: { isRead: true },
     });
   }
 
-  async createMany(userIds: string[], type: NotificationType, title: string, body: string, requestId?: string) {
+  async create(
+    userId: string,
+    type: NotificationType,
+    title: string,
+    body: string,
+    requestId?: string,
+    organizationId?: string,
+  ) {
+    return this.prisma.notification.create({
+      data: { userId, type, title, body, requestId, organizationId },
+    });
+  }
+
+  async createMany(
+    userIds: string[],
+    type: NotificationType,
+    title: string,
+    body: string,
+    requestId?: string,
+    organizationId?: string,
+  ) {
     return this.prisma.notification.createMany({
-      data: userIds.map((userId) => ({ userId, type, title, body, requestId })),
+      data: userIds.map((userId) => ({ userId, type, title, body, requestId, organizationId })),
     });
   }
 }
