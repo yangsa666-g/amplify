@@ -17,8 +17,10 @@ export const createAdminUser = (data: {
   authProvider?: 'local' | 'entra';
 }) => client.post<User>('/admin/users', data);
 
-export const updateAdminUser = (id: string, data: { name?: string; email?: string }) =>
-  client.patch<User>(`/admin/users/${id}`, data);
+export const updateAdminUser = (
+  id: string,
+  data: { name?: string; email?: string; organizationId?: string },
+) => client.patch<User>(`/admin/users/${id}`, data);
 
 export const updateAdminUserRole = (
   id: string,

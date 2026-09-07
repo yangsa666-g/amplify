@@ -101,8 +101,13 @@ export default function AdminUsersPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { name?: string; email?: string } }) =>
-      updateAdminUser(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: { name?: string; email?: string; organizationId?: string };
+    }) => updateAdminUser(id, data),
     onSuccess: () => {
       message.success(t('admin.users.userUpdated'));
       setModalOpen(false);
@@ -209,7 +214,7 @@ export default function AdminUsersPage() {
   const openEdit = (u: User) => {
     setModalMode('edit');
     setEditingUser(u);
-    form.setFieldsValue({ name: u.name, email: u.email });
+    form.setFieldsValue({ name: u.name, email: u.email, organizationId: u.organizationId });
     setModalOpen(true);
   };
 
@@ -220,7 +225,13 @@ export default function AdminUsersPage() {
     } else if (editingUser) {
       updateMutation.mutate({
         id: editingUser.id,
-        data: { name: values.name, email: values.email },
+        data: {
+          name: values.name,
+          email: values.email,
+          ...(isSuperAdmin && editingUser.role !== 'super_admin'
+            ? { organizationId: values.organizationId }
+            : {}),
+        },
       });
     }
   };
@@ -300,6 +311,18 @@ export default function AdminUsersPage() {
             title: t('admin.users.colOrganization'),
             dataIndex: ['organization', 'name'],
             key: 'organization',
+            filters: [
+              { text: t('admin.users.platform'), value: '__platform__' },
+              ...organizations.map((organization) => ({
+                text: organization.name,
+                value: organization.id,
+              })),
+            ],
+            filterSearch: true,
+            onFilter: (value: React.Key | boolean, record: User) =>
+              value === '__platform__'
+                ? record.role === 'super_admin'
+                : record.organizationId === value,
             render: (_: unknown, record: User) =>
               record.role === 'super_admin' ? (
                 <Tag>{t('admin.users.platform')}</Tag>
@@ -342,7 +365,13 @@ export default function AdminUsersPage() {
       key: 'actions',
       render: (_: unknown, record: User) => (
         <Space size="small">
-          <Tooltip title={t('admin.users.editNameEmail')}>
+          <Tooltip
+            title={
+              isSuperAdmin
+                ? t('admin.users.editNameEmailOrganization')
+                : t('admin.users.editNameEmail')
+            }
+          >
             <Button
               size="small"
               icon={<EditOutlined />}
@@ -565,26 +594,28 @@ export default function AdminUsersPage() {
                   ]}
                 />
               </Form.Item>
-              {isSuperAdmin && (
-                <Form.Item
-                  name="organizationId"
-                  label={t('admin.users.organization')}
-                  rules={[
-                    ({ getFieldValue }) => ({
-                      validator: (_, value) =>
-                        getFieldValue('role') === 'super_admin' || value
-                          ? Promise.resolve()
-                          : Promise.reject(new Error(t('admin.users.organizationRequired'))),
-                    }),
-                  ]}
-                >
-                  <Select
-                    allowClear
-                    options={organizations.map((org) => ({ value: org.id, label: org.name }))}
-                  />
-                </Form.Item>
-              )}
             </>
+          )}
+          {isSuperAdmin && (modalMode === 'create' || editingUser?.role !== 'super_admin') && (
+            <Form.Item
+              name="organizationId"
+              label={t('admin.users.organization')}
+              rules={[
+                ({ getFieldValue }) => ({
+                  validator: (_, value) =>
+                    (modalMode === 'create' && getFieldValue('role') === 'super_admin') || value
+                      ? Promise.resolve()
+                      : Promise.reject(new Error(t('admin.users.organizationRequired'))),
+                }),
+              ]}
+            >
+              <Select
+                allowClear={modalMode === 'create'}
+                showSearch
+                optionFilterProp="label"
+                options={organizations.map((org) => ({ value: org.id, label: org.name }))}
+              />
+            </Form.Item>
           )}
         </Form>
       </Modal>

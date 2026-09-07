@@ -460,6 +460,7 @@ const en = {
       statusDisabled: 'Disabled',
       password: 'Password',
       editNameEmail: 'Edit name / email',
+      editNameEmailOrganization: 'Edit name / email / organization',
       disableAccount: 'Disable account',
       enableAccount: 'Enable account',
       deleteUser: 'Delete user',
