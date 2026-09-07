@@ -19,7 +19,12 @@ export const createAdminUser = (data: {
 
 export const updateAdminUser = (
   id: string,
-  data: { name?: string; email?: string; organizationId?: string },
+  data: {
+    name?: string;
+    email?: string;
+    role?: User['role'];
+    organizationId?: string | null;
+  },
 ) => client.patch<User>(`/admin/users/${id}`, data);
 
 export const updateAdminUserRole = (
