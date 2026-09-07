@@ -4,9 +4,9 @@
 
 ### Features
 
-* add organization-level access control with Super Admin, company Admin, and company User roles
+* add organization-level access control with Super Admin, Organization Admin, and Organization User roles
 * scope documents, analysis, compare jobs, history, audit, templates, models, and API keys by organization
-* add Super Admin company context switching and company management inside User Management
+* add Super Admin organization context switching and organization management inside User Management
 * allow Super Admin to run business workflows directly from `Platform Defaults`
 
 ### Migration Notes
@@ -14,7 +14,7 @@
 * creates `legacy_organization` and assigns existing tenant data to it
 * creates hidden `platform_defaults` storage for Super Admin business workflows in Platform Defaults
 * converts existing Admin users to `super_admin`
-* revokes refresh tokens so role and company changes take effect immediately
+* revokes refresh tokens so role and organization changes take effect immediately
 
 ## [0.5.2](https://github.com/shidafu666/amplify/compare/v0.5.1...v0.5.2) (2026-08-27)
 

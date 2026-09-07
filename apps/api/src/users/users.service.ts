@@ -186,7 +186,7 @@ export class UsersService {
     this.assertCanManageUser(actor, user);
 
     if (actor?.role === 'admin' && role === 'super_admin') {
-      throw new ForbiddenException('Company Admin cannot create Super Admins');
+      throw new ForbiddenException('Organization Admin cannot create Super Admins');
     }
     if (user.role === 'admin' && role !== 'admin') {
       await this.assertNotLastActiveAdmin(user.id, user.organizationId);

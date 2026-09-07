@@ -9,7 +9,7 @@ export interface AccessContext {
   role: TenantRole;
   organizationId: string;
   isSuperAdmin: boolean;
-  isCompanyAdmin: boolean;
+  isOrganizationAdmin: boolean;
 }
 
 export function requireOrganizationContext(user: AuthUser): AccessContext {
@@ -26,13 +26,15 @@ export function requireOrganizationContext(user: AuthUser): AccessContext {
     role: user.role,
     organizationId,
     isSuperAdmin: user.role === 'super_admin',
-    isCompanyAdmin: user.role === 'admin',
+    isOrganizationAdmin: user.role === 'admin',
   };
 }
 
-export function requireCompanyMember(user: AuthUser): AccessContext {
+export function requireOrganizationMember(user: AuthUser): AccessContext {
   if (user.role === 'super_admin') {
-    throw new ForbiddenException('Super Admin must select a company context for this operation');
+    throw new ForbiddenException(
+      'Super Admin must select an organization context for this operation',
+    );
   }
   return requireOrganizationContext(user);
 }

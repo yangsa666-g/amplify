@@ -136,11 +136,17 @@ export class FieldTemplatesService {
 
   async listSystemTemplates(user: AuthUser) {
     const where = this.adminTemplateWhere(user);
-    return this.prisma.fieldTemplate.findMany({
-      where,
+    const templates = await this.prisma.fieldTemplate.findMany({
+      where:
+        where.scope === 'platform'
+          ? where
+          : {
+              OR: [{ scope: 'platform' as const }, where],
+            },
       include: this.includeItems,
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
     });
+    return templates.map((template) => this.withCompatScope(template));
   }
 
   async createSystemTemplate(user: AuthUser, data: { name: string; items: ItemInput[] }) {
@@ -230,6 +236,6 @@ export class FieldTemplatesService {
   private withCompatScope<T extends { scope: string; isSystem: boolean }>(template: T) {
     const scope =
       template.scope === 'platform' || template.scope === 'organization' ? 'system' : 'personal';
-    return { ...template, scope };
+    return { ...template, templateScope: template.scope, scope };
   }
 }

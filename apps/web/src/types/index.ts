@@ -66,6 +66,7 @@ export interface FieldTemplate {
   userId?: string | null;
   items: FieldTemplateItem[];
   scope?: 'system' | 'personal';
+  templateScope?: 'platform' | 'organization' | 'personal';
   createdAt?: string;
   updatedAt?: string;
 }
@@ -79,6 +80,7 @@ export interface PromptTemplate {
   userId?: string | null;
   templateType?: PromptTemplateType;
   scope?: 'system' | 'personal';
+  templateScope?: 'platform' | 'organization' | 'personal';
   createdAt?: string;
   updatedAt?: string;
 }

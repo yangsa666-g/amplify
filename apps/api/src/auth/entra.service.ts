@@ -127,8 +127,8 @@ export class EntraService {
       return this.usersService.linkEntraOid(byEmail.id, oid);
     }
 
-    // 3) Unknown tenant users are not created just-in-time. Company Admins or
-    // Super Admins must pre-provision them so every account has a company.
+    // 3) Unknown tenant users are not created just-in-time. Organization Admins or
+    // Super Admins must pre-provision them so every account has an organization.
     throw new UnauthorizedException('Account must be provisioned before Entra SSO login');
   }
 }

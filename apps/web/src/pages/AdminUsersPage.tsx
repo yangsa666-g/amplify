@@ -63,7 +63,7 @@ export default function AdminUsersPage() {
 
   const roleLabel = (role: string) =>
     role === 'super_admin'
-      ? 'Super Admin'
+      ? t('admin.users.roleSuperAdmin')
       : role === 'admin'
         ? t('admin.users.roleAdmin')
         : t('admin.users.roleUser');
@@ -154,33 +154,35 @@ export default function AdminUsersPage() {
   const createOrganizationMutation = useMutation({
     mutationFn: createOrganization,
     onSuccess: () => {
-      message.success('Company created');
+      message.success(t('admin.users.organizationCreated'));
       setOrganizationModalOpen(false);
       invalidate();
     },
-    onError: (e: ApiError) => message.error(e?.response?.data?.message ?? 'Create company failed'),
+    onError: (e: ApiError) =>
+      message.error(e?.response?.data?.message ?? t('admin.users.createOrganizationFailed')),
   });
 
   const updateOrganizationMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: { name?: string } }) =>
       updateOrganization(id, data),
     onSuccess: () => {
-      message.success('Company updated');
+      message.success(t('admin.users.organizationUpdated'));
       setOrganizationModalOpen(false);
       invalidate();
     },
-    onError: (e: ApiError) => message.error(e?.response?.data?.message ?? 'Update company failed'),
+    onError: (e: ApiError) =>
+      message.error(e?.response?.data?.message ?? t('admin.users.updateOrganizationFailed')),
   });
 
   const organizationStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: 'active' | 'disabled' }) =>
       updateOrganizationStatus(id, status),
     onSuccess: () => {
-      message.success('Company status updated');
+      message.success(t('admin.users.organizationStatusUpdated'));
       invalidate();
     },
     onError: (e: ApiError) =>
-      message.error(e?.response?.data?.message ?? 'Update company status failed'),
+      message.error(e?.response?.data?.message ?? t('admin.users.updateOrganizationStatusFailed')),
   });
 
   const openCreate = () => {
@@ -264,7 +266,7 @@ export default function AdminUsersPage() {
       filters: [
         { text: t('admin.users.roleAdmin'), value: 'admin' },
         { text: t('admin.users.roleUser'), value: 'user' },
-        ...(isSuperAdmin ? [{ text: 'Super Admin', value: 'super_admin' }] : []),
+        ...(isSuperAdmin ? [{ text: t('admin.users.roleSuperAdmin'), value: 'super_admin' }] : []),
       ],
       onFilter: (v: React.Key | boolean, r: User) => r.role === v,
       render: (role: string, record: User) =>
@@ -278,7 +280,9 @@ export default function AdminUsersPage() {
             options={[
               { value: 'admin', label: t('admin.users.roleAdmin') },
               { value: 'user', label: t('admin.users.roleUser') },
-              ...(isSuperAdmin ? [{ value: 'super_admin', label: 'Super Admin' }] : []),
+              ...(isSuperAdmin
+                ? [{ value: 'super_admin', label: t('admin.users.roleSuperAdmin') }]
+                : []),
             ]}
             onChange={(val) =>
               roleMutation.mutate({
@@ -293,11 +297,15 @@ export default function AdminUsersPage() {
     ...(isSuperAdmin
       ? ([
           {
-            title: 'Company',
+            title: t('admin.users.colOrganization'),
             dataIndex: ['organization', 'name'],
             key: 'organization',
             render: (_: unknown, record: User) =>
-              record.role === 'super_admin' ? <Tag>Platform</Tag> : record.organization?.name,
+              record.role === 'super_admin' ? (
+                <Tag>{t('admin.users.platform')}</Tag>
+              ) : (
+                record.organization?.name
+              ),
           },
         ] satisfies TableColumnsType<User>)
       : []),
@@ -380,22 +388,22 @@ export default function AdminUsersPage() {
   ];
 
   const organizationColumns: TableColumnsType<Organization> = [
-    { title: 'Company', dataIndex: 'name', key: 'name' },
+    { title: t('admin.users.organization'), dataIndex: 'name', key: 'name' },
     {
-      title: 'Status',
+      title: t('admin.users.colStatus'),
       dataIndex: 'status',
       key: 'status',
       render: (status: Organization['status']) => (
-        <Tag color={status === 'active' ? 'green' : 'red'}>{status}</Tag>
+        <Tag color={status === 'active' ? 'green' : 'red'}>{userStatusLabel(status)}</Tag>
       ),
     },
     {
-      title: 'Users',
+      title: t('admin.users.tabUsers'),
       key: 'users',
       render: (_: unknown, record: Organization) => record._count?.users ?? 0,
     },
     {
-      title: 'Created',
+      title: t('analysis.columns.created'),
       dataIndex: 'createdAt',
       key: 'createdAt',
       render: (date: string) => formatDate(date, i18n.language),
@@ -471,10 +479,10 @@ export default function AdminUsersPage() {
         }}
       >
         <Typography.Title level={4} style={{ margin: 0 }}>
-          Companies
+          {t('admin.users.organizations')}
         </Typography.Title>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreateOrganization}>
-          Create Company
+          {t('admin.users.createOrganization')}
         </Button>
       </div>
       <Table
@@ -494,8 +502,12 @@ export default function AdminUsersPage() {
       {isSuperAdmin ? (
         <Tabs
           items={[
-            { key: 'users', label: 'Users', children: usersTable },
-            { key: 'companies', label: 'Companies', children: organizationsTable },
+            { key: 'users', label: t('admin.users.tabUsers'), children: usersTable },
+            {
+              key: 'organizations',
+              label: t('admin.users.tabOrganizations'),
+              children: organizationsTable,
+            },
           ]}
         />
       ) : (
@@ -547,20 +559,22 @@ export default function AdminUsersPage() {
                   options={[
                     { value: 'user', label: t('admin.users.roleUser') },
                     { value: 'admin', label: t('admin.users.roleAdmin') },
-                    ...(isSuperAdmin ? [{ value: 'super_admin', label: 'Super Admin' }] : []),
+                    ...(isSuperAdmin
+                      ? [{ value: 'super_admin', label: t('admin.users.roleSuperAdmin') }]
+                      : []),
                   ]}
                 />
               </Form.Item>
               {isSuperAdmin && (
                 <Form.Item
                   name="organizationId"
-                  label="Company"
+                  label={t('admin.users.organization')}
                   rules={[
                     ({ getFieldValue }) => ({
                       validator: (_, value) =>
                         getFieldValue('role') === 'super_admin' || value
                           ? Promise.resolve()
-                          : Promise.reject(new Error('Company is required')),
+                          : Promise.reject(new Error(t('admin.users.organizationRequired'))),
                     }),
                   ]}
                 >
@@ -576,7 +590,11 @@ export default function AdminUsersPage() {
       </Modal>
 
       <Modal
-        title={organizationModalMode === 'create' ? 'Create Company' : 'Edit Company'}
+        title={
+          organizationModalMode === 'create'
+            ? t('admin.users.createOrganization')
+            : t('admin.users.editOrganization')
+        }
         open={organizationModalOpen}
         onOk={handleOrganizationSubmit}
         onCancel={() => setOrganizationModalOpen(false)}
@@ -590,8 +608,8 @@ export default function AdminUsersPage() {
         <Form form={organizationForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             name="name"
-            label="Company Name"
-            rules={[{ required: true, message: 'Company name is required' }]}
+            label={t('admin.users.organizationName')}
+            rules={[{ required: true, message: t('admin.users.organizationNameRequired') }]}
           >
             <Input />
           </Form.Item>
@@ -599,16 +617,16 @@ export default function AdminUsersPage() {
             <>
               <Form.Item
                 name="adminName"
-                label="First Admin Name"
-                rules={[{ required: true, message: 'First admin name is required' }]}
+                label={t('admin.users.firstAdminName')}
+                rules={[{ required: true, message: t('admin.users.firstAdminNameRequired') }]}
               >
                 <Input />
               </Form.Item>
               <Form.Item
                 name="adminEmail"
-                label="First Admin Email"
+                label={t('admin.users.firstAdminEmail')}
                 rules={[
-                  { required: true, message: 'First admin email is required' },
+                  { required: true, message: t('admin.users.firstAdminEmailRequired') },
                   { type: 'email', message: t('admin.users.validEmail') },
                 ]}
               >

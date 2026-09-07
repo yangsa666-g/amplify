@@ -318,6 +318,10 @@ export default function AppLayout() {
     setSelectedOrganizationId(value === PLATFORM_CONTEXT_VALUE ? null : value);
     void queryClient.invalidateQueries();
   };
+  const currentOrganizationName =
+    user?.role === 'super_admin'
+      ? t('common.platformDefaults')
+      : user?.organizationName || user?.organization?.name || t('common.noOrganization');
 
   const handleNav = (key: string) => {
     navigate(key);
@@ -440,13 +444,22 @@ export default function AppLayout() {
                 style={{ minWidth: isMobile ? 150 : 220 }}
                 onChange={handleOrganizationChange}
                 options={[
-                  { value: PLATFORM_CONTEXT_VALUE, label: 'Platform Defaults' },
+                  { value: PLATFORM_CONTEXT_VALUE, label: t('common.platformDefaults') },
                   ...organizations.map((org) => ({
                     value: org.id,
                     label: org.status === 'disabled' ? `${org.name} (disabled)` : org.name,
                     disabled: org.status === 'disabled',
                   })),
                 ]}
+              />
+            )}
+            {!isSuperAdmin && user && (
+              <Select
+                size="small"
+                value={currentOrganizationName}
+                disabled
+                style={{ minWidth: isMobile ? 150 : 220 }}
+                options={[{ value: currentOrganizationName, label: currentOrganizationName }]}
               />
             )}
             <NotificationBell />

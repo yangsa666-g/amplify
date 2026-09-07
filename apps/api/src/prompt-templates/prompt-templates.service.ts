@@ -140,10 +140,18 @@ export class PromptTemplatesService {
 
   async listSystemTemplates(user: AuthUser, templateType = 'risk_analysis') {
     const type = this.normalizeType(templateType);
-    return this.prisma.promptTemplate.findMany({
-      where: { ...this.adminTemplateWhere(user), templateType: type },
+    const where = this.adminTemplateWhere(user);
+    const templates = await this.prisma.promptTemplate.findMany({
+      where:
+        where.scope === 'platform'
+          ? { ...where, templateType: type }
+          : {
+              templateType: type,
+              OR: [{ scope: 'platform' as const }, where],
+            },
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
     });
+    return templates.map((template) => this.withCompatScope(template));
   }
 
   async createSystemTemplate(
@@ -234,6 +242,6 @@ export class PromptTemplatesService {
   private withCompatScope<T extends { scope: string }>(template: T) {
     const scope =
       template.scope === 'platform' || template.scope === 'organization' ? 'system' : 'personal';
-    return { ...template, scope };
+    return { ...template, templateScope: template.scope, scope };
   }
 }

@@ -2,18 +2,18 @@
 
 ## Highlights
 
-- Added company-level tenant isolation with `Organization`.
+- Added organization-level tenant isolation with `Organization`.
 - Added platform `super_admin` role.
-- Kept company `admin` and `user` roles.
-- Reused the existing User Management page for company and user administration.
-- Added Super Admin company context switching with `X-Organization-Id`.
+- Kept organization `admin` and `user` roles.
+- Reused the existing User Management page for organization and user administration.
+- Added Super Admin organization context switching with `X-Organization-Id`.
 - Let Super Admin run contract analysis and compare directly in `Platform Defaults`.
 
 ## Backend
 
 - JWT auth now reloads user and organization state on every request.
-- Disabled users and disabled companies are blocked immediately.
-- Admin routes now allow Super Admin, while data access remains company-scoped.
+- Disabled users and disabled organizations are blocked immediately.
+- Admin routes now allow Super Admin, while data access remains organization-scoped.
 - User deletion now disables accounts instead of hard deleting data.
 - Entra SSO no longer creates unknown users automatically.
 - External API keys are scoped to one organization.
@@ -24,17 +24,17 @@
 - Added `organizations`.
 - Added `organization_id` to tenant-owned data tables.
 - Added `TemplateScope` and `OrganizationModelSetting`.
-- Added role/company consistency check constraints.
+- Added role/organization consistency check constraints.
 - Added indexes and partial unique indexes for tenant queries and defaults.
 - Added migration that moves legacy data into `legacy_organization`, converts old Admin users to Super Admins, and revokes refresh tokens.
 - Added migration/seed coverage for hidden `platform_defaults` business storage.
 
 ## Frontend
 
-- Added Super Admin company selector in the application header.
+- Added Super Admin organization selector in the application header.
 - `Platform Defaults` remains the default Super Admin context and supports normal contract analysis/compare workflows.
-- Added Companies tab inside User Management for Super Admin.
-- Added company selection for Super Admin user creation.
+- Added Organizations tab inside User Management for Super Admin.
+- Added organization selection for Super Admin user creation.
 - Updated route guards and client request headers for Super Admin and selected organization context.
 
 ## Compatibility Notes
@@ -53,5 +53,5 @@
 ## Known Follow-Ups
 
 - Add deeper cross-tenant integration tests.
-- Improve UI copy/i18n for the new Companies tab.
+- Improve UI copy/i18n for the new Organizations tab.
 - Optionally implement exact content hashing for identifying official legacy templates during migration.

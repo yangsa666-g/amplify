@@ -61,7 +61,7 @@ export class TemplateRequestsService {
         include: { fieldTemplate: { include: this.includeFieldItems }, user: true },
       });
 
-      // Notify only active Admins in the requester's company.
+      // Notify only active Admins in the requester's organization.
       const admins = await this.prisma.user.findMany({
         where: { role: 'admin', status: 'active', organizationId: ctx.organizationId },
       });
@@ -70,7 +70,7 @@ export class TemplateRequestsService {
           admins.map((a) => a.id),
           NotificationType.template_request_submitted,
           'New Template Promotion Request',
-          `${request.user.name} requested to promote field template "${tmpl.name}" to company templates.`,
+          `${request.user.name} requested to promote field template "${tmpl.name}" to organization templates.`,
           request.id,
           ctx.organizationId,
         );
@@ -108,7 +108,7 @@ export class TemplateRequestsService {
           admins.map((a) => a.id),
           NotificationType.template_request_submitted,
           'New Template Promotion Request',
-          `${request.user.name} requested to promote prompt template "${tmpl.name}" to company templates.`,
+          `${request.user.name} requested to promote prompt template "${tmpl.name}" to organization templates.`,
           request.id,
           ctx.organizationId,
         );
