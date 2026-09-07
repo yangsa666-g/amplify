@@ -1264,7 +1264,7 @@ function ModelsTab() {
             render: (_: string, record: Model) => (
               <Space direction="vertical" size={0}>
                 <Space>
-                  <ModelProviderIcon modelName={modelIconName(record)} icon={record.icon} />
+                  <ModelProviderIcon modelName={modelIconName(record)} />
                   <Typography.Text strong>{record.name}</Typography.Text>
                   {record.isDefault && <Tag color="blue">{t('common.default')}</Tag>}
                 </Space>
