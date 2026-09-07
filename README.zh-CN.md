@@ -302,7 +302,7 @@ curl -X POST http://localhost:3001/v1/compare/run \
   -d "{\"documentIds\":[\"$OLD_ID\",\"$NEW_ID\"],\"model\":\"gpt-5.4\",\"reasoningEffort\":\"medium\"}"
 ```
 
-`documentIds` 必须包含 2–5 个不重复的 ID，其顺序会保留在 Prompt 和结果元数据中。省略 `promptTemplateId` 时使用系统默认文档比对模板。比对响应包含 Markdown 报告、分析耗时和 token 用量。
+`documentIds` 必须包含 2–5 个不重复的 ID，其顺序会保留在 Prompt 和结果元数据中。省略 `promptTemplateId` 时使用系统默认合同比对模板。比对响应包含 Markdown 报告、分析耗时和 token 用量。
 
 完整的请求 / 响应结构请参阅 `/docs`。
 

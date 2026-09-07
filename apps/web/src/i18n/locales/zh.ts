@@ -38,9 +38,9 @@ const zh: typeof en = {
     noOrganization: '无组织',
   },
   templateNames: {
-    defaultContractFields: '默认文档字段',
+    defaultContractFields: '默认合同字段',
     defaultRiskAnalysisPrompt: '默认风险分析提示词',
-    defaultContractComparisonPrompt: '默认文档比对提示词',
+    defaultContractComparisonPrompt: '默认合同比对提示词',
     copySuffix: '（副本）',
   },
   status: {

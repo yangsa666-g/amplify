@@ -36,9 +36,9 @@ const en = {
     noOrganization: 'No Organization',
   },
   templateNames: {
-    defaultContractFields: 'Default Document Fields',
+    defaultContractFields: 'Default Contract Fields',
     defaultRiskAnalysisPrompt: 'Default Risk Analysis Prompt',
-    defaultContractComparisonPrompt: 'Default Document Comparison Prompt',
+    defaultContractComparisonPrompt: 'Default Contract Comparison Prompt',
     copySuffix: '(copy)',
   },
   status: {

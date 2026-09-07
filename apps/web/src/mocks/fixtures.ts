@@ -67,26 +67,26 @@ export const mockModels: Model[] = [
 export const mockFieldTemplates: FieldTemplate[] = [
   {
     id: 'mock-field-template-default',
-    name: 'Default Document Fields',
+    name: 'Default Contract Fields',
     isSystem: true,
     isDefault: true,
     scope: 'system',
     items: [
       {
         id: 'mock-field-title',
-        fieldName: 'Document Title',
-        fieldDescription: 'The official title or name of the document',
+        fieldName: 'Contract Title',
+        fieldDescription: 'The official title or name of the contract',
         sortOrder: 1,
       },
       {
         id: 'mock-field-parties',
         fieldName: 'Parties',
-        fieldDescription: 'All parties identified in the document',
+        fieldDescription: 'All parties involved in the contract',
         sortOrder: 2,
       },
       {
         id: 'mock-field-value',
-        fieldName: 'Document Value',
+        fieldName: 'Contract Value',
         fieldDescription: 'Total monetary value or consideration',
         sortOrder: 3,
       },
@@ -100,7 +100,7 @@ export const mockPromptTemplates: PromptTemplate[] = [
   {
     id: 'mock-prompt-template-default',
     name: 'Default Risk Analysis Prompt',
-    content: 'Review the supplied document and produce a structured risk analysis.',
+    content: 'Review {contract_text} and produce a structured risk analysis.',
     isSystem: true,
     isDefault: true,
     scope: 'system',
@@ -110,8 +110,8 @@ export const mockPromptTemplates: PromptTemplate[] = [
   },
   {
     id: 'mock-comparison-prompt-default',
-    name: 'Default Document Comparison Prompt',
-    content: 'Compare all supplied documents and cite each material difference.',
+    name: 'Default Contract Comparison Prompt',
+    content: 'Compare all supplied contracts and cite each material difference.',
     isSystem: true,
     isDefault: true,
     scope: 'system',
@@ -148,7 +148,7 @@ export const mockAnalysisJobs: AnalysisJob[] = [
       id: 'mock-field-result-success',
       resultJson: [
         {
-          field: 'Document Title',
+          field: 'Contract Title',
           extracted_value: 'Cloud Transformation Services Agreement',
           confidence: 0.98,
           evidence: 'The first page identifies the agreement title.',
@@ -162,7 +162,7 @@ export const mockAnalysisJobs: AnalysisJob[] = [
           comments: 'Two-party agreement.',
         },
         {
-          field: 'Document Value',
+          field: 'Contract Value',
           extracted_value: '$250,000',
           confidence: 0.89,
           evidence: 'Fees section lists a total project cap of $250,000.',
@@ -205,7 +205,7 @@ export const mockAnalysisJobs: AnalysisJob[] = [
       id: 'mock-field-result-long',
       resultJson: [
         {
-          field: 'Document Title',
+          field: 'Contract Title',
           extracted_value: 'Very Long Master Services Agreement',
           confidence: 0.91,
           evidence: 'Title block on page 1.',
@@ -252,7 +252,7 @@ export const mockCompareJobs: CompareJob[] = [
     promptTemplateId: 'mock-comparison-prompt-default',
     promptTemplate: {
       id: 'mock-comparison-prompt-default',
-      name: 'Default Document Comparison Prompt',
+      name: 'Default Contract Comparison Prompt',
     },
     createdAt: '2026-06-05T05:10:00.000Z',
     documents: [

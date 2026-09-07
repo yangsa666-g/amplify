@@ -307,7 +307,7 @@ curl -X POST http://localhost:3001/v1/compare/run \
   -d "{\"documentIds\":[\"$OLD_ID\",\"$NEW_ID\"],\"model\":\"gpt-5.4\",\"reasoningEffort\":\"medium\"}"
 ```
 
-`documentIds` must contain 2–5 unique IDs. Their order is preserved in the prompt and result metadata. Omit `promptTemplateId` to use the default document-comparison template. Compare responses contain the Markdown report, analysis timing, and token usage.
+`documentIds` must contain 2–5 unique IDs. Their order is preserved in the prompt and result metadata. Omit `promptTemplateId` to use the default contract-comparison template. Compare responses contain the Markdown report, analysis timing, and token usage.
 
 See `/docs` for the full request/response schemas.
 
