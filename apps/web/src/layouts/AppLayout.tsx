@@ -15,7 +15,6 @@ import {
   Grid,
   theme,
   message,
-  Select,
 } from 'antd';
 import type { MenuProps } from 'antd';
 import {
@@ -56,6 +55,7 @@ const { Sider, Content, Header } = Layout;
 
 const SIDER_BG = '#001529';
 const PLATFORM_CONTEXT_VALUE = '__platform__';
+const ORGANIZATION_MENU_KEY_PREFIX = 'organization:';
 
 function NotificationBell() {
   const qc = useQueryClient();
@@ -244,6 +244,11 @@ export default function AppLayout() {
     navigate('/login');
   };
 
+  const handleOrganizationChange = (value: string) => {
+    setSelectedOrganizationId(value === PLATFORM_CONTEXT_VALUE ? null : value);
+    void queryClient.invalidateQueries();
+  };
+
   const userMenuItems = [
     { key: '/analysis', icon: <FileTextOutlined />, label: t('nav.analysis') },
     { key: '/compare', icon: <DiffOutlined />, label: t('nav.compare') },
@@ -267,6 +272,26 @@ export default function AppLayout() {
       icon: <UserOutlined />,
       label: t('nav.profile'),
     },
+    ...(isSuperAdmin
+      ? [
+          {
+            key: 'organization',
+            icon: <TeamOutlined />,
+            label: t('nav.switchOrganization'),
+            children: [
+              {
+                key: `${ORGANIZATION_MENU_KEY_PREFIX}${PLATFORM_CONTEXT_VALUE}`,
+                label: t('common.platformDefaults'),
+              },
+              ...organizations.map((org) => ({
+                key: `${ORGANIZATION_MENU_KEY_PREFIX}${org.id}`,
+                label: org.status === 'disabled' ? `${org.name} (disabled)` : org.name,
+                disabled: org.status === 'disabled',
+              })),
+            ],
+          },
+        ]
+      : []),
     ...(canInstall
       ? [
           {
@@ -303,7 +328,11 @@ export default function AppLayout() {
 
   const userMenu: MenuProps = {
     selectable: true,
-    selectedKeys: [`theme:${themeMode}`, `lang:${lang}`],
+    selectedKeys: [
+      `theme:${themeMode}`,
+      `lang:${lang}`,
+      `${ORGANIZATION_MENU_KEY_PREFIX}${selectedOrganizationId ?? PLATFORM_CONTEXT_VALUE}`,
+    ],
     items: userDropdownItems,
     onClick: ({ key }) => {
       if (key === 'profile') navigate('/profile');
@@ -311,17 +340,11 @@ export default function AppLayout() {
       if (key === 'pwa:install') void installApp();
       if (key.startsWith('theme:')) setThemeMode(key.slice(6) as ThemeMode);
       if (key.startsWith('lang:')) void i18n.changeLanguage(key.slice(5));
+      if (key.startsWith(ORGANIZATION_MENU_KEY_PREFIX)) {
+        handleOrganizationChange(key.slice(ORGANIZATION_MENU_KEY_PREFIX.length));
+      }
     },
   };
-
-  const handleOrganizationChange = (value: string) => {
-    setSelectedOrganizationId(value === PLATFORM_CONTEXT_VALUE ? null : value);
-    void queryClient.invalidateQueries();
-  };
-  const currentOrganizationName =
-    user?.role === 'super_admin'
-      ? t('common.platformDefaults')
-      : user?.organizationName || user?.organization?.name || t('common.noOrganization');
 
   const handleNav = (key: string) => {
     navigate(key);
@@ -437,31 +460,6 @@ export default function AppLayout() {
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 16 }}>
-            {isSuperAdmin && (
-              <Select
-                size="small"
-                value={selectedOrganizationId ?? PLATFORM_CONTEXT_VALUE}
-                style={{ minWidth: isMobile ? 150 : 220 }}
-                onChange={handleOrganizationChange}
-                options={[
-                  { value: PLATFORM_CONTEXT_VALUE, label: t('common.platformDefaults') },
-                  ...organizations.map((org) => ({
-                    value: org.id,
-                    label: org.status === 'disabled' ? `${org.name} (disabled)` : org.name,
-                    disabled: org.status === 'disabled',
-                  })),
-                ]}
-              />
-            )}
-            {!isSuperAdmin && user && (
-              <Select
-                size="small"
-                value={currentOrganizationName}
-                disabled
-                style={{ minWidth: isMobile ? 150 : 220 }}
-                options={[{ value: currentOrganizationName, label: currentOrganizationName }]}
-              />
-            )}
             <NotificationBell />
             <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
               <Button

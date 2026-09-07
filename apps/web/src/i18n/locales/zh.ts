@@ -100,6 +100,7 @@ const zh: typeof en = {
     history: '我的历史',
     settings: '设置',
     profile: '个人资料',
+    switchOrganization: '切换组织',
     logout: '退出登录',
     admin: '管理',
     dashboard: '仪表盘',
