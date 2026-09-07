@@ -4,7 +4,7 @@ import Icon, { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { login, getEntraEnabled } from '../api/auth';
+import { login, getAuthenticationConfiguration } from '../api/auth';
 import { useAuthStore } from '../stores/authStore';
 import HeaderControls from '../components/HeaderControls';
 import Logo from '../components/Logo';
@@ -31,11 +31,13 @@ export default function LoginPage() {
 
   const ssoError = ssoErrorMessage(t, params.get('sso_error'));
 
-  const entraEnabled = useQuery({
-    queryKey: ['entra-enabled'],
-    queryFn: () => getEntraEnabled().then((r) => r.data.enabled),
-    staleTime: Infinity,
+  const authenticationConfiguration = useQuery({
+    queryKey: ['authentication-configuration'],
+    queryFn: () => getAuthenticationConfiguration().then((r) => r.data),
+    staleTime: 30_000,
   });
+  const localAuthEnabled = authenticationConfiguration.data?.localAuthEnabled ?? true;
+  const entraAuthEnabled = authenticationConfiguration.data?.entraAuthEnabled ?? false;
 
   const mutation = useMutation({
     mutationFn: ({ email, password }: { email: string; password: string }) =>
@@ -127,31 +129,41 @@ export default function LoginPage() {
             style={{ marginBottom: 16 }}
           />
         )}
-        <Form onFinish={(v) => mutation.mutate(v)} layout="vertical">
-          <Form.Item name="email" rules={[{ required: true, type: 'email' }]}>
-            <Input prefix={<UserOutlined />} placeholder={t('login.email')} size="large" />
-          </Form.Item>
-          <Form.Item name="password" rules={[{ required: true }]}>
-            <Input.Password
-              prefix={<LockOutlined />}
-              placeholder={t('login.password')}
+        {localAuthEnabled && (
+          <Form onFinish={(v) => mutation.mutate(v)} layout="vertical">
+            <Form.Item name="email" rules={[{ required: true, type: 'email' }]}>
+              <Input prefix={<UserOutlined />} placeholder={t('login.email')} size="large" />
+            </Form.Item>
+            <Form.Item name="password" rules={[{ required: true }]}>
+              <Input.Password
+                prefix={<LockOutlined />}
+                placeholder={t('login.password')}
+                size="large"
+              />
+            </Form.Item>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={mutation.isPending}
+              block
               size="large"
-            />
-          </Form.Item>
-          <Button type="primary" htmlType="submit" loading={mutation.isPending} block size="large">
-            {t('login.signIn')}
-          </Button>
-        </Form>
+            >
+              {t('login.signIn')}
+            </Button>
+          </Form>
+        )}
         {mocksEnabled && (
           <Button onClick={devSignIn} block size="large" style={{ marginTop: 12 }}>
             {t('login.devSignIn')}
           </Button>
         )}
-        {entraEnabled.data && (
+        {entraAuthEnabled && (
           <>
-            <Divider plain style={{ color: token.colorTextTertiary }}>
-              {t('common.or')}
-            </Divider>
+            {localAuthEnabled && (
+              <Divider plain style={{ color: token.colorTextTertiary }}>
+                {t('common.or')}
+              </Divider>
+            )}
             <Button
               icon={<Icon component={MicrosoftIcon} />}
               onClick={signInWithMicrosoft}
@@ -161,6 +173,9 @@ export default function LoginPage() {
               {t('login.ssoEntra')}
             </Button>
           </>
+        )}
+        {!localAuthEnabled && !entraAuthEnabled && (
+          <Alert message={t('login.noAuthenticationMethods')} type="warning" />
         )}
       </Card>
     </div>

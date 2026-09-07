@@ -120,10 +120,12 @@ export class EntraService {
       return byOid;
     }
 
-    // 2) Email matches an existing (local) account — auto-link to SSO.
-    //    Safe because the tenant is verified (tid) and the email comes from a verified claim.
+    // 2) Email must match an account explicitly provisioned for Entra SSO.
     const byEmail = await this.usersService.findByEmail(email);
     if (byEmail) {
+      if (byEmail.authProvider !== 'entra') {
+        throw new UnauthorizedException('Account is not configured for Entra SSO');
+      }
       return this.usersService.linkEntraOid(byEmail.id, oid);
     }
 

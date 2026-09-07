@@ -8,10 +8,14 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { PLATFORM_DEFAULTS_ORGANIZATION_ID } from '../auth/access-context';
 import type { CreateOrganizationDto, UpdateOrganizationDto } from './dto/organization.dto';
+import { AuthenticationSettingsService } from '../authentication-settings/authentication-settings.service';
 
 @Injectable()
 export class OrganizationsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private authenticationSettings: AuthenticationSettingsService,
+  ) {}
 
   async findAll() {
     return this.prisma.organization.findMany({
@@ -53,15 +57,19 @@ export class OrganizationsService {
     if (!firstAdmin) throw new BadRequestException('First Admin is required');
 
     await this.assertNameAvailable(name);
-    const authProvider = firstAdmin.authProvider ?? 'local';
+    const authProvider = firstAdmin.authProvider;
     if (authProvider === 'local' && !firstAdmin.password) {
       throw new BadRequestException('Password is required for local Admin');
+    }
+    if (authProvider === 'local' && !(await this.authenticationSettings.isLocalAuthEnabled())) {
+      throw new BadRequestException('Local authentication is disabled');
     }
 
     const existingUser = await this.prisma.user.findUnique({ where: { email: firstAdmin.email } });
     if (existingUser) throw new ConflictException('A user with this email already exists');
 
-    const passwordHash = firstAdmin.password ? await bcrypt.hash(firstAdmin.password, 10) : null;
+    const passwordHash =
+      authProvider === 'local' ? await bcrypt.hash(firstAdmin.password as string, 10) : null;
     return this.prisma.$transaction(async (tx) => {
       const organization = await tx.organization.create({ data: { name } });
       const admin = await tx.user.create({

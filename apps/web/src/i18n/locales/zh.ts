@@ -124,6 +124,7 @@ const zh: typeof en = {
     devSignIn: '开发登录',
     ssoEntra: '使用 Entra ID 单点登录',
     loginFailed: '登录失败',
+    noAuthenticationMethods: '当前没有可用的登录方式，请联系超级管理员。',
     signInFailedGeneric: '登录失败，请重试。',
     errors: {
       state: '无法验证此次登录请求，请重试。',
@@ -456,6 +457,10 @@ const zh: typeof en = {
       statusActive: '正常',
       statusDisabled: '已禁用',
       password: '密码',
+      initialPassword: '初始密码',
+      authenticationMethod: '认证方式',
+      authLocal: '本地账号与密码',
+      authSso: 'Entra ID SSO',
       editNameEmail: '编辑姓名 / 邮箱',
       editNameEmailOrganization: '编辑姓名 / 邮箱 / 组织',
       disableAccount: '禁用账号',
@@ -538,6 +543,18 @@ const zh: typeof en = {
       saveFailed: '保存失败',
       deleteFailed: '删除失败',
       failed: '操作失败',
+      authentication: {
+        title: '认证',
+        localTitle: '本地认证',
+        localDescription:
+          '启用后，管理员可以创建使用邮箱和密码登录的本地用户。关闭后，密码登录和本地用户创建将被禁用，管理员只能创建 Entra ID SSO 用户。',
+        enabled: '已启用',
+        disabled: '已禁用',
+        disabledWarning:
+          '本地用户将无法再次使用密码登录，其现有刷新会话也会失效。请确认至少有一个可用的 Entra ID SSO 超级管理员账号。',
+        saved: '认证设置已保存',
+        saveFailed: '保存认证设置失败',
+      },
       models: {
         title: '模型',
         intro:

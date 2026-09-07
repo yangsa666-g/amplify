@@ -33,9 +33,8 @@ export class CreateUserDto {
   @IsString()
   organizationId?: string;
 
-  @IsOptional()
   @IsIn(['local', 'entra'])
-  authProvider?: 'local' | 'entra';
+  authProvider!: 'local' | 'entra';
 }
 
 export class UpdateUserDto {

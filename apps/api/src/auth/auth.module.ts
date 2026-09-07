@@ -10,11 +10,13 @@ import { EntraService } from './entra.service';
 import { EntraCodeStore } from './entra-code.store';
 import { UsersModule } from '../users/users.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { AuthenticationSettingsModule } from '../authentication-settings/authentication-settings.module';
 
 @Module({
   imports: [
     UsersModule,
     PrismaModule,
+    AuthenticationSettingsModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

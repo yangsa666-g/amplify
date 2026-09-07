@@ -79,6 +79,61 @@ import { formatDate, formatDateTime } from '../utils/format';
 import { templateDisplayName } from '../utils/templateLabels';
 import { modelIconName } from '../utils/modelIcons';
 import { useAuthStore } from '../stores/authStore';
+import {
+  getAdminAuthenticationSettings,
+  updateAdminAuthenticationSettings,
+} from '../api/authenticationSettings';
+
+// ─── Authentication Tab ─────────────────────────────────────────────────────
+
+function AuthenticationSettingsTab() {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin-authentication-settings'],
+    queryFn: () => getAdminAuthenticationSettings().then((response) => response.data),
+  });
+  const updateMutation = useMutation({
+    mutationFn: updateAdminAuthenticationSettings,
+    onSuccess: (response) => {
+      queryClient.setQueryData(['admin-authentication-settings'], response.data);
+      queryClient.invalidateQueries({ queryKey: ['authentication-configuration'] });
+      message.success(t('admin.system.authentication.saved'));
+    },
+    onError: (error: ApiError) =>
+      message.error(error.response?.data?.message || t('admin.system.authentication.saveFailed')),
+  });
+
+  if (isLoading) return <Spin />;
+
+  const localAuthEnabled = data?.localAuthEnabled ?? true;
+  return (
+    <Space direction="vertical" size={16} style={{ width: '100%', maxWidth: 760 }}>
+      <Card title={t('admin.system.authentication.localTitle')}>
+        <Space direction="vertical" size={16} style={{ width: '100%' }}>
+          <Typography.Text type="secondary">
+            {t('admin.system.authentication.localDescription')}
+          </Typography.Text>
+          <Space>
+            <Switch
+              checked={localAuthEnabled}
+              loading={updateMutation.isPending}
+              onChange={(enabled) => updateMutation.mutate(enabled)}
+            />
+            <Typography.Text>
+              {localAuthEnabled
+                ? t('admin.system.authentication.enabled')
+                : t('admin.system.authentication.disabled')}
+            </Typography.Text>
+          </Space>
+        </Space>
+      </Card>
+      {!localAuthEnabled && (
+        <Alert type="warning" showIcon message={t('admin.system.authentication.disabledWarning')} />
+      )}
+    </Space>
+  );
+}
 
 type ModelDraft = Partial<Pick<Model, 'label' | 'enabled' | 'defaultReasoningEffort'>>;
 type CustomModelFormValues = CustomModelInput;
@@ -1425,6 +1480,7 @@ export default function AdminSystemSettingsPage() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedOrganizationId = useAuthStore((s) => s.selectedOrganizationId);
+  const isSuperAdmin = useAuthStore((s) => s.user?.role) === 'super_admin';
   const { data: pendingRequests = [] } = useQuery({
     queryKey: ['admin-template-requests', selectedOrganizationId],
     queryFn: getAdminRequests,
@@ -1432,24 +1488,36 @@ export default function AdminSystemSettingsPage() {
   });
   const tabParam = searchParams.get('tab');
   const activeTab =
-    tabParam === 'prompts'
-      ? 'admin-prompt'
-      : tabParam === 'requests'
-        ? 'admin-requests'
-        : tabParam === 'api-keys'
-          ? 'admin-api-keys'
-          : tabParam === 'models'
-            ? 'admin-models'
-            : 'admin-fields';
+    tabParam === 'authentication' && isSuperAdmin
+      ? 'admin-authentication'
+      : tabParam === 'prompts'
+        ? 'admin-prompt'
+        : tabParam === 'requests'
+          ? 'admin-requests'
+          : tabParam === 'api-keys'
+            ? 'admin-api-keys'
+            : tabParam === 'models'
+              ? 'admin-models'
+              : 'admin-fields';
   const tabParams: Record<string, string> = {
     'admin-fields': 'fields',
     'admin-prompt': 'prompts',
     'admin-requests': 'requests',
     'admin-api-keys': 'api-keys',
     'admin-models': 'models',
+    'admin-authentication': 'authentication',
   };
 
   const tabItems = [
+    ...(isSuperAdmin
+      ? [
+          {
+            key: 'admin-authentication',
+            label: t('admin.system.authentication.title'),
+            children: <AuthenticationSettingsTab />,
+          },
+        ]
+      : []),
     {
       key: 'admin-fields',
       label: t('admin.system.systemFieldTemplates'),

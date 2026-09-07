@@ -122,6 +122,7 @@ const en = {
     devSignIn: 'Dev Login',
     ssoEntra: 'SSO with Entra ID',
     loginFailed: 'Login failed',
+    noAuthenticationMethods: 'No sign-in method is currently available. Contact a Super Admin.',
     signInFailedGeneric: 'Sign-in failed. Please try again.',
     errors: {
       state: 'The sign-in request could not be verified. Please try again.',
@@ -459,6 +460,10 @@ const en = {
       statusActive: 'Active',
       statusDisabled: 'Disabled',
       password: 'Password',
+      initialPassword: 'Initial Password',
+      authenticationMethod: 'Authentication Method',
+      authLocal: 'Local email and password',
+      authSso: 'Entra ID SSO',
       editNameEmail: 'Edit name / email',
       editNameEmailOrganization: 'Edit name / email / organization',
       disableAccount: 'Disable account',
@@ -542,6 +547,18 @@ const en = {
       saveFailed: 'Save failed',
       deleteFailed: 'Delete failed',
       failed: 'Failed',
+      authentication: {
+        title: 'Authentication',
+        localTitle: 'Local Authentication',
+        localDescription:
+          'When enabled, admins can create local users who sign in with email and password. When disabled, password sign-in and local-user creation are blocked, and admins can create only Entra ID SSO users.',
+        enabled: 'Enabled',
+        disabled: 'Disabled',
+        disabledWarning:
+          'Local users will no longer be able to sign in with passwords, and their existing refresh sessions are revoked. Make sure at least one Entra ID SSO Super Admin account is available.',
+        saved: 'Authentication settings saved',
+        saveFailed: 'Failed to save authentication settings',
+      },
       models: {
         title: 'Models',
         intro:
