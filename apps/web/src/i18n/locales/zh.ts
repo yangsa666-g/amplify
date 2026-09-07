@@ -445,6 +445,7 @@ const zh: typeof en = {
       editOrganization: '编辑组织',
       organizationName: '组织名称',
       organizationRequired: '请选择组织',
+      roleRequired: '请选择角色',
       organizationNameRequired: '请输入组织名称',
       firstAdminName: '首位管理员姓名',
       firstAdminEmail: '首位管理员邮箱',
@@ -457,6 +458,10 @@ const zh: typeof en = {
       statusDisabled: '已禁用',
       password: '密码',
       editNameEmail: '编辑姓名 / 邮箱',
+      editUserDetails: '编辑用户信息、角色和组织',
+      accessChangeConfirmTitle: '确认变更访问层级？',
+      accessChangeConfirmDesc:
+        '确定将 {{name}} 调整为 {{scope}} 下的{{role}}吗？该用户需要重新登录。',
       disableAccount: '禁用账号',
       enableAccount: '启用账号',
       deleteUser: '删除用户',

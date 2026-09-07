@@ -27,7 +27,6 @@ import {
   getAdminUsers,
   createAdminUser,
   updateAdminUser,
-  updateAdminUserRole,
   updateAdminUserStatus,
   deleteAdminUser,
 } from '../api/adminUsers';
@@ -44,6 +43,7 @@ import type { User, ApiError, Organization } from '../types';
 
 type ModalMode = 'create' | 'edit';
 type OrganizationModalMode = 'create' | 'edit';
+const PLATFORM_SCOPE = '__platform__';
 
 export default function AdminUsersPage() {
   const { t, i18n } = useTranslation();
@@ -51,7 +51,9 @@ export default function AdminUsersPage() {
   const { user: currentUser } = useAuthStore();
   const selectedOrganizationId = useAuthStore((s) => s.selectedOrganizationId);
   const [form] = Form.useForm();
+  const selectedRole = Form.useWatch('role', form) as User['role'] | undefined;
   const [organizationForm] = Form.useForm();
+  const [modalApi, modalContextHolder] = Modal.useModal();
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<ModalMode>('create');
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -84,6 +86,22 @@ export default function AdminUsersPage() {
     enabled: isSuperAdmin,
   });
 
+  const organizationOptions = organizations.map((organization) => ({
+    value: organization.id,
+    label: organization.name,
+    disabled: organization.status !== 'active',
+  }));
+  if (
+    editingUser?.organization &&
+    !organizationOptions.some((option) => option.value === editingUser.organization?.id)
+  ) {
+    organizationOptions.push({
+      value: editingUser.organization.id,
+      label: editingUser.organization.name,
+      disabled: editingUser.organization.status !== 'active',
+    });
+  }
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-users'] });
     queryClient.invalidateQueries({ queryKey: ['organizations'] });
@@ -101,8 +119,18 @@ export default function AdminUsersPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { name?: string; email?: string } }) =>
-      updateAdminUser(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: {
+        name?: string;
+        email?: string;
+        role?: User['role'];
+        organizationId?: string | null;
+      };
+    }) => updateAdminUser(id, data),
     onSuccess: () => {
       message.success(t('admin.users.userUpdated'));
       setModalOpen(false);
@@ -110,24 +138,6 @@ export default function AdminUsersPage() {
     },
     onError: (e: ApiError) =>
       message.error(e?.response?.data?.message ?? t('admin.users.updateFailed')),
-  });
-
-  const roleMutation = useMutation({
-    mutationFn: ({
-      id,
-      role,
-      organizationId,
-    }: {
-      id: string;
-      role: User['role'];
-      organizationId?: string | null;
-    }) => updateAdminUserRole(id, role, organizationId),
-    onSuccess: () => {
-      message.success(t('admin.users.roleUpdated'));
-      invalidate();
-    },
-    onError: (e: ApiError) =>
-      message.error(e?.response?.data?.message ?? t('admin.users.roleFailed')),
   });
 
   const statusMutation = useMutation({
@@ -189,6 +199,7 @@ export default function AdminUsersPage() {
     setModalMode('create');
     setEditingUser(null);
     form.resetFields();
+    form.setFieldsValue({ role: 'user', organizationId: undefined });
     setModalOpen(true);
   };
 
@@ -209,19 +220,64 @@ export default function AdminUsersPage() {
   const openEdit = (u: User) => {
     setModalMode('edit');
     setEditingUser(u);
-    form.setFieldsValue({ name: u.name, email: u.email });
+    form.setFieldsValue({
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      organizationId: u.role === 'super_admin' ? PLATFORM_SCOPE : u.organizationId,
+    });
     setModalOpen(true);
+  };
+
+  const handleRoleChange = (role: User['role']) => {
+    const organizationId = form.getFieldValue('organizationId');
+    if (role === 'super_admin') {
+      form.setFieldValue('organizationId', PLATFORM_SCOPE);
+    } else if (organizationId === PLATFORM_SCOPE) {
+      form.setFieldValue('organizationId', undefined);
+    }
   };
 
   const handleSubmit = async () => {
     const values = await form.validateFields();
+    const organizationId = values.role === 'super_admin' ? null : values.organizationId;
     if (modalMode === 'create') {
-      createMutation.mutate(values);
+      createMutation.mutate({ ...values, organizationId });
     } else if (editingUser) {
-      updateMutation.mutate({
-        id: editingUser.id,
-        data: { name: values.name, email: values.email },
-      });
+      const submitUpdate = () =>
+        updateMutation.mutate({
+          id: editingUser.id,
+          data: {
+            name: values.name,
+            email: values.email,
+            role: values.role,
+            organizationId,
+          },
+        });
+      const crossesPlatformBoundary =
+        (editingUser.role === 'super_admin') !== (values.role === 'super_admin');
+
+      if (crossesPlatformBoundary) {
+        const scopeName =
+          values.role === 'super_admin'
+            ? t('admin.users.platform')
+            : (organizationOptions.find((option) => option.value === organizationId)?.label ??
+              organizationId);
+        modalApi.confirm({
+          title: t('admin.users.accessChangeConfirmTitle'),
+          content: t('admin.users.accessChangeConfirmDesc', {
+            name: values.name,
+            role: roleLabel(values.role),
+            scope: scopeName,
+          }),
+          okText: t('common.confirm'),
+          cancelText: t('common.cancel'),
+          onOk: submitUpdate,
+        });
+        return;
+      }
+
+      submitUpdate();
     }
   };
 
@@ -269,30 +325,11 @@ export default function AdminUsersPage() {
         ...(isSuperAdmin ? [{ text: t('admin.users.roleSuperAdmin'), value: 'super_admin' }] : []),
       ],
       onFilter: (v: React.Key | boolean, r: User) => r.role === v,
-      render: (role: string, record: User) =>
-        isSelf(record) ? (
-          <Tag color={role === 'admin' ? 'volcano' : 'default'}>{roleLabel(role)}</Tag>
-        ) : (
-          <Select
-            value={role}
-            size="small"
-            style={{ width: 100 }}
-            options={[
-              { value: 'admin', label: t('admin.users.roleAdmin') },
-              { value: 'user', label: t('admin.users.roleUser') },
-              ...(isSuperAdmin
-                ? [{ value: 'super_admin', label: t('admin.users.roleSuperAdmin') }]
-                : []),
-            ]}
-            onChange={(val) =>
-              roleMutation.mutate({
-                id: record.id,
-                role: val as User['role'],
-                organizationId: record.organizationId,
-              })
-            }
-          />
-        ),
+      render: (role: string) => (
+        <Tag color={role === 'super_admin' ? 'blue' : role === 'admin' ? 'volcano' : 'default'}>
+          {roleLabel(role)}
+        </Tag>
+      ),
     },
     ...(isSuperAdmin
       ? ([
@@ -300,6 +337,18 @@ export default function AdminUsersPage() {
             title: t('admin.users.colOrganization'),
             dataIndex: ['organization', 'name'],
             key: 'organization',
+            filters: [
+              { text: t('admin.users.platform'), value: PLATFORM_SCOPE },
+              ...organizations.map((organization) => ({
+                text: organization.name,
+                value: organization.id,
+              })),
+            ],
+            filterSearch: true,
+            onFilter: (value: React.Key | boolean, record: User) =>
+              value === PLATFORM_SCOPE
+                ? record.role === 'super_admin'
+                : record.organizationId === value,
             render: (_: unknown, record: User) =>
               record.role === 'super_admin' ? (
                 <Tag>{t('admin.users.platform')}</Tag>
@@ -342,7 +391,7 @@ export default function AdminUsersPage() {
       key: 'actions',
       render: (_: unknown, record: User) => (
         <Space size="small">
-          <Tooltip title={t('admin.users.editNameEmail')}>
+          <Tooltip title={t('admin.users.editUserDetails')}>
             <Button
               size="small"
               icon={<EditOutlined />}
@@ -499,6 +548,7 @@ export default function AdminUsersPage() {
 
   return (
     <div>
+      {modalContextHolder}
       {isSuperAdmin ? (
         <Tabs
           items={[
@@ -543,48 +593,64 @@ export default function AdminUsersPage() {
             <Input />
           </Form.Item>
           {modalMode === 'create' && (
-            <>
-              <Form.Item
-                name="password"
-                label={t('admin.users.password')}
-                rules={[
-                  { required: true, message: t('admin.users.passwordRequired') },
-                  { min: 8, message: t('admin.users.minChars') },
-                ]}
-              >
-                <Input.Password />
-              </Form.Item>
-              <Form.Item name="role" label={t('admin.users.colRole')} initialValue="user">
-                <Select
-                  options={[
-                    { value: 'user', label: t('admin.users.roleUser') },
-                    { value: 'admin', label: t('admin.users.roleAdmin') },
-                    ...(isSuperAdmin
-                      ? [{ value: 'super_admin', label: t('admin.users.roleSuperAdmin') }]
-                      : []),
-                  ]}
-                />
-              </Form.Item>
-              {isSuperAdmin && (
-                <Form.Item
-                  name="organizationId"
-                  label={t('admin.users.organization')}
-                  rules={[
-                    ({ getFieldValue }) => ({
-                      validator: (_, value) =>
-                        getFieldValue('role') === 'super_admin' || value
-                          ? Promise.resolve()
-                          : Promise.reject(new Error(t('admin.users.organizationRequired'))),
-                    }),
-                  ]}
-                >
-                  <Select
-                    allowClear
-                    options={organizations.map((org) => ({ value: org.id, label: org.name }))}
-                  />
-                </Form.Item>
-              )}
-            </>
+            <Form.Item
+              name="password"
+              label={t('admin.users.password')}
+              rules={[
+                { required: true, message: t('admin.users.passwordRequired') },
+                { min: 8, message: t('admin.users.minChars') },
+              ]}
+            >
+              <Input.Password />
+            </Form.Item>
+          )}
+          <Form.Item
+            name="role"
+            label={t('admin.users.colRole')}
+            rules={[{ required: true, message: t('admin.users.roleRequired') }]}
+          >
+            <Select
+              options={[
+                { value: 'user', label: t('admin.users.roleUser') },
+                { value: 'admin', label: t('admin.users.roleAdmin') },
+                ...(isSuperAdmin
+                  ? [{ value: 'super_admin', label: t('admin.users.roleSuperAdmin') }]
+                  : []),
+              ]}
+              onChange={handleRoleChange}
+            />
+          </Form.Item>
+          {(isSuperAdmin || modalMode === 'edit') && (
+            <Form.Item
+              name="organizationId"
+              label={t('admin.users.organization')}
+              required={selectedRole !== 'super_admin'}
+              rules={[
+                {
+                  validator: (_, value) =>
+                    selectedRole === 'super_admin' || (value && value !== PLATFORM_SCOPE)
+                      ? Promise.resolve()
+                      : Promise.reject(new Error(t('admin.users.organizationRequired'))),
+                },
+              ]}
+            >
+              <Select
+                disabled={!isSuperAdmin || selectedRole === 'super_admin'}
+                showSearch
+                optionFilterProp="label"
+                options={
+                  selectedRole === 'super_admin'
+                    ? [
+                        {
+                          value: PLATFORM_SCOPE,
+                          label: t('admin.users.platform'),
+                          disabled: false,
+                        },
+                      ]
+                    : organizationOptions
+                }
+              />
+            </Form.Item>
           )}
         </Form>
       </Modal>

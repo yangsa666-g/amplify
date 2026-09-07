@@ -448,6 +448,7 @@ const en = {
       editOrganization: 'Edit Organization',
       organizationName: 'Organization Name',
       organizationRequired: 'Organization is required',
+      roleRequired: 'Role is required',
       organizationNameRequired: 'Organization name is required',
       firstAdminName: 'First Admin Name',
       firstAdminEmail: 'First Admin Email',
@@ -460,6 +461,10 @@ const en = {
       statusDisabled: 'Disabled',
       password: 'Password',
       editNameEmail: 'Edit name / email',
+      editUserDetails: 'Edit user details, role, and organization',
+      accessChangeConfirmTitle: 'Confirm access scope change?',
+      accessChangeConfirmDesc:
+        'Change {{name}} to {{role}} in {{scope}}? The user will need to sign in again.',
       disableAccount: 'Disable account',
       enableAccount: 'Enable account',
       deleteUser: 'Delete user',
