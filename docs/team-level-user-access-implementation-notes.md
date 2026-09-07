@@ -116,6 +116,11 @@ User Management:
 - The existing User Management page now also contains an Organizations tab for Super Admin.
 - Super Admin can create/edit/disable organizations.
 - Super Admin can create users for a selected organization or create Super Admin users.
+- The user table keeps Role as a read-only, filterable status column; role and organization changes are saved together from Edit User.
+- Platform is represented as the Super Admin access scope in the UI while the persisted `organization_id` remains `null`.
+- Moving a Super Admin into an Admin/User role requires an active target organization and explicit confirmation.
+- Promoting an organization user to Super Admin clears the organization assignment and requires explicit confirmation.
+- The final active platform Super Admin and final active organization Admin cannot be demoted, disabled, deleted, or moved out of their current scope.
 - Organization Admin continues to see/manage only same-organization Admin/User accounts.
 
 ## Verification

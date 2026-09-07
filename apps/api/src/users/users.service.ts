@@ -21,6 +21,13 @@ type CreateUserInput = {
   authProvider: 'local' | 'entra';
 };
 
+type UpdateUserInput = {
+  name?: string;
+  email?: string;
+  role?: UserRoleInput;
+  organizationId?: string | null;
+};
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -151,11 +158,7 @@ export class UsersService {
     });
   }
 
-  async updateUser(
-    id: string,
-    data: { name?: string; email?: string; organizationId?: string },
-    actor?: AuthUser,
-  ) {
+  async updateUser(id: string, data: UpdateUserInput, actor?: AuthUser) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
     this.assertCanManageUser(actor, user);
@@ -164,16 +167,18 @@ export class UsersService {
       if (existing) throw new ConflictException('Email already in use');
     }
 
-    const organizationChanged =
-      data.organizationId !== undefined && data.organizationId !== user.organizationId;
-    if (organizationChanged) {
-      if (actor?.role !== 'super_admin') {
-        throw new ForbiddenException('Only Super Admin can move users between organizations');
-      }
-      await this.assertOrganizationActiveForMember(user.role, data.organizationId ?? null);
-      if (user.role === 'admin') {
-        await this.assertNotLastActiveAdmin(user.id, user.organizationId);
-      }
+    const targetRole = data.role ?? user.role;
+    const targetOrganizationId = this.resolveTargetOrganization(
+      actor,
+      targetRole,
+      data.organizationId !== undefined ? data.organizationId : user.organizationId,
+    );
+    const membershipChanged =
+      targetRole !== user.role || targetOrganizationId !== user.organizationId;
+
+    if (membershipChanged) {
+      await this.assertOrganizationActiveForMember(targetRole, targetOrganizationId);
+      await this.assertCanLeaveCurrentAccessLevel(user, targetRole, targetOrganizationId);
     }
 
     const updated = await this.prisma.user.update({
@@ -181,11 +186,11 @@ export class UsersService {
       data: {
         ...(data.name ? { name: data.name } : {}),
         ...(data.email ? { email: data.email } : {}),
-        ...(organizationChanged ? { organizationId: data.organizationId } : {}),
+        ...(membershipChanged ? { role: targetRole, organizationId: targetOrganizationId } : {}),
       },
       select: this.userSelect,
     });
-    if (organizationChanged) await this.revokeRefreshTokens(id);
+    if (membershipChanged) await this.revokeRefreshTokens(id);
     return updated;
   }
 
@@ -193,7 +198,9 @@ export class UsersService {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
     this.assertCanManageUser(actor, user);
-    if (status === 'disabled') await this.assertNotLastActiveAdmin(user.id, user.organizationId);
+    if (status === 'disabled' && user.status === 'active') {
+      await this.assertCanDisableUser(user);
+    }
     const updated = await this.prisma.user.update({
       where: { id },
       data: { status },
@@ -209,30 +216,7 @@ export class UsersService {
     actor?: AuthUser,
     organizationId?: string | null,
   ) {
-    const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user) throw new NotFoundException('User not found');
-    this.assertCanManageUser(actor, user);
-
-    if (actor?.role === 'admin' && role === 'super_admin') {
-      throw new ForbiddenException('Organization Admin cannot create Super Admins');
-    }
-    if (user.role === 'admin' && role !== 'admin') {
-      await this.assertNotLastActiveAdmin(user.id, user.organizationId);
-    }
-
-    const targetOrganizationId = this.resolveTargetOrganization(
-      actor,
-      role,
-      organizationId ?? user.organizationId,
-    );
-    await this.assertOrganizationActiveForMember(role, targetOrganizationId);
-    const updated = await this.prisma.user.update({
-      where: { id },
-      data: { role, organizationId: targetOrganizationId },
-      select: this.userSelect,
-    });
-    await this.revokeRefreshTokens(id);
-    return updated;
+    return this.updateUser(id, { role, organizationId }, actor);
   }
 
   async deleteUser(id: string, actor?: AuthUser) {
@@ -293,6 +277,44 @@ export class UsersService {
     });
     if (activeAdminCount === 0) {
       throw new BadRequestException('Each organization must keep at least one active Admin');
+    }
+  }
+
+  private async assertNotLastActiveSuperAdmin(userId: string) {
+    const activeSuperAdminCount = await this.prisma.user.count({
+      where: { role: 'super_admin', status: 'active', id: { not: userId } },
+    });
+    if (activeSuperAdminCount === 0) {
+      throw new BadRequestException('Platform must keep at least one active Super Admin');
+    }
+  }
+
+  private async assertCanLeaveCurrentAccessLevel(
+    user: { id: string; role: string; status: string; organizationId: string | null },
+    targetRole: UserRoleInput,
+    targetOrganizationId: string | null,
+  ) {
+    if (user.status !== 'active') return;
+    if (user.role === 'super_admin' && targetRole !== 'super_admin') {
+      await this.assertNotLastActiveSuperAdmin(user.id);
+    }
+    if (
+      user.role === 'admin' &&
+      (targetRole !== 'admin' || targetOrganizationId !== user.organizationId)
+    ) {
+      await this.assertNotLastActiveAdmin(user.id, user.organizationId);
+    }
+  }
+
+  private async assertCanDisableUser(user: {
+    id: string;
+    role: string;
+    organizationId: string | null;
+  }) {
+    if (user.role === 'super_admin') {
+      await this.assertNotLastActiveSuperAdmin(user.id);
+    } else if (user.role === 'admin') {
+      await this.assertNotLastActiveAdmin(user.id, user.organizationId);
     }
   }
 

@@ -48,8 +48,12 @@ export class UpdateUserDto {
   email?: string;
 
   @IsOptional()
+  @IsIn(['admin', 'user', 'super_admin'])
+  role?: UserRoleInput;
+
+  @IsOptional()
   @IsString()
-  organizationId?: string;
+  organizationId?: string | null;
 }
 
 export class UpdateStatusDto {

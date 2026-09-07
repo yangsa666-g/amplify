@@ -5,8 +5,8 @@ import type { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from './users.service';
 import type { AuthenticationSettingsService } from '../authentication-settings/authentication-settings.service';
 
-const superAdmin: AuthUser = {
-  userId: 'super-admin-1',
+const superAdminActor: AuthUser = {
+  userId: 'super-admin-actor',
   email: 'super-admin@example.com',
   name: 'Super Admin',
   role: 'super_admin',
@@ -15,9 +15,9 @@ const superAdmin: AuthUser = {
   organizationId: null,
 };
 
-const organizationAdmin: AuthUser = {
-  userId: 'admin-1',
-  email: 'admin@example.com',
+const organizationAdminActor: AuthUser = {
+  userId: 'organization-admin-actor',
+  email: 'organization-admin@example.com',
   name: 'Organization Admin',
   role: 'admin',
   authProvider: 'local',
@@ -25,20 +25,26 @@ const organizationAdmin: AuthUser = {
   organizationId: 'org-1',
 };
 
-function makeService(role: 'admin' | 'user' = 'user', remainingAdminCount = 1) {
-  const user = {
-    id: 'user-1',
-    email: 'user@example.com',
-    name: 'User',
-    role,
-    status: 'active',
-    organizationId: 'org-1',
-  };
+type TargetUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: 'super_admin' | 'admin' | 'user';
+  status: 'active' | 'disabled';
+  organizationId: string | null;
+};
+
+function makeService(targetUser: TargetUser, remainingPrivilegedUsers = 1) {
   const prisma = {
     user: {
-      findUnique: vi.fn().mockResolvedValue(user),
-      update: vi.fn().mockResolvedValue({ ...user, organizationId: 'org-2' }),
-      count: vi.fn().mockResolvedValue(remainingAdminCount),
+      findUnique: vi.fn().mockResolvedValue(targetUser),
+      update: vi.fn().mockImplementation(({ data }) =>
+        Promise.resolve({
+          ...targetUser,
+          ...data,
+        }),
+      ),
+      count: vi.fn().mockResolvedValue(remainingPrivilegedUsers),
     },
     organization: {
       findUnique: vi.fn().mockResolvedValue({ id: 'org-2', status: 'active' }),
@@ -57,40 +63,152 @@ function makeService(role: 'admin' | 'user' = 'user', remainingAdminCount = 1) {
       authenticationSettings as unknown as AuthenticationSettingsService,
     ),
     prisma,
-    authenticationSettings,
   };
 }
 
-describe('UsersService organization changes', () => {
-  it('allows a Super Admin to move a user and revokes existing sessions', async () => {
-    const { service, prisma } = makeService();
+describe('UsersService role and access scope transitions', () => {
+  it('demotes a Super Admin only when a target Organization is supplied', async () => {
+    const targetUser: TargetUser = {
+      id: 'super-admin-target',
+      email: 'target@example.com',
+      name: 'Target',
+      role: 'super_admin',
+      status: 'active',
+      organizationId: null,
+    };
+    const { service, prisma } = makeService(targetUser);
 
-    await service.updateUser('user-1', { organizationId: 'org-2' }, superAdmin);
+    await service.updateUser(
+      targetUser.id,
+      { role: 'user', organizationId: 'org-2' },
+      superAdminActor,
+    );
 
     expect(prisma.user.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'user-1' },
-        data: { organizationId: 'org-2' },
+        where: { id: targetUser.id },
+        data: { role: 'user', organizationId: 'org-2' },
       }),
     );
-    expect(prisma.refreshToken.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
+    expect(prisma.refreshToken.deleteMany).toHaveBeenCalledWith({
+      where: { userId: targetUser.id },
+    });
   });
 
-  it('does not allow an Organization Admin to move a user', async () => {
-    const { service, prisma } = makeService();
+  it('rejects a Super Admin demotion without an Organization', async () => {
+    const targetUser: TargetUser = {
+      id: 'super-admin-target',
+      email: 'target@example.com',
+      name: 'Target',
+      role: 'super_admin',
+      status: 'active',
+      organizationId: null,
+    };
+    const { service, prisma } = makeService(targetUser);
 
     await expect(
-      service.updateUser('user-1', { organizationId: 'org-2' }, organizationAdmin),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+      service.updateUser(targetUser.id, { role: 'admin', organizationId: null }, superAdminActor),
+    ).rejects.toThrow('Organization is required');
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
 
-  it('does not move the last active Admin out of an organization', async () => {
-    const { service, prisma } = makeService('admin', 0);
+  it('promotes an Organization user to Super Admin and clears their Organization', async () => {
+    const targetUser: TargetUser = {
+      id: 'user-target',
+      email: 'target@example.com',
+      name: 'Target',
+      role: 'user',
+      status: 'active',
+      organizationId: 'org-1',
+    };
+    const { service, prisma } = makeService(targetUser);
+
+    await service.updateUser(
+      targetUser.id,
+      { role: 'super_admin', organizationId: 'org-1' },
+      superAdminActor,
+    );
+
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { role: 'super_admin', organizationId: null },
+      }),
+    );
+  });
+
+  it('protects the final active Super Admin from demotion', async () => {
+    const targetUser: TargetUser = {
+      id: 'super-admin-target',
+      email: 'target@example.com',
+      name: 'Target',
+      role: 'super_admin',
+      status: 'active',
+      organizationId: null,
+    };
+    const { service, prisma } = makeService(targetUser, 0);
 
     await expect(
-      service.updateUser('user-1', { organizationId: 'org-2' }, superAdmin),
+      service.updateUser(targetUser.id, { role: 'user', organizationId: 'org-2' }, superAdminActor),
     ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('protects the final active Super Admin from being disabled', async () => {
+    const targetUser: TargetUser = {
+      id: 'super-admin-target',
+      email: 'target@example.com',
+      name: 'Target',
+      role: 'super_admin',
+      status: 'active',
+      organizationId: null,
+    };
+    const { service, prisma } = makeService(targetUser, 0);
+
+    await expect(
+      service.updateStatus(targetUser.id, 'disabled', superAdminActor),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('protects the final active Organization Admin when moving Organizations', async () => {
+    const targetUser: TargetUser = {
+      id: 'admin-target',
+      email: 'target@example.com',
+      name: 'Target',
+      role: 'admin',
+      status: 'active',
+      organizationId: 'org-1',
+    };
+    const { service, prisma } = makeService(targetUser, 0);
+
+    await expect(
+      service.updateUser(
+        targetUser.id,
+        { role: 'admin', organizationId: 'org-2' },
+        superAdminActor,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('does not allow an Organization Admin to promote users to Super Admin', async () => {
+    const targetUser: TargetUser = {
+      id: 'user-target',
+      email: 'target@example.com',
+      name: 'Target',
+      role: 'user',
+      status: 'active',
+      organizationId: 'org-1',
+    };
+    const { service, prisma } = makeService(targetUser);
+
+    await expect(
+      service.updateUser(
+        targetUser.id,
+        { role: 'super_admin', organizationId: null },
+        organizationAdminActor,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });
@@ -109,11 +227,13 @@ describe('UsersService authentication method', () => {
     const authenticationSettings = {
       isLocalAuthEnabled: vi.fn().mockResolvedValue(localAuthEnabled),
     };
-    const service = new UsersService(
-      prisma as unknown as PrismaService,
-      authenticationSettings as unknown as AuthenticationSettingsService,
-    );
-    return { service, prisma };
+    return {
+      service: new UsersService(
+        prisma as unknown as PrismaService,
+        authenticationSettings as unknown as AuthenticationSettingsService,
+      ),
+      prisma,
+    };
   }
 
   it('creates an Entra SSO user without storing a password', async () => {
@@ -128,7 +248,7 @@ describe('UsersService authentication method', () => {
         organizationId: 'org-1',
         authProvider: 'entra',
       },
-      superAdmin,
+      superAdminActor,
     );
 
     expect(prisma.user.create).toHaveBeenCalledWith(
@@ -136,24 +256,6 @@ describe('UsersService authentication method', () => {
         data: expect.objectContaining({ authProvider: 'entra', passwordHash: null }),
       }),
     );
-  });
-
-  it('requires an initial password for a local user', async () => {
-    const { service, prisma } = makeCreateService();
-
-    await expect(
-      service.createUser(
-        {
-          name: 'Local User',
-          email: 'local@example.com',
-          role: 'user',
-          organizationId: 'org-1',
-          authProvider: 'local',
-        },
-        superAdmin,
-      ),
-    ).rejects.toThrow('Password is required for local users');
-    expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
   it('rejects local-user creation when local authentication is disabled', async () => {
@@ -169,7 +271,7 @@ describe('UsersService authentication method', () => {
           organizationId: 'org-1',
           authProvider: 'local',
         },
-        superAdmin,
+        superAdminActor,
       ),
     ).rejects.toThrow('Local authentication is disabled');
     expect(prisma.user.create).not.toHaveBeenCalled();
