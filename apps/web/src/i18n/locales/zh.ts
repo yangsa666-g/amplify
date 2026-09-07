@@ -457,6 +457,7 @@ const zh: typeof en = {
       statusDisabled: '已禁用',
       password: '密码',
       editNameEmail: '编辑姓名 / 邮箱',
+      editNameEmailOrganization: '编辑姓名 / 邮箱 / 组织',
       disableAccount: '禁用账号',
       enableAccount: '启用账号',
       deleteUser: '删除用户',

@@ -143,7 +143,11 @@ export class UsersService {
     });
   }
 
-  async updateUser(id: string, data: { name?: string; email?: string }, actor?: AuthUser) {
+  async updateUser(
+    id: string,
+    data: { name?: string; email?: string; organizationId?: string },
+    actor?: AuthUser,
+  ) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
     this.assertCanManageUser(actor, user);
@@ -151,14 +155,30 @@ export class UsersService {
       const existing = await this.prisma.user.findUnique({ where: { email: data.email } });
       if (existing) throw new ConflictException('Email already in use');
     }
-    return this.prisma.user.update({
+
+    const organizationChanged =
+      data.organizationId !== undefined && data.organizationId !== user.organizationId;
+    if (organizationChanged) {
+      if (actor?.role !== 'super_admin') {
+        throw new ForbiddenException('Only Super Admin can move users between organizations');
+      }
+      await this.assertOrganizationActiveForMember(user.role, data.organizationId ?? null);
+      if (user.role === 'admin') {
+        await this.assertNotLastActiveAdmin(user.id, user.organizationId);
+      }
+    }
+
+    const updated = await this.prisma.user.update({
       where: { id },
       data: {
         ...(data.name ? { name: data.name } : {}),
         ...(data.email ? { email: data.email } : {}),
+        ...(organizationChanged ? { organizationId: data.organizationId } : {}),
       },
       select: this.userSelect,
     });
+    if (organizationChanged) await this.revokeRefreshTokens(id);
+    return updated;
   }
 
   async updateStatus(id: string, status: 'active' | 'disabled', actor?: AuthUser) {

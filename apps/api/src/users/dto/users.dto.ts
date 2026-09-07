@@ -47,6 +47,10 @@ export class UpdateUserDto {
   @IsOptional()
   @IsEmail()
   email?: string;
+
+  @IsOptional()
+  @IsString()
+  organizationId?: string;
 }
 
 export class UpdateStatusDto {
