@@ -49,6 +49,7 @@ const writeMockModelCatalog = () => {
 };
 
 let mockModelCatalog = readMockModelCatalog();
+let mockLocalAuthEnabled = true;
 
 const jsonNotFound = (message = 'Mock resource not found') =>
   HttpResponse.json({ message }, { status: 404 });
@@ -59,6 +60,9 @@ const getCompareJob = (id: string) => mockCompareJobs.find((job) => job.id === i
 
 export const handlers = [
   http.get(api('/auth/entra/enabled'), () => HttpResponse.json({ enabled: false })),
+  http.get(api('/auth/configuration'), () =>
+    HttpResponse.json({ localAuthEnabled: mockLocalAuthEnabled, entraAuthEnabled: false }),
+  ),
   http.post(api('/auth/login'), () => HttpResponse.json(authResponse)),
   http.post(api('/auth/refresh'), () => HttpResponse.json(mockTokens)),
   http.get(api('/auth/me'), () => HttpResponse.json(mockUser)),
@@ -356,13 +360,13 @@ export const handlers = [
   }),
   http.get(api('/admin/users'), () => HttpResponse.json(mockUsers)),
   http.post(api('/admin/users'), async ({ request }) => {
-    const body = (await request.json()) as Pick<User, 'email' | 'name' | 'role'>;
+    const body = (await request.json()) as Pick<User, 'email' | 'name' | 'role' | 'authProvider'>;
     return HttpResponse.json({
       id: `mock-user-${Date.now()}`,
       email: body.email,
       name: body.name,
       role: body.role,
-      authProvider: 'local',
+      authProvider: body.authProvider,
       status: 'active',
       createdAt: new Date().toISOString(),
     });
@@ -385,6 +389,14 @@ export const handlers = [
       : jsonNotFound('User not found');
   }),
   http.delete(api('/admin/users/:id'), () => new HttpResponse(null, { status: 204 })),
+  http.get(api('/admin/settings/authentication'), () =>
+    HttpResponse.json({ localAuthEnabled: mockLocalAuthEnabled }),
+  ),
+  http.patch(api('/admin/settings/authentication'), async ({ request }) => {
+    const body = (await request.json()) as { localAuthEnabled: boolean };
+    mockLocalAuthEnabled = body.localAuthEnabled;
+    return HttpResponse.json({ localAuthEnabled: mockLocalAuthEnabled });
+  }),
   http.get(api('/admin/api-keys'), () => HttpResponse.json(mockApiKey)),
   http.post(api('/admin/api-keys'), () =>
     HttpResponse.json({ ...mockApiKey, rawKey: 'amp_mock_1234567890' }),

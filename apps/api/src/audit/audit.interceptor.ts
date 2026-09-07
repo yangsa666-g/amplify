@@ -90,6 +90,7 @@ export class AuditInterceptor implements NestInterceptor {
       path === '/health' ||
       path === '/auth/refresh' ||
       path === '/auth/entra/enabled' ||
+      path === '/auth/configuration' ||
       path === '/notifications/unread-count' ||
       (request.method === 'GET' &&
         (path === '/admin/audit' ||
@@ -146,6 +147,15 @@ export class AuditInterceptor implements NestInterceptor {
 
     if (path.startsWith('/admin/users')) {
       return this.adminUserAction(method, path, id);
+    }
+    if (path === '/admin/settings/authentication') {
+      return {
+        action:
+          method === 'PATCH'
+            ? 'admin.authentication_settings.update'
+            : 'admin.authentication_settings.view',
+        targetType: 'authentication_settings',
+      };
     }
     if (path.startsWith('/admin/models')) {
       if (path === '/admin/models/test-connection') {

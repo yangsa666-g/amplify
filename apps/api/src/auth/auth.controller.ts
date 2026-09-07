@@ -24,6 +24,7 @@ import { EntraCodeStore } from './entra-code.store';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser, AuthUser } from './decorators/current-user.decorator';
 import { RefreshDto, LogoutDto, ChangePasswordDto, EntraExchangeDto } from './dto/auth.dto';
+import { AuthenticationSettingsService } from '../authentication-settings/authentication-settings.service';
 
 const ENTRA_TX_COOKIE = 'entra_tx';
 
@@ -43,6 +44,7 @@ export class AuthController {
     private entraService: EntraService,
     private codeStore: EntraCodeStore,
     private config: ConfigService,
+    private authenticationSettings: AuthenticationSettingsService,
   ) {}
 
   // login uses LocalStrategy's req.user (full DB user shape, not JWT payload)
@@ -92,6 +94,12 @@ export class AuthController {
   @Get('entra/enabled')
   entraEnabled() {
     return { enabled: this.entraService.isEnabled() };
+  }
+
+  @Get('configuration')
+  async authenticationConfiguration() {
+    const { localAuthEnabled } = await this.authenticationSettings.getConfiguration();
+    return { localAuthEnabled, entraAuthEnabled: this.entraService.isEnabled() };
   }
 
   // Step 1: build the authorize URL, stash PKCE/state/nonce in a signed httpOnly

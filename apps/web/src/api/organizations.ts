@@ -9,7 +9,7 @@ export const createOrganization = (data: {
     name: string;
     email: string;
     password?: string;
-    authProvider?: 'local' | 'entra';
+    authProvider: 'local' | 'entra';
   };
 }) => client.post<Organization>('/admin/organizations', data);
 

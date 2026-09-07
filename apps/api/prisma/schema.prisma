@@ -101,6 +101,15 @@ model User {
   @@map("users")
 }
 
+model AuthenticationSetting {
+  id               String   @id @default("platform")
+  localAuthEnabled Boolean  @default(true) @map("local_auth_enabled")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("authentication_settings")
+}
+
 model Organization {
   id        String             @id @default(cuid())
   name      String

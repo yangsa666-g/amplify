@@ -10,6 +10,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthUser } from '../auth/decorators/current-user.decorator';
 import type { UserRoleInput } from './dto/users.dto';
+import { AuthenticationSettingsService } from '../authentication-settings/authentication-settings.service';
 
 type CreateUserInput = {
   name: string;
@@ -17,12 +18,15 @@ type CreateUserInput = {
   password?: string;
   role?: UserRoleInput;
   organizationId?: string;
-  authProvider?: 'local' | 'entra';
+  authProvider: 'local' | 'entra';
 };
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private authenticationSettings: AuthenticationSettingsService,
+  ) {}
 
   private userSelect = {
     id: true,
@@ -97,12 +101,16 @@ export class UsersService {
     const organizationId = this.resolveTargetOrganization(actor, role, input.organizationId);
     await this.assertOrganizationActiveForMember(role, organizationId);
 
-    const authProvider = input.authProvider ?? 'local';
+    const authProvider = input.authProvider;
     if (authProvider === 'local' && !input.password) {
       throw new BadRequestException('Password is required for local users');
     }
+    if (authProvider === 'local' && !(await this.authenticationSettings.isLocalAuthEnabled())) {
+      throw new BadRequestException('Local authentication is disabled');
+    }
 
-    const passwordHash = input.password ? await bcrypt.hash(input.password, 10) : null;
+    const passwordHash =
+      authProvider === 'local' ? await bcrypt.hash(input.password as string, 10) : null;
     return this.prisma.user.create({
       data: {
         name: input.name,

@@ -14,7 +14,7 @@ export const createAdminUser = (data: {
   password?: string;
   role: User['role'];
   organizationId?: string | null;
-  authProvider?: 'local' | 'entra';
+  authProvider: 'local' | 'entra';
 }) => client.post<User>('/admin/users', data);
 
 export const updateAdminUser = (

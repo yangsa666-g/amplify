@@ -20,6 +20,7 @@ import { TemplateRequestsModule } from './template-requests/template-requests.mo
 import { ExternalApiModule } from './external-api/external-api.module';
 import { AuditModule } from './audit/audit.module';
 import { OrganizationsModule } from './organizations/organizations.module';
+import { AuthenticationSettingsModule } from './authentication-settings/authentication-settings.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { OrganizationsModule } from './organizations/organizations.module';
     ExternalApiModule,
     AuditModule,
     OrganizationsModule,
+    AuthenticationSettingsModule,
   ],
   controllers: [AppController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

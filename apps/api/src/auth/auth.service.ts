@@ -10,6 +10,7 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { UsersService } from '../users/users.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthenticationSettingsService } from '../authentication-settings/authentication-settings.service';
 
 @Injectable()
 export class AuthService {
@@ -18,9 +19,13 @@ export class AuthService {
     private jwtService: JwtService,
     private config: ConfigService,
     private prisma: PrismaService,
+    private authenticationSettings: AuthenticationSettingsService,
   ) {}
 
   async validateUser(email: string, password: string) {
+    if (!(await this.authenticationSettings.isLocalAuthEnabled())) {
+      throw new ForbiddenException('Local authentication is disabled');
+    }
     const user = await this.usersService.findByEmail(email);
     if (!user || user.authProvider !== 'local' || !user.passwordHash) {
       throw new UnauthorizedException('Invalid credentials');
@@ -87,6 +92,13 @@ export class AuthService {
         throw new UnauthorizedException('Organization is disabled');
       }
     }
+    if (
+      user.authProvider === 'local' &&
+      !(await this.authenticationSettings.isLocalAuthEnabled())
+    ) {
+      await this.prisma.refreshToken.delete({ where: { tokenHash } });
+      throw new UnauthorizedException('Local authentication is disabled');
+    }
 
     // Token rotation: delete old, issue new
     await this.prisma.refreshToken.delete({ where: { tokenHash } });
@@ -108,6 +120,9 @@ export class AuthService {
   }
 
   async changePassword(userId: string, oldPassword: string, newPassword: string) {
+    if (!(await this.authenticationSettings.isLocalAuthEnabled())) {
+      throw new BadRequestException('Local authentication is disabled');
+    }
     const user = await this.usersService.findById(userId);
     if (!user || user.authProvider !== 'local' || !user.passwordHash) {
       throw new BadRequestException('Password change not supported for this account');

@@ -41,6 +41,7 @@ import { useAuthStore } from '../stores/authStore';
 import { message } from '../utils/message';
 import { formatDate } from '../utils/format';
 import type { User, ApiError, Organization } from '../types';
+import { getAuthenticationConfiguration } from '../api/auth';
 
 type ModalMode = 'create' | 'edit';
 type OrganizationModalMode = 'create' | 'edit';
@@ -60,6 +61,8 @@ export default function AdminUsersPage() {
     useState<OrganizationModalMode>('create');
   const [editingOrganization, setEditingOrganization] = useState<Organization | null>(null);
   const isSuperAdmin = currentUser?.role === 'super_admin';
+  const selectedAuthProvider = Form.useWatch('authProvider', form);
+  const selectedFirstAdminAuthProvider = Form.useWatch('adminAuthProvider', organizationForm);
 
   const roleLabel = (role: string) =>
     role === 'super_admin'
@@ -83,6 +86,13 @@ export default function AdminUsersPage() {
     queryFn: () => getOrganizations().then((r) => r.data),
     enabled: isSuperAdmin,
   });
+
+  const { data: authenticationConfiguration } = useQuery({
+    queryKey: ['authentication-configuration'],
+    queryFn: () => getAuthenticationConfiguration().then((response) => response.data),
+    staleTime: 30_000,
+  });
+  const localAuthEnabled = authenticationConfiguration?.localAuthEnabled ?? true;
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-users'] });
@@ -194,6 +204,10 @@ export default function AdminUsersPage() {
     setModalMode('create');
     setEditingUser(null);
     form.resetFields();
+    form.setFieldsValue({
+      role: 'user',
+      authProvider: localAuthEnabled ? 'local' : 'entra',
+    });
     setModalOpen(true);
   };
 
@@ -201,6 +215,9 @@ export default function AdminUsersPage() {
     setOrganizationModalMode('create');
     setEditingOrganization(null);
     organizationForm.resetFields();
+    organizationForm.setFieldsValue({
+      adminAuthProvider: localAuthEnabled ? 'local' : 'entra',
+    });
     setOrganizationModalOpen(true);
   };
 
@@ -245,7 +262,7 @@ export default function AdminUsersPage() {
           name: values.adminName,
           email: values.adminEmail,
           password: values.adminPassword,
-          authProvider: 'local',
+          authProvider: values.adminAuthProvider,
         },
       });
     } else if (editingOrganization) {
@@ -349,7 +366,9 @@ export default function AdminUsersPage() {
       title: t('admin.users.colAuth'),
       dataIndex: 'authProvider',
       key: 'auth',
-      render: (p: string) => <Tag>{p}</Tag>,
+      render: (provider: User['authProvider']) => (
+        <Tag>{provider === 'local' ? t('admin.users.authLocal') : t('admin.users.authSso')}</Tag>
+      ),
     },
     {
       title: t('admin.users.colJoined'),
@@ -574,15 +593,32 @@ export default function AdminUsersPage() {
           {modalMode === 'create' && (
             <>
               <Form.Item
-                name="password"
-                label={t('admin.users.password')}
-                rules={[
-                  { required: true, message: t('admin.users.passwordRequired') },
-                  { min: 8, message: t('admin.users.minChars') },
-                ]}
+                name="authProvider"
+                label={t('admin.users.authenticationMethod')}
+                rules={[{ required: true }]}
               >
-                <Input.Password />
+                <Select
+                  options={[
+                    ...(localAuthEnabled
+                      ? [{ value: 'local', label: t('admin.users.authLocal') }]
+                      : []),
+                    { value: 'entra', label: t('admin.users.authSso') },
+                  ]}
+                />
               </Form.Item>
+              {selectedAuthProvider === 'local' && (
+                <Form.Item
+                  name="password"
+                  label={t('admin.users.initialPassword')}
+                  preserve={false}
+                  rules={[
+                    { required: true, message: t('admin.users.passwordRequired') },
+                    { min: 8, message: t('admin.users.minChars') },
+                  ]}
+                >
+                  <Input.Password autoComplete="new-password" />
+                </Form.Item>
+              )}
               <Form.Item name="role" label={t('admin.users.colRole')} initialValue="user">
                 <Select
                   options={[
@@ -664,15 +700,32 @@ export default function AdminUsersPage() {
                 <Input />
               </Form.Item>
               <Form.Item
-                name="adminPassword"
-                label={t('admin.users.password')}
-                rules={[
-                  { required: true, message: t('admin.users.passwordRequired') },
-                  { min: 8, message: t('admin.users.minChars') },
-                ]}
+                name="adminAuthProvider"
+                label={t('admin.users.authenticationMethod')}
+                rules={[{ required: true }]}
               >
-                <Input.Password />
+                <Select
+                  options={[
+                    ...(localAuthEnabled
+                      ? [{ value: 'local', label: t('admin.users.authLocal') }]
+                      : []),
+                    { value: 'entra', label: t('admin.users.authSso') },
+                  ]}
+                />
               </Form.Item>
+              {selectedFirstAdminAuthProvider === 'local' && (
+                <Form.Item
+                  name="adminPassword"
+                  label={t('admin.users.initialPassword')}
+                  preserve={false}
+                  rules={[
+                    { required: true, message: t('admin.users.passwordRequired') },
+                    { min: 8, message: t('admin.users.minChars') },
+                  ]}
+                >
+                  <Input.Password autoComplete="new-password" />
+                </Form.Item>
+              )}
             </>
           )}
         </Form>

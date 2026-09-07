@@ -15,6 +15,11 @@ export interface User {
   createdAt?: string;
 }
 
+export interface AuthenticationConfiguration {
+  localAuthEnabled: boolean;
+  entraAuthEnabled: boolean;
+}
+
 export interface Organization {
   id: string;
   name: string;
