@@ -23,38 +23,38 @@ async function main() {
 
   const defaultItems = [
     {
-      fieldName: 'Contract Title',
-      fieldDescription: 'The official title or name of the contract',
+      fieldName: 'Document Title',
+      fieldDescription: 'The official title or name of the document',
       sortOrder: 1,
     },
     {
       fieldName: 'Parties',
-      fieldDescription: 'All parties involved in the contract, including full legal names',
+      fieldDescription: 'All parties identified in the document, including full legal names',
       sortOrder: 2,
     },
     {
       fieldName: 'Effective Date',
-      fieldDescription: 'The date on which the contract becomes effective',
+      fieldDescription: 'The date on which the document becomes effective',
       sortOrder: 3,
     },
     {
       fieldName: 'Expiry Date',
-      fieldDescription: 'The date on which the contract expires or terminates',
+      fieldDescription: 'The date on which the document expires or terminates',
       sortOrder: 4,
     },
     {
-      fieldName: 'Contract Value',
-      fieldDescription: 'Total monetary value or consideration of the contract',
+      fieldName: 'Document Value',
+      fieldDescription: 'Total monetary value or consideration stated in the document',
       sortOrder: 5,
     },
     {
       fieldName: 'Payment Terms',
-      fieldDescription: 'Terms and schedule for payments described in the contract',
+      fieldDescription: 'Terms and schedule for payments described in the document',
       sortOrder: 6,
     },
     {
       fieldName: 'Governing Law',
-      fieldDescription: 'The jurisdiction and law that governs the contract',
+      fieldDescription: 'The jurisdiction and law that governs the document',
       sortOrder: 7,
     },
     {
@@ -64,7 +64,7 @@ async function main() {
     },
     {
       fieldName: 'Termination Conditions',
-      fieldDescription: 'Conditions under which the contract may be terminated',
+      fieldDescription: 'Conditions under which the document may be terminated',
       sortOrder: 9,
     },
     {
@@ -93,7 +93,7 @@ async function main() {
   if (!existingTemplate) {
     await prisma.fieldTemplate.create({
       data: {
-        name: 'Default Contract Fields',
+        name: 'Default Document Fields',
         isDefault: true,
         isSystem: true,
         scope: 'platform',
@@ -123,19 +123,19 @@ async function main() {
         isDefault: true,
         isSystem: true,
         scope: 'platform',
-        content: `You are a professional contract risk analyst.
+        content: `You are a professional document risk analyst.
 
-Your task is to review the following contract text and identify key risks, unfavorable terms, and areas requiring attention.
+Your task is to review the following document text and identify key risks, unfavorable terms, and areas requiring attention.
 
 For each risk identified, provide:
 1. Risk Category (e.g., Financial, Legal, Operational, Compliance)
 2. Severity (High / Medium / Low)
 3. Description of the risk
-4. Relevant contract clause or text excerpt
+4. Relevant document clause or text excerpt
 5. Recommendation
 
-Be thorough, objective, and specific. Focus on risks that are explicitly present in the contract text.
-The API supplies the contract text and controls the final response format.`,
+Be thorough, objective, and specific. Focus on risks that are explicitly present in the document text.
+The API supplies the document text and controls the final response format.`,
       },
     });
     console.log('✅ Default risk analysis prompt created');
@@ -154,21 +154,21 @@ The API supplies the contract text and controls the final response format.`,
   if (!existingComparisonPrompt) {
     await prisma.promptTemplate.create({
       data: {
-        name: 'Default Contract Comparison Prompt',
+        name: 'Default Document Comparison Prompt',
         templateType: TemplateType.contract_comparison,
         isDefault: true,
         isSystem: true,
         scope: 'platform',
-        content: `Compare the supplied contracts in detail. Treat Document 1 as the baseline and identify how each subsequent document differs from it.
+        content: `Compare the supplied documents in detail. Treat Document 1 as the baseline and identify how each subsequent document differs from it.
 
 Cover material changes to obligations, rights, commercial terms, dates, liability, termination, compliance, and operational risk. Cite the relevant document number and clause or excerpt for every important finding. Highlight additions, removals, conflicts, and practical recommendations.
 
 Use clear Markdown headings, bullets, and tables where helpful. Base the analysis only on the supplied documents.`,
       },
     });
-    console.log('✅ Default contract comparison prompt created');
+    console.log('✅ Default document comparison prompt created');
   } else {
-    console.log('ℹ️  Default contract comparison prompt already exists, skipping');
+    console.log('ℹ️  Default document comparison prompt already exists, skipping');
   }
 
   // Default admin user — seeded when SEED_ADMIN_EMAIL is set

@@ -27,6 +27,14 @@ describe('parseRiskAnalysis', () => {
     expect(result.riskAnalysis).toBe('Clause 5 is risky.');
   });
 
+  it('accepts the rebranded document description header', () => {
+    const text =
+      '[Original Document Description]\nThis is a policy document.\n[Risk Analysis]\nSection 5 needs review.';
+    const result = parseRiskAnalysis(text);
+    expect(result.originalContractDescription).toBe('This is a policy document.');
+    expect(result.riskAnalysis).toBe('Section 5 needs review.');
+  });
+
   it('handles markdown-prefixed headers (## [..])', () => {
     const text = '## [Original Contract Description]\nDesc body\n## [Risk Analysis]\nRisk body';
     const result = parseRiskAnalysis(text);
