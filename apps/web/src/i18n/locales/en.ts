@@ -98,6 +98,7 @@ const en = {
     history: 'My History',
     settings: 'Settings',
     profile: 'Profile',
+    switchOrganization: 'Switch organization',
     logout: 'Logout',
     admin: 'Admin',
     dashboard: 'Dashboard',
