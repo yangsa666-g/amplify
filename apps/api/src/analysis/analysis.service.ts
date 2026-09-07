@@ -7,6 +7,12 @@ import { PromptTemplatesService } from '../prompt-templates/prompt-templates.ser
 import { DocumentsService } from '../documents/documents.service';
 import { ModelsService } from '../models/models.service';
 import type { ReasoningEffort } from '../models/model-registry';
+import type { AuthUser } from '../auth/decorators/current-user.decorator';
+import {
+  businessWhere,
+  ownBusinessWhere,
+  requireOrganizationContext,
+} from '../auth/access-context';
 
 export function parseRiskAnalysis(text: string): {
   originalContractDescription: string;
@@ -181,32 +187,37 @@ export class AnalysisService {
   ) {}
 
   async run(
-    userId: string,
+    user: AuthUser,
     documentId: string,
     model: string,
     fieldTemplateId?: string,
     promptTemplateId?: string,
     reasoningEffort?: ReasoningEffort,
   ) {
-    const resolvedModel = await this.models.resolveForExecution(model, reasoningEffort);
+    const ctx = requireOrganizationContext(user);
+    const resolvedModel = await this.models.resolveForExecution(
+      model,
+      reasoningEffort,
+      ctx.organizationId,
+    );
     const resolvedReasoningEffort = resolvedModel.reasoningEffort;
 
     // 1. Load document text (and the OCR duration recorded at upload time)
-    const contractText = await this.documents.getExtractedText(documentId, userId);
+    const contractText = await this.documents.getExtractedText(documentId, user, true);
     if (!contractText) throw new BadRequestException('Contract text is empty');
     const docMeta = await this.prisma.document.findFirst({
-      where: { id: documentId, userId },
+      where: { id: documentId, ...ownBusinessWhere(user) },
       select: { extractionMs: true },
     });
     const ocrMs = docMeta?.extractionMs ?? null;
 
     // 2. Load templates (by ID if provided, otherwise system default)
     const fieldTemplate = fieldTemplateId
-      ? await this.fieldTemplates.getById(fieldTemplateId, userId)
-      : await this.fieldTemplates.getSystemDefault();
+      ? await this.fieldTemplates.getById(fieldTemplateId, user)
+      : await this.fieldTemplates.getSystemDefault(ctx.organizationId);
     const promptTemplate = promptTemplateId
-      ? await this.promptTemplates.getById(promptTemplateId, userId, 'risk_analysis')
-      : await this.promptTemplates.getSystemDefault('risk_analysis');
+      ? await this.promptTemplates.getById(promptTemplateId, user, 'risk_analysis')
+      : await this.promptTemplates.getSystemDefault('risk_analysis', ctx.organizationId);
 
     // 3. Build field extraction prompt
     const fieldsJson = JSON.stringify(
@@ -234,7 +245,8 @@ export class AnalysisService {
     // 5. Create analysis job
     const job = await this.prisma.analysisJob.create({
       data: {
-        userId,
+        userId: user.userId,
+        organizationId: ctx.organizationId,
         documentId,
         modelName: model,
         reasoningEffort: resolvedReasoningEffort,
@@ -340,10 +352,9 @@ export class AnalysisService {
     }
   }
 
-  async findOne(id: string, userId: string, role?: string) {
-    const isAdmin = role === 'admin';
+  async findOne(id: string, user: AuthUser) {
     const job = await this.prisma.analysisJob.findFirst({
-      where: isAdmin ? { id } : { id, userId },
+      where: { id, ...businessWhere(user) },
       include: {
         document: { select: { fileName: true, extractionMs: true } },
         fieldExtractionResult: true,
@@ -366,9 +377,9 @@ export class AnalysisService {
     return job;
   }
 
-  async findRecent(userId: string) {
+  async findRecent(user: AuthUser) {
     return this.prisma.analysisJob.findMany({
-      where: { userId },
+      where: businessWhere(user),
       orderBy: { createdAt: 'desc' },
       take: 10,
       include: {
@@ -379,21 +390,23 @@ export class AnalysisService {
     });
   }
 
-  async submitFeedback(jobId: string, userId: string, rating: number, comment?: string) {
-    const job = await this.prisma.analysisJob.findFirst({ where: { id: jobId, userId } });
+  async submitFeedback(jobId: string, user: AuthUser, rating: number, comment?: string) {
+    const job = await this.prisma.analysisJob.findFirst({
+      where: { id: jobId, ...ownBusinessWhere(user) },
+    });
     if (!job) throw new NotFoundException('Analysis job not found');
 
     return this.prisma.analysisJobFeedback.upsert({
-      where: { analysisJobId_userId: { analysisJobId: jobId, userId } },
-      create: { analysisJobId: jobId, userId, rating, comment },
+      where: { analysisJobId_userId: { analysisJobId: jobId, userId: user.userId } },
+      create: { analysisJobId: jobId, userId: user.userId, rating, comment },
       update: { rating, comment },
       include: { user: { select: { id: true, name: true } } },
     });
   }
 
-  async getFeedback(jobId: string, userId: string, role?: string) {
+  async getFeedback(jobId: string, user: AuthUser) {
     const job = await this.prisma.analysisJob.findFirst({
-      where: role === 'admin' ? { id: jobId } : { id: jobId, userId },
+      where: { id: jobId, ...businessWhere(user) },
     });
     if (!job) throw new NotFoundException('Analysis job not found');
 

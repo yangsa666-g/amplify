@@ -12,6 +12,7 @@ interface CompareState {
   setSelectedModel: (model: string) => void;
   setSelectedReasoningEffort: (effort: ReasoningEffort) => void;
   setResult: (result: CompareResult | null) => void;
+  resetForOrganizationChange: () => void;
 }
 
 export const useCompareStore = create<CompareState>()((set) => ({
@@ -41,4 +42,5 @@ export const useCompareStore = create<CompareState>()((set) => ({
   setSelectedReasoningEffort: (selectedReasoningEffort) =>
     set({ selectedReasoningEffort, result: null }),
   setResult: (result) => set({ result }),
+  resetForOrganizationChange: () => set({ documents: [null, null], result: null }),
 }));

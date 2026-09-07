@@ -8,6 +8,8 @@ interface RequestUser {
   userId?: string;
   email?: string;
   role?: string;
+  organizationId?: string | null;
+  selectedOrganizationId?: string | null;
 }
 
 interface AuditRequest {
@@ -59,6 +61,8 @@ export class AuditInterceptor implements NestInterceptor {
 
       void this.auditService.record({
         userId,
+        organizationId:
+          request.user?.selectedOrganizationId ?? request.user?.organizationId ?? undefined,
         action: actionInfo.action,
         method: request.method,
         path,

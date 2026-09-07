@@ -19,6 +19,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { TemplateRequestsModule } from './template-requests/template-requests.module';
 import { ExternalApiModule } from './external-api/external-api.module';
 import { AuditModule } from './audit/audit.module';
+import { OrganizationsModule } from './organizations/organizations.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { AuditModule } from './audit/audit.module';
     TemplateRequestsModule,
     ExternalApiModule,
     AuditModule,
+    OrganizationsModule,
   ],
   controllers: [AppController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

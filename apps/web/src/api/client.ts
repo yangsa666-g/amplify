@@ -7,7 +7,9 @@ const client = axios.create({ baseURL: BASE_URL, withCredentials: true });
 
 client.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
+  const selectedOrganizationId = useAuthStore.getState().selectedOrganizationId;
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (selectedOrganizationId) config.headers['X-Organization-Id'] = selectedOrganizationId;
   return config;
 });
 

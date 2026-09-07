@@ -1,20 +1,20 @@
 import {
+  BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
-  ForbiddenException,
-  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TemplateType } from '../../generated/prisma/client';
+import type { AuthUser } from '../auth/decorators/current-user.decorator';
+import { requireOrganizationContext } from '../auth/access-context';
 
 @Injectable()
 export class PromptTemplatesService {
   constructor(private prisma: PrismaService) {}
 
   private validate(content: string) {
-    if (!content.trim()) {
-      throw new BadRequestException('Prompt content cannot be empty');
-    }
+    if (!content.trim()) throw new BadRequestException('Prompt content cannot be empty');
   }
 
   private normalizeType(templateType: string): TemplateType {
@@ -24,74 +24,83 @@ export class PromptTemplatesService {
     return templateType as TemplateType;
   }
 
-  // ─── User API ─────────────────────────────────────────────────────────────
-
-  /** List all system templates + user's personal templates */
-  async listForUser(userId: string, templateType = 'risk_analysis') {
+  async listForUser(user: AuthUser, templateType = 'risk_analysis') {
     const type = this.normalizeType(templateType);
-    const [system, personal] = await Promise.all([
-      this.prisma.promptTemplate.findMany({
-        where: { isSystem: true, templateType: type },
-        orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
-      }),
-      this.prisma.promptTemplate.findMany({
-        where: { userId, isSystem: false, templateType: type },
-        orderBy: { updatedAt: 'desc' },
-      }),
-    ]);
-    return [
-      ...system.map((t) => ({ ...t, scope: 'system' as const })),
-      ...personal.map((t) => ({ ...t, scope: 'personal' as const })),
-    ];
+    const ctx = requireOrganizationContext(user);
+    const templates = await this.prisma.promptTemplate.findMany({
+      where: {
+        templateType: type,
+        OR: [
+          { scope: 'platform' },
+          { scope: 'organization', organizationId: ctx.organizationId },
+          { scope: 'personal', organizationId: ctx.organizationId, userId: user.userId },
+        ],
+      },
+      orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }],
+    });
+    return templates.map((template) => this.withCompatScope(template));
   }
 
-  /** Get a single template by ID; accessible if it's system or owned by user */
-  async getById(id: string, userId: string, expectedType?: string) {
+  async getById(id: string, user: AuthUser, expectedType?: string) {
+    const ctx = requireOrganizationContext(user);
     const tmpl = await this.prisma.promptTemplate.findUnique({ where: { id } });
     if (!tmpl) throw new NotFoundException('Prompt template not found');
-    if (!tmpl.isSystem && tmpl.userId !== userId) throw new ForbiddenException();
+    if (
+      tmpl.scope !== 'platform' &&
+      (tmpl.organizationId !== ctx.organizationId ||
+        (tmpl.scope === 'personal' && tmpl.userId !== user.userId))
+    ) {
+      throw new ForbiddenException();
+    }
     if (expectedType && tmpl.templateType !== this.normalizeType(expectedType)) {
       throw new BadRequestException('Prompt template type does not match this operation');
     }
-    return { ...tmpl, scope: tmpl.isSystem ? 'system' : ('personal' as const) };
+    return this.withCompatScope(tmpl);
   }
 
-  /** Get the system default (used as fallback when no template ID is provided) */
-  async getSystemDefault(templateType = 'risk_analysis') {
+  async getSystemDefault(templateType = 'risk_analysis', organizationId?: string | null) {
     const type = this.normalizeType(templateType);
-    const tmpl = await this.prisma.promptTemplate.findFirst({
-      where: { isSystem: true, isDefault: true, templateType: type },
-    });
-    if (!tmpl) throw new NotFoundException('No system default prompt template found');
-    return { ...tmpl, scope: 'system' as const };
+    const tmpl =
+      (organizationId
+        ? await this.prisma.promptTemplate.findFirst({
+            where: { scope: 'organization', organizationId, templateType: type, isDefault: true },
+          })
+        : null) ??
+      (await this.prisma.promptTemplate.findFirst({
+        where: { scope: 'platform', templateType: type, isDefault: true },
+      }));
+    if (!tmpl) throw new NotFoundException('No default prompt template found');
+    return this.withCompatScope(tmpl);
   }
 
-  /** Create a new personal template */
   async createUserTemplate(
-    userId: string,
+    user: AuthUser,
     data: { name: string; content: string },
     templateType = 'risk_analysis',
   ) {
     const type = this.normalizeType(templateType);
+    const ctx = requireOrganizationContext(user);
     this.validate(data.content);
     return this.prisma.promptTemplate.create({
       data: {
-        userId,
+        userId: user.userId,
+        organizationId: ctx.organizationId,
         name: data.name,
         content: data.content,
         templateType: type,
         isDefault: false,
         isSystem: false,
+        scope: 'personal',
       },
     });
   }
 
-  /** Update a personal template (must be owned by this user) */
-  async updateUserTemplate(userId: string, id: string, data: { name: string; content: string }) {
+  async updateUserTemplate(user: AuthUser, id: string, data: { name: string; content: string }) {
     const existing = await this.prisma.promptTemplate.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Prompt template not found');
-    if (existing.isSystem || existing.userId !== userId)
+    if (existing.scope !== 'personal' || existing.userId !== user.userId) {
       throw new ForbiddenException('Cannot edit this template');
+    }
     this.validate(data.content);
     return this.prisma.promptTemplate.update({
       where: { id },
@@ -99,67 +108,75 @@ export class PromptTemplatesService {
     });
   }
 
-  /** Delete a personal template owned by this user */
-  async deleteUserTemplate(userId: string, id: string) {
+  async deleteUserTemplate(user: AuthUser, id: string) {
     const existing = await this.prisma.promptTemplate.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Prompt template not found');
-    if (existing.isSystem || existing.userId !== userId)
+    if (existing.scope !== 'personal' || existing.userId !== user.userId) {
       throw new ForbiddenException('Cannot delete this template');
+    }
     await this.prisma.promptTemplate.delete({ where: { id } });
     return { deleted: true };
   }
 
-  /** Duplicate a system template into the user's personal templates */
-  async duplicateSystemTemplate(userId: string, systemId: string) {
-    const system = await this.prisma.promptTemplate.findUnique({ where: { id: systemId } });
-    if (!system || !system.isSystem)
+  async duplicateSystemTemplate(user: AuthUser, systemId: string) {
+    const source = await this.getById(systemId, user);
+    if (source.scope === 'personal')
       throw new NotFoundException('System prompt template not found');
+    const ctx = requireOrganizationContext(user);
     const created = await this.prisma.promptTemplate.create({
       data: {
-        userId,
-        name: `${system.name} (copy)`,
-        content: system.content,
-        templateType: system.templateType,
+        userId: user.userId,
+        organizationId: ctx.organizationId,
+        name: `${source.name} (copy)`,
+        content: source.content,
+        templateType: source.templateType,
         isDefault: false,
         isSystem: false,
+        scope: 'personal',
       },
     });
-    return { ...created, scope: 'personal' as const };
+    return this.withCompatScope(created);
   }
 
-  // ─── Admin API ─────────────────────────────────────────────────────────────
-
-  /** List all system templates */
-  async listSystemTemplates(templateType = 'risk_analysis') {
+  async listSystemTemplates(user: AuthUser, templateType = 'risk_analysis') {
     const type = this.normalizeType(templateType);
-    return this.prisma.promptTemplate.findMany({
-      where: { isSystem: true, templateType: type },
+    const where = this.adminTemplateWhere(user);
+    const templates = await this.prisma.promptTemplate.findMany({
+      where:
+        where.scope === 'platform'
+          ? { ...where, templateType: type }
+          : {
+              templateType: type,
+              OR: [{ scope: 'platform' as const }, where],
+            },
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
     });
+    return templates.map((template) => this.withCompatScope(template));
   }
 
-  /** Create a new system template */
   async createSystemTemplate(
+    user: AuthUser,
     data: { name: string; content: string },
     templateType = 'risk_analysis',
   ) {
     const type = this.normalizeType(templateType);
+    const target = this.adminTemplateTarget(user);
     this.validate(data.content);
     return this.prisma.promptTemplate.create({
       data: {
         name: data.name,
         content: data.content,
         templateType: type,
-        isSystem: true,
+        organizationId: target.organizationId,
+        isSystem: target.scope === 'platform',
         isDefault: false,
+        scope: target.scope,
       },
     });
   }
 
-  /** Update a system template */
-  async updateSystemTemplate(id: string, data: { name: string; content: string }) {
-    const existing = await this.prisma.promptTemplate.findUnique({ where: { id } });
-    if (!existing || !existing.isSystem) throw new NotFoundException('System template not found');
+  async updateSystemTemplate(user: AuthUser, id: string, data: { name: string; content: string }) {
+    await this.assertCanManageAdminTemplate(user, id);
     this.validate(data.content);
     return this.prisma.promptTemplate.update({
       where: { id },
@@ -167,26 +184,64 @@ export class PromptTemplatesService {
     });
   }
 
-  /** Delete a system template */
-  async deleteSystemTemplate(id: string) {
-    const existing = await this.prisma.promptTemplate.findUnique({ where: { id } });
-    if (!existing || !existing.isSystem) throw new NotFoundException('System template not found');
+  async deleteSystemTemplate(user: AuthUser, id: string) {
+    await this.assertCanManageAdminTemplate(user, id);
     await this.prisma.promptTemplate.delete({ where: { id } });
     return { deleted: true };
   }
 
-  /** Set a system template as the default (clears old default first) */
-  async setSystemDefault(id: string, templateType = 'risk_analysis') {
-    const existing = await this.prisma.promptTemplate.findUnique({ where: { id } });
-    if (!existing || !existing.isSystem) throw new NotFoundException('System template not found');
+  async setSystemDefault(user: AuthUser, id: string, templateType = 'risk_analysis') {
+    const existing = await this.assertCanManageAdminTemplate(user, id);
     const type = this.normalizeType(templateType);
     if (existing.templateType !== type) {
       throw new BadRequestException('Prompt template type does not match this operation');
     }
     await this.prisma.promptTemplate.updateMany({
-      where: { isSystem: true, isDefault: true, templateType: type },
+      where:
+        existing.scope === 'platform'
+          ? { scope: 'platform', templateType: type, isDefault: true }
+          : {
+              scope: 'organization',
+              organizationId: existing.organizationId,
+              templateType: type,
+              isDefault: true,
+            },
       data: { isDefault: false },
     });
     return this.prisma.promptTemplate.update({ where: { id }, data: { isDefault: true } });
+  }
+
+  private adminTemplateTarget(user: AuthUser) {
+    if (user.role === 'super_admin' && !user.selectedOrganizationId) {
+      return { scope: 'platform' as const, organizationId: null };
+    }
+    const ctx = requireOrganizationContext(user);
+    return { scope: 'organization' as const, organizationId: ctx.organizationId };
+  }
+
+  private adminTemplateWhere(user: AuthUser) {
+    const target = this.adminTemplateTarget(user);
+    return target.scope === 'platform'
+      ? { scope: 'platform' as const }
+      : { scope: 'organization' as const, organizationId: target.organizationId };
+  }
+
+  private async assertCanManageAdminTemplate(user: AuthUser, id: string) {
+    const existing = await this.prisma.promptTemplate.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Prompt template not found');
+    const where = this.adminTemplateWhere(user);
+    if (
+      existing.scope !== where.scope ||
+      ('organizationId' in where && existing.organizationId !== where.organizationId)
+    ) {
+      throw new ForbiddenException('Cannot manage this template');
+    }
+    return existing;
+  }
+
+  private withCompatScope<T extends { scope: string }>(template: T) {
+    const scope =
+      template.scope === 'platform' || template.scope === 'organization' ? 'system' : 'personal';
+    return { ...template, templateScope: template.scope, scope };
   }
 }

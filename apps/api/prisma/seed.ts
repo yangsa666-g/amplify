@@ -7,8 +7,20 @@ import { normalizeDatabaseUrl } from '../src/config/database-url';
 const pool = new Pool({ connectionString: normalizeDatabaseUrl(process.env.DATABASE_URL ?? '') });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
+const PLATFORM_DEFAULTS_ORGANIZATION_ID = 'platform_defaults';
 
 async function main() {
+  await prisma.organization.upsert({
+    where: { id: PLATFORM_DEFAULTS_ORGANIZATION_ID },
+    update: {},
+    create: {
+      id: PLATFORM_DEFAULTS_ORGANIZATION_ID,
+      name: 'Platform Defaults',
+      status: 'active',
+    },
+  });
+  console.log('✅ Platform Defaults business context is ready');
+
   const defaultItems = [
     {
       fieldName: 'Contract Title',
@@ -74,7 +86,7 @@ async function main() {
 
   // System default field template
   const existingTemplate = await prisma.fieldTemplate.findFirst({
-    where: { isSystem: true, isDefault: true },
+    where: { scope: 'platform', isDefault: true },
     include: { items: true },
   });
 
@@ -84,6 +96,7 @@ async function main() {
         name: 'Default Contract Fields',
         isDefault: true,
         isSystem: true,
+        scope: 'platform',
         items: { create: defaultItems },
       },
     });
@@ -99,7 +112,7 @@ async function main() {
 
   // System default risk analysis prompt
   const existingPrompt = await prisma.promptTemplate.findFirst({
-    where: { isSystem: true, isDefault: true, templateType: TemplateType.risk_analysis },
+    where: { scope: 'platform', isDefault: true, templateType: TemplateType.risk_analysis },
   });
 
   if (!existingPrompt) {
@@ -109,6 +122,7 @@ async function main() {
         templateType: TemplateType.risk_analysis,
         isDefault: true,
         isSystem: true,
+        scope: 'platform',
         content: `You are a professional contract risk analyst.
 
 Your task is to review the following contract text and identify key risks, unfavorable terms, and areas requiring attention.
@@ -131,7 +145,7 @@ The API supplies the contract text and controls the final response format.`,
 
   const existingComparisonPrompt = await prisma.promptTemplate.findFirst({
     where: {
-      isSystem: true,
+      scope: 'platform',
       isDefault: true,
       templateType: TemplateType.contract_comparison,
     },
@@ -144,6 +158,7 @@ The API supplies the contract text and controls the final response format.`,
         templateType: TemplateType.contract_comparison,
         isDefault: true,
         isSystem: true,
+        scope: 'platform',
         content: `Compare the supplied contracts in detail. Treat Document 1 as the baseline and identify how each subsequent document differs from it.
 
 Cover material changes to obligations, rights, commercial terms, dates, liability, termination, compliance, and operational risk. Cite the relevant document number and clause or excerpt for every important finding. Highlight additions, removals, conflicts, and practical recommendations.
@@ -170,7 +185,7 @@ Use clear Markdown headings, bullets, and tables where helpful. Base the analysi
           email: adminEmail,
           name: adminName,
           passwordHash: hash,
-          role: 'admin',
+          role: 'super_admin',
           authProvider: 'local',
         },
       });

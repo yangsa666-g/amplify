@@ -15,17 +15,17 @@ export class FieldTemplatesController {
 
   @Get()
   list(@CurrentUser() user: AuthUser) {
-    return this.service.listForUser(user.userId);
+    return this.service.listForUser(user);
   }
 
   @Get(':id')
   getOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.service.getById(id, user.userId);
+    return this.service.getById(id, user);
   }
 
   @Post()
   create(@CurrentUser() user: AuthUser, @Body() body: FieldTemplateBodyDto) {
-    return this.service.createUserTemplate(user.userId, body);
+    return this.service.createUserTemplate(user, body);
   }
 
   @Put(':id')
@@ -34,17 +34,17 @@ export class FieldTemplatesController {
     @CurrentUser() user: AuthUser,
     @Body() body: FieldTemplateBodyDto,
   ) {
-    return this.service.updateUserTemplate(user.userId, id, body);
+    return this.service.updateUserTemplate(user, id, body);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.service.deleteUserTemplate(user.userId, id);
+    return this.service.deleteUserTemplate(user, id);
   }
 
   @Post(':id/duplicate')
   duplicate(@Param('id') systemId: string, @CurrentUser() user: AuthUser) {
-    return this.service.duplicateSystemTemplate(user.userId, systemId);
+    return this.service.duplicateSystemTemplate(user, systemId);
   }
 }
 
@@ -57,27 +57,31 @@ export class AdminFieldTemplatesController {
   constructor(private service: FieldTemplatesService) {}
 
   @Get()
-  list() {
-    return this.service.listSystemTemplates();
+  list(@CurrentUser() user: AuthUser) {
+    return this.service.listSystemTemplates(user);
   }
 
   @Post()
-  create(@Body() body: FieldTemplateBodyDto) {
-    return this.service.createSystemTemplate(body);
+  create(@CurrentUser() user: AuthUser, @Body() body: FieldTemplateBodyDto) {
+    return this.service.createSystemTemplate(user, body);
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() body: FieldTemplateBodyDto) {
-    return this.service.updateSystemTemplate(id, body);
+  update(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() body: FieldTemplateBodyDto,
+  ) {
+    return this.service.updateSystemTemplate(user, id, body);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.service.deleteSystemTemplate(id);
+  remove(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.deleteSystemTemplate(user, id);
   }
 
   @Post(':id/set-default')
-  setDefault(@Param('id') id: string) {
-    return this.service.setSystemDefault(id);
+  setDefault(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.setSystemDefault(user, id);
   }
 }

@@ -16,7 +16,7 @@ export class AnalysisController {
   @Post('run')
   run(@CurrentUser() user: AuthUser, @Body() body: RunAnalysisDto) {
     return this.analysisService.run(
-      user.userId,
+      user,
       body.documentId,
       body.model,
       body.fieldTemplateId,
@@ -27,12 +27,12 @@ export class AnalysisController {
 
   @Get('recent')
   findRecent(@CurrentUser() user: AuthUser) {
-    return this.analysisService.findRecent(user.userId);
+    return this.analysisService.findRecent(user);
   }
 
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.analysisService.findOne(id, user.userId, user.role);
+    return this.analysisService.findOne(id, user);
   }
 
   @Post(':id/feedback')
@@ -41,11 +41,11 @@ export class AnalysisController {
     @CurrentUser() user: AuthUser,
     @Body() body: SubmitFeedbackDto,
   ) {
-    return this.analysisService.submitFeedback(id, user.userId, body.rating, body.comment);
+    return this.analysisService.submitFeedback(id, user, body.rating, body.comment);
   }
 
   @Get(':id/feedback')
   getFeedback(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.analysisService.getFeedback(id, user.userId, user.role);
+    return this.analysisService.getFeedback(id, user);
   }
 }

@@ -13,13 +13,13 @@ export class HistoryController {
   // "My History": always scoped to the current user, even for admins.
   @Get()
   getRecent(@CurrentUser() user: AuthUser) {
-    return this.historyService.getRecent(user.userId);
+    return this.historyService.getRecent(user);
   }
 
   // "All History": every user's history, admin-only.
   @Get('all')
   @Roles('admin')
-  getAll() {
-    return this.historyService.getAllForAdmin();
+  getAll(@CurrentUser() user: AuthUser) {
+    return this.historyService.getAllForAdmin(user);
   }
 }

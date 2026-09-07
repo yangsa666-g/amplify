@@ -15,12 +15,12 @@ export class PromptTemplatesController {
 
   @Get()
   list(@CurrentUser() user: AuthUser, @Query('type') type = 'risk_analysis') {
-    return this.service.listForUser(user.userId, type);
+    return this.service.listForUser(user, type);
   }
 
   @Get(':id')
   getOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.service.getById(id, user.userId);
+    return this.service.getById(id, user);
   }
 
   @Post()
@@ -29,7 +29,7 @@ export class PromptTemplatesController {
     @Query('type') type = 'risk_analysis',
     @Body() body: PromptTemplateBodyDto,
   ) {
-    return this.service.createUserTemplate(user.userId, body, type);
+    return this.service.createUserTemplate(user, body, type);
   }
 
   @Put(':id')
@@ -38,17 +38,17 @@ export class PromptTemplatesController {
     @CurrentUser() user: AuthUser,
     @Body() body: PromptTemplateBodyDto,
   ) {
-    return this.service.updateUserTemplate(user.userId, id, body);
+    return this.service.updateUserTemplate(user, id, body);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.service.deleteUserTemplate(user.userId, id);
+    return this.service.deleteUserTemplate(user, id);
   }
 
   @Post(':id/duplicate')
   duplicate(@Param('id') systemId: string, @CurrentUser() user: AuthUser) {
-    return this.service.duplicateSystemTemplate(user.userId, systemId);
+    return this.service.duplicateSystemTemplate(user, systemId);
   }
 }
 
@@ -61,27 +61,39 @@ export class AdminPromptTemplatesController {
   constructor(private service: PromptTemplatesService) {}
 
   @Get()
-  list(@Query('type') type = 'risk_analysis') {
-    return this.service.listSystemTemplates(type);
+  list(@CurrentUser() user: AuthUser, @Query('type') type = 'risk_analysis') {
+    return this.service.listSystemTemplates(user, type);
   }
 
   @Post()
-  create(@Query('type') type = 'risk_analysis', @Body() body: PromptTemplateBodyDto) {
-    return this.service.createSystemTemplate(body, type);
+  create(
+    @CurrentUser() user: AuthUser,
+    @Query('type') type = 'risk_analysis',
+    @Body() body: PromptTemplateBodyDto,
+  ) {
+    return this.service.createSystemTemplate(user, body, type);
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() body: PromptTemplateBodyDto) {
-    return this.service.updateSystemTemplate(id, body);
+  update(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() body: PromptTemplateBodyDto,
+  ) {
+    return this.service.updateSystemTemplate(user, id, body);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.service.deleteSystemTemplate(id);
+  remove(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.deleteSystemTemplate(user, id);
   }
 
   @Post(':id/set-default')
-  setDefault(@Param('id') id: string, @Query('type') type = 'risk_analysis') {
-    return this.service.setSystemDefault(id, type);
+  setDefault(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Query('type') type = 'risk_analysis',
+  ) {
+    return this.service.setSystemDefault(user, id, type);
   }
 }

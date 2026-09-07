@@ -15,12 +15,12 @@ export class TemplateRequestsController {
 
   @Get('template-requests')
   listMine(@CurrentUser() user: AuthUser) {
-    return this.svc.listForUser(user.userId);
+    return this.svc.listForUser(user);
   }
 
   @Post('template-requests')
   submit(@CurrentUser() user: AuthUser, @Body() body: SubmitTemplateRequestDto) {
-    return this.svc.submit(user.userId, body);
+    return this.svc.submit(user, body);
   }
 
   // ─── Admin endpoints ──────────────────────────────────────────────────────────
@@ -28,15 +28,15 @@ export class TemplateRequestsController {
   @Get('admin/template-requests')
   @UseGuards(RolesGuard)
   @Roles('admin')
-  listPending() {
-    return this.svc.listPending();
+  listPending(@CurrentUser() user: AuthUser) {
+    return this.svc.listPending(user);
   }
 
   @Put('admin/template-requests/:id/approve')
   @UseGuards(RolesGuard)
   @Roles('admin')
   approve(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.svc.approve(user.userId, id);
+    return this.svc.approve(user, id);
   }
 
   @Put('admin/template-requests/:id/reject')
@@ -47,6 +47,6 @@ export class TemplateRequestsController {
     @Param('id') id: string,
     @Body() body: RejectTemplateRequestDto,
   ) {
-    return this.svc.reject(user.userId, id, body.adminNote);
+    return this.svc.reject(user, id, body.adminNote);
   }
 }

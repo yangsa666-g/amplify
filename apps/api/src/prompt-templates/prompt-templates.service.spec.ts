@@ -1,6 +1,18 @@
 import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { PromptTemplatesService } from './prompt-templates.service';
+import type { AuthUser } from '../auth/decorators/current-user.decorator';
+
+const authUser: AuthUser = {
+  userId: 'user-1',
+  email: 'user@example.com',
+  name: 'User One',
+  role: 'user',
+  authProvider: 'local',
+  status: 'active',
+  organizationId: 'org-1',
+  selectedOrganizationId: 'org-1',
+};
 
 function makeService() {
   const prisma = {
@@ -20,18 +32,18 @@ describe('PromptTemplatesService template types', () => {
   it('isolates user template lists by type', async () => {
     const { service, prisma } = makeService();
 
-    await service.listForUser('user-1', 'contract_comparison');
+    await service.listForUser(authUser, 'contract_comparison');
 
-    expect(prisma.promptTemplate.findMany).toHaveBeenNthCalledWith(
-      1,
+    expect(prisma.promptTemplate.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { isSystem: true, templateType: 'contract_comparison' },
-      }),
-    );
-    expect(prisma.promptTemplate.findMany).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        where: { userId: 'user-1', isSystem: false, templateType: 'contract_comparison' },
+        where: expect.objectContaining({
+          templateType: 'contract_comparison',
+          OR: expect.arrayContaining([
+            { scope: 'platform' },
+            { scope: 'organization', organizationId: 'org-1' },
+            { scope: 'personal', organizationId: 'org-1', userId: 'user-1' },
+          ]),
+        }),
       }),
     );
   });
@@ -44,13 +56,18 @@ describe('PromptTemplatesService template types', () => {
       content: 'Compare documents',
       templateType: 'contract_comparison',
       isSystem: true,
+      scope: 'platform',
     });
     prisma.promptTemplate.create.mockResolvedValue({ id: 'copy-1' });
 
-    await service.duplicateSystemTemplate('user-1', 'prompt-1');
+    await service.duplicateSystemTemplate(authUser, 'prompt-1');
 
     expect(prisma.promptTemplate.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ templateType: 'contract_comparison' }),
+      data: expect.objectContaining({
+        templateType: 'contract_comparison',
+        organizationId: 'org-1',
+        scope: 'personal',
+      }),
     });
   });
 
@@ -60,11 +77,16 @@ describe('PromptTemplatesService template types', () => {
       id: 'risk-1',
       templateType: 'risk_analysis',
       isSystem: true,
+      scope: 'platform',
     });
 
-    await expect(service.setSystemDefault('risk-1', 'contract_comparison')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.setSystemDefault(
+        { ...authUser, role: 'super_admin', selectedOrganizationId: null },
+        'risk-1',
+        'contract_comparison',
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect(prisma.promptTemplate.updateMany).not.toHaveBeenCalled();
   });
 });

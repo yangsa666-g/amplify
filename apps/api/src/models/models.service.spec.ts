@@ -9,6 +9,7 @@ function createService(options?: { encryptionConfigured?: boolean }) {
   const customModels = [
     {
       id: 'custom-id',
+      organizationId: 'org-1',
       name: 'local-model',
       endpoint: 'https://example.test/v1',
       upstreamModelName: 'upstream-model',
@@ -22,11 +23,23 @@ function createService(options?: { encryptionConfigured?: boolean }) {
   const prisma = {
     openAICompatibleModel: {
       findMany: vi.fn().mockResolvedValue(customModels),
-      findUnique: vi.fn(({ where }: { where: { name: string } }) =>
-        Promise.resolve(customModels.find((model) => model.name === where.name) ?? null),
+      findUnique: vi.fn(
+        ({
+          where,
+        }: {
+          where: { organizationId_name?: { organizationId: string; name: string } };
+        }) =>
+          Promise.resolve(
+            customModels.find(
+              (model) =>
+                model.organizationId === where.organizationId_name?.organizationId &&
+                model.name === where.organizationId_name?.name,
+            ) ?? null,
+          ),
       ),
     },
     modelCatalogSetting: { findMany: vi.fn().mockResolvedValue([]) },
+    organizationModelSetting: { findMany: vi.fn().mockResolvedValue([]) },
   } as unknown as PrismaService;
   const config = {
     get: (name: string, fallback: string) => {
@@ -45,26 +58,26 @@ function createService(options?: { encryptionConfigured?: boolean }) {
 
 describe('ModelsService catalog', () => {
   it('merges environment and custom models without exposing connection details publicly', async () => {
-    const models = await createService().getModels();
+    const models = await createService().getModels('org-1');
     expect(models.map((model) => model.name)).toEqual(['gpt-env', 'local-model', 'claude-env']);
     expect(models.find((model) => model.name === 'local-model')).not.toHaveProperty('endpoint');
   });
 
   it('excludes custom models when the encryption key is unavailable', async () => {
-    const models = await createService({ encryptionConfigured: false }).getModels();
+    const models = await createService({ encryptionConfigured: false }).getModels('org-1');
     expect(models.map((model) => model.name)).toEqual(['gpt-env', 'claude-env']);
   });
 
   it('resolves an enabled custom alias to its upstream connection', async () => {
-    await expect(createService().resolveForExecution('local-model', 'high')).resolves.toMatchObject(
-      {
-        source: 'custom',
-        modelName: 'local-model',
-        upstreamModelName: 'upstream-model',
-        apiKey: 'decrypted-key',
-        reasoningEffort: 'none',
-      },
-    );
+    await expect(
+      createService().resolveForExecution('local-model', 'high', 'org-1'),
+    ).resolves.toMatchObject({
+      source: 'custom',
+      modelName: 'local-model',
+      upstreamModelName: 'upstream-model',
+      apiKey: 'decrypted-key',
+      reasoningEffort: 'none',
+    });
   });
 
   it('rejects unknown models before execution', async () => {

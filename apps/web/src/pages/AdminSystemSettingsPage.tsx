@@ -78,6 +78,7 @@ import { message } from '../utils/message';
 import { formatDate, formatDateTime } from '../utils/format';
 import { templateDisplayName } from '../utils/templateLabels';
 import { modelIconName } from '../utils/modelIcons';
+import { useAuthStore } from '../stores/authStore';
 
 type ModelDraft = Partial<Pick<Model, 'label' | 'enabled' | 'defaultReasoningEffort'>>;
 type CustomModelFormValues = CustomModelInput;
@@ -87,8 +88,11 @@ type CustomModelFormValues = CustomModelInput;
 function SystemFieldTemplatesTab() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const selectedOrganizationId = useAuthStore((s) => s.selectedOrganizationId);
+  const isPlatformContext =
+    useAuthStore((s) => s.user?.role) === 'super_admin' && !selectedOrganizationId;
   const { data: templates = [], isLoading } = useQuery({
-    queryKey: ['admin-field-templates'],
+    queryKey: ['admin-field-templates', selectedOrganizationId],
     queryFn: () => adminListFieldTemplates().then((r) => r.data),
   });
   const [editorOpen, setEditorOpen] = useState(false);
@@ -159,59 +163,68 @@ function SystemFieldTemplatesTab() {
       {templates.length === 0 ? (
         <Empty description={t('admin.system.noSystemFields')} />
       ) : (
-        templates.map((tmpl) => (
-          <Card
-            key={tmpl.id}
-            size="small"
-            title={
-              <Space>
-                {templateDisplayName(t, tmpl.name)}
-                {tmpl.isDefault && <Tag color="blue">{t('common.default')}</Tag>}
-              </Space>
-            }
-            extra={
-              <Space wrap>
-                {!tmpl.isDefault && (
-                  <Popconfirm
-                    title={t('admin.system.setDefaultConfirm')}
-                    onConfirm={() => setDefaultMutation.mutate(tmpl.id)}
-                  >
-                    <Button icon={<StarOutlined />} size="small">
-                      {t('admin.system.setDefault')}
+        templates.map((tmpl) => {
+          const platformTemplate = tmpl.templateScope === 'platform';
+          const readOnly = platformTemplate && !isPlatformContext;
+          return (
+            <Card
+              key={tmpl.id}
+              size="small"
+              title={
+                <Space>
+                  {templateDisplayName(t, tmpl.name)}
+                  {platformTemplate && <Tag>{t('admin.system.platformTemplate')}</Tag>}
+                  {tmpl.isDefault && <Tag color="blue">{t('common.default')}</Tag>}
+                </Space>
+              }
+              extra={
+                <Space wrap>
+                  {!readOnly && !tmpl.isDefault && (
+                    <Popconfirm
+                      title={t('admin.system.setDefaultConfirm')}
+                      onConfirm={() => setDefaultMutation.mutate(tmpl.id)}
+                    >
+                      <Button icon={<StarOutlined />} size="small">
+                        {t('admin.system.setDefault')}
+                      </Button>
+                    </Popconfirm>
+                  )}
+                  {tmpl.isDefault && (
+                    <Button icon={<StarFilled />} size="small" disabled>
+                      {t('common.default')}
                     </Button>
-                  </Popconfirm>
-                )}
-                {tmpl.isDefault && (
-                  <Button icon={<StarFilled />} size="small" disabled>
-                    {t('common.default')}
-                  </Button>
-                )}
-                <Button
-                  icon={<EditOutlined />}
-                  size="small"
-                  onClick={() => {
-                    setEditingTemplate(tmpl);
-                    setEditorOpen(true);
-                  }}
-                >
-                  {t('common.edit')}
-                </Button>
-                <Popconfirm
-                  title={t('admin.system.deleteConfirm')}
-                  onConfirm={() => deleteMutation.mutate(tmpl.id)}
-                >
-                  <Button icon={<DeleteOutlined />} size="small" danger>
-                    {t('common.delete')}
-                  </Button>
-                </Popconfirm>
-              </Space>
-            }
-          >
-            <Typography.Text type="secondary">
-              {t('settings.fieldsCount', { count: tmpl.items?.length ?? 0 })}
-            </Typography.Text>
-          </Card>
-        ))
+                  )}
+                  {!readOnly && (
+                    <>
+                      <Button
+                        icon={<EditOutlined />}
+                        size="small"
+                        onClick={() => {
+                          setEditingTemplate(tmpl);
+                          setEditorOpen(true);
+                        }}
+                      >
+                        {t('common.edit')}
+                      </Button>
+                      <Popconfirm
+                        title={t('admin.system.deleteConfirm')}
+                        onConfirm={() => deleteMutation.mutate(tmpl.id)}
+                      >
+                        <Button icon={<DeleteOutlined />} size="small" danger>
+                          {t('common.delete')}
+                        </Button>
+                      </Popconfirm>
+                    </>
+                  )}
+                </Space>
+              }
+            >
+              <Typography.Text type="secondary">
+                {t('settings.fieldsCount', { count: tmpl.items?.length ?? 0 })}
+              </Typography.Text>
+            </Card>
+          );
+        })
       )}
       <FieldTemplateEditorModal
         open={editorOpen}
@@ -232,8 +245,11 @@ function SystemFieldTemplatesTab() {
 function SystemPromptTemplatesTab({ type }: { type: PromptTemplateType }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const selectedOrganizationId = useAuthStore((s) => s.selectedOrganizationId);
+  const isPlatformContext =
+    useAuthStore((s) => s.user?.role) === 'super_admin' && !selectedOrganizationId;
   const { data: templates = [], isLoading } = useQuery({
-    queryKey: ['admin-prompt-templates', type],
+    queryKey: ['admin-prompt-templates', type, selectedOrganizationId],
     queryFn: () => adminListPromptTemplates(type).then((r) => r.data),
   });
   const [editorOpen, setEditorOpen] = useState(false);
@@ -306,60 +322,73 @@ function SystemPromptTemplatesTab({ type }: { type: PromptTemplateType }) {
       {templates.length === 0 ? (
         <Empty description={t('admin.system.noSystemPrompts')} />
       ) : (
-        templates.map((tmpl) => (
-          <Card
-            key={tmpl.id}
-            size="small"
-            title={
-              <Space>
-                {templateDisplayName(t, tmpl.name)}
-                {tmpl.isDefault && <Tag color="blue">{t('common.default')}</Tag>}
-              </Space>
-            }
-            extra={
-              <Space wrap>
-                {!tmpl.isDefault && (
-                  <Popconfirm
-                    title={t('admin.system.setDefaultConfirm')}
-                    onConfirm={() => setDefaultMutation.mutate(tmpl.id)}
-                  >
-                    <Button icon={<StarOutlined />} size="small">
-                      {t('admin.system.setDefault')}
+        templates.map((tmpl) => {
+          const platformTemplate = tmpl.templateScope === 'platform';
+          const readOnly = platformTemplate && !isPlatformContext;
+          return (
+            <Card
+              key={tmpl.id}
+              size="small"
+              title={
+                <Space>
+                  {templateDisplayName(t, tmpl.name)}
+                  {platformTemplate && <Tag>{t('admin.system.platformTemplate')}</Tag>}
+                  {tmpl.isDefault && <Tag color="blue">{t('common.default')}</Tag>}
+                </Space>
+              }
+              extra={
+                <Space wrap>
+                  {!readOnly && !tmpl.isDefault && (
+                    <Popconfirm
+                      title={t('admin.system.setDefaultConfirm')}
+                      onConfirm={() => setDefaultMutation.mutate(tmpl.id)}
+                    >
+                      <Button icon={<StarOutlined />} size="small">
+                        {t('admin.system.setDefault')}
+                      </Button>
+                    </Popconfirm>
+                  )}
+                  {tmpl.isDefault && (
+                    <Button icon={<StarFilled />} size="small" disabled>
+                      {t('common.default')}
                     </Button>
-                  </Popconfirm>
-                )}
-                {tmpl.isDefault && (
-                  <Button icon={<StarFilled />} size="small" disabled>
-                    {t('common.default')}
-                  </Button>
-                )}
-                <Button
-                  icon={<EditOutlined />}
-                  size="small"
-                  onClick={() => {
-                    setEditingTemplate(tmpl);
-                    setEditorOpen(true);
-                  }}
-                >
-                  {t('common.edit')}
-                </Button>
-                <Popconfirm
-                  title={t('admin.system.deleteConfirm')}
-                  onConfirm={() => deleteMutation.mutate(tmpl.id)}
-                >
-                  <Button icon={<DeleteOutlined />} size="small" danger>
-                    {t('common.delete')}
-                  </Button>
-                </Popconfirm>
-              </Space>
-            }
-          >
-            <Typography.Text type="secondary" ellipsis style={{ display: 'block', maxWidth: 500 }}>
-              {tmpl.content.substring(0, 120)}
-              {tmpl.content.length > 120 ? '…' : ''}
-            </Typography.Text>
-          </Card>
-        ))
+                  )}
+                  {!readOnly && (
+                    <>
+                      <Button
+                        icon={<EditOutlined />}
+                        size="small"
+                        onClick={() => {
+                          setEditingTemplate(tmpl);
+                          setEditorOpen(true);
+                        }}
+                      >
+                        {t('common.edit')}
+                      </Button>
+                      <Popconfirm
+                        title={t('admin.system.deleteConfirm')}
+                        onConfirm={() => deleteMutation.mutate(tmpl.id)}
+                      >
+                        <Button icon={<DeleteOutlined />} size="small" danger>
+                          {t('common.delete')}
+                        </Button>
+                      </Popconfirm>
+                    </>
+                  )}
+                </Space>
+              }
+            >
+              <Typography.Text
+                type="secondary"
+                ellipsis
+                style={{ display: 'block', maxWidth: 500 }}
+              >
+                {tmpl.content.substring(0, 120)}
+                {tmpl.content.length > 120 ? '…' : ''}
+              </Typography.Text>
+            </Card>
+          );
+        })
       )}
       <PromptEditorModal
         open={editorOpen}
@@ -380,8 +409,9 @@ function SystemPromptTemplatesTab({ type }: { type: PromptTemplateType }) {
 function PendingRequestsTab() {
   const { t, i18n } = useTranslation();
   const qc = useQueryClient();
+  const selectedOrganizationId = useAuthStore((s) => s.selectedOrganizationId);
   const { data: requests = [], isLoading } = useQuery({
-    queryKey: ['admin-template-requests'],
+    queryKey: ['admin-template-requests', selectedOrganizationId],
     queryFn: getAdminRequests,
     refetchInterval: 30_000,
   });
@@ -626,6 +656,7 @@ function ApiKeysTab() {
   const { t, i18n } = useTranslation();
   const { token } = theme.useToken();
   const qc = useQueryClient();
+  const selectedOrganizationId = useAuthStore((s) => s.selectedOrganizationId);
   const [expiry, setExpiry] = useState<ExpiryOption>('1m');
   const [newKey, setNewKey] = useState<string | null>(null);
   const [keyVisible, setKeyVisible] = useState(false);
@@ -639,7 +670,7 @@ function ApiKeysTab() {
   ];
 
   const { data: keyInfo, isLoading } = useQuery<ApiKeyInfo | null>({
-    queryKey: ['admin-api-key'],
+    queryKey: ['admin-api-key', selectedOrganizationId],
     queryFn: () => getApiKey().then((r) => r.data),
   });
 
@@ -816,6 +847,7 @@ function ApiKeysTab() {
 function ModelsTab() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const selectedOrganizationId = useAuthStore((s) => s.selectedOrganizationId);
   const [drafts, setDrafts] = useState<Record<string, ModelDraft>>({});
   const [localOrder, setLocalOrder] = useState<string[]>([]);
   const [draggedModelName, setDraggedModelName] = useState<string | null>(null);
@@ -826,11 +858,11 @@ function ModelsTab() {
   const dragCurrentOrderRef = useRef<string[]>([]);
 
   const { data: models = [], isLoading } = useQuery({
-    queryKey: ['admin-models'],
+    queryKey: ['admin-models', selectedOrganizationId],
     queryFn: () => getAdminModels().then((r) => r.data),
   });
   const { data: configurationStatus } = useQuery({
-    queryKey: ['admin-model-configuration-status'],
+    queryKey: ['admin-model-configuration-status', selectedOrganizationId],
     queryFn: () => getModelConfigurationStatus().then((response) => response.data),
   });
   const customModelsEnabled = configurationStatus?.customModelsEnabled === true;
@@ -1158,7 +1190,7 @@ function ModelsTab() {
             render: (_: string, record: Model) => (
               <Space direction="vertical" size={0}>
                 <Space>
-                  <ModelProviderIcon modelName={modelIconName(record)} />
+                  <ModelProviderIcon modelName={modelIconName(record)} icon={record.icon} />
                   <Typography.Text strong>{record.name}</Typography.Text>
                   {record.isDefault && <Tag color="blue">{t('common.default')}</Tag>}
                 </Space>
@@ -1392,8 +1424,9 @@ function ModelsTab() {
 export default function AdminSystemSettingsPage() {
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const selectedOrganizationId = useAuthStore((s) => s.selectedOrganizationId);
   const { data: pendingRequests = [] } = useQuery({
-    queryKey: ['admin-template-requests'],
+    queryKey: ['admin-template-requests', selectedOrganizationId],
     queryFn: getAdminRequests,
     refetchInterval: 30_000,
   });

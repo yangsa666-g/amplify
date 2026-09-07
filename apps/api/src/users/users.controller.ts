@@ -6,6 +6,7 @@ import {
   Delete,
   Param,
   Body,
+  Query,
   UseGuards,
   BadRequestException,
 } from '@nestjs/common';
@@ -23,18 +24,24 @@ export class UsersController {
   constructor(private usersService: UsersService) {}
 
   @Get()
-  findAll() {
-    return this.usersService.findAll();
+  findAll(
+    @CurrentUser() user: AuthUser,
+    @Query('organizationId') organizationId?: string,
+    @Query('role') role?: 'super_admin' | 'admin' | 'user',
+    @Query('status') status?: string,
+    @Query('q') q?: string,
+  ) {
+    return this.usersService.findAll(user, { organizationId, role, status, q });
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.usersService.findByIdPublic(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.usersService.findByIdPublic(id, user);
   }
 
   @Post()
-  create(@Body() body: CreateUserDto) {
-    return this.usersService.createUser(body.name, body.email, body.password, body.role ?? 'user');
+  create(@Body() body: CreateUserDto, @CurrentUser() user: AuthUser) {
+    return this.usersService.createUser(body, user);
   }
 
   @Patch(':id')
@@ -42,7 +49,7 @@ export class UsersController {
     if (id === user.userId) {
       throw new BadRequestException('Use the profile page to update your own account');
     }
-    return this.usersService.updateUser(id, body);
+    return this.usersService.updateUser(id, body, user);
   }
 
   @Patch(':id/status')
@@ -54,7 +61,7 @@ export class UsersController {
     if (id === user.userId) {
       throw new BadRequestException('Cannot change your own status');
     }
-    return this.usersService.updateStatus(id, body.status);
+    return this.usersService.updateStatus(id, body.status, user);
   }
 
   @Patch(':id/role')
@@ -62,7 +69,7 @@ export class UsersController {
     if (id === user.userId) {
       throw new BadRequestException('Cannot change your own role');
     }
-    return this.usersService.updateRole(id, body.role);
+    return this.usersService.updateRole(id, body.role, user, body.organizationId);
   }
 
   @Delete(':id')
@@ -70,6 +77,6 @@ export class UsersController {
     if (id === user.userId) {
       throw new BadRequestException('Cannot delete your own account');
     }
-    return this.usersService.deleteUser(id);
+    return this.usersService.deleteUser(id, user);
   }
 }

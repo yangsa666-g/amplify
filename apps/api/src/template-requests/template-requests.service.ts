@@ -1,7 +1,14 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType, TemplateKind } from '../../generated/prisma/client';
+import type { AuthUser } from '../auth/decorators/current-user.decorator';
+import { requireOrganizationContext } from '../auth/access-context';
 
 @Injectable()
 export class TemplateRequestsService {
@@ -14,9 +21,9 @@ export class TemplateRequestsService {
 
   // ─── User API ────────────────────────────────────────────────────────────────
 
-  async listForUser(userId: string) {
+  async listForUser(user: AuthUser) {
     return this.prisma.templateRequest.findMany({
-      where: { userId },
+      where: { userId: user.userId },
       include: {
         fieldTemplate: { include: this.includeFieldItems },
         promptTemplate: true,
@@ -25,62 +32,85 @@ export class TemplateRequestsService {
     });
   }
 
-  async submit(userId: string, body: { templateKind: TemplateKind; templateId: string }) {
+  async submit(user: AuthUser, body: { templateKind: TemplateKind; templateId: string }) {
     const { templateKind, templateId } = body;
+    const ctx = requireOrganizationContext(user);
 
     if (templateKind === 'field') {
       const tmpl = await this.prisma.fieldTemplate.findUnique({ where: { id: templateId } });
       if (!tmpl) throw new NotFoundException('Field template not found');
-      if (tmpl.isSystem) throw new BadRequestException('Cannot request a system template');
-      if (tmpl.userId !== userId) throw new ForbiddenException();
+      if (tmpl.scope !== 'personal')
+        throw new BadRequestException('Cannot request a system template');
+      if (tmpl.userId !== user.userId || tmpl.organizationId !== ctx.organizationId)
+        throw new ForbiddenException();
 
       // Prevent duplicate pending requests
       const existing = await this.prisma.templateRequest.findFirst({
-        where: { userId, fieldTemplateId: templateId, status: 'pending' },
+        where: { userId: user.userId, fieldTemplateId: templateId, status: 'pending' },
       });
-      if (existing) throw new BadRequestException('A pending request already exists for this template');
+      if (existing)
+        throw new BadRequestException('A pending request already exists for this template');
 
       const request = await this.prisma.templateRequest.create({
-        data: { userId, templateKind: 'field', fieldTemplateId: templateId },
+        data: {
+          userId: user.userId,
+          organizationId: ctx.organizationId,
+          templateKind: 'field',
+          fieldTemplateId: templateId,
+        },
         include: { fieldTemplate: { include: this.includeFieldItems }, user: true },
       });
 
-      // Notify all admins
-      const admins = await this.prisma.user.findMany({ where: { role: 'admin', status: 'active' } });
+      // Notify only active Admins in the requester's organization.
+      const admins = await this.prisma.user.findMany({
+        where: { role: 'admin', status: 'active', organizationId: ctx.organizationId },
+      });
       if (admins.length) {
         await this.notifications.createMany(
           admins.map((a) => a.id),
           NotificationType.template_request_submitted,
           'New Template Promotion Request',
-          `${request.user.name} requested to promote field template "${tmpl.name}" to system.`,
+          `${request.user.name} requested to promote field template "${tmpl.name}" to organization templates.`,
           request.id,
+          ctx.organizationId,
         );
       }
       return request;
     } else {
       const tmpl = await this.prisma.promptTemplate.findUnique({ where: { id: templateId } });
       if (!tmpl) throw new NotFoundException('Prompt template not found');
-      if (tmpl.isSystem) throw new BadRequestException('Cannot request a system template');
-      if (tmpl.userId !== userId) throw new ForbiddenException();
+      if (tmpl.scope !== 'personal')
+        throw new BadRequestException('Cannot request a system template');
+      if (tmpl.userId !== user.userId || tmpl.organizationId !== ctx.organizationId)
+        throw new ForbiddenException();
 
       const existing = await this.prisma.templateRequest.findFirst({
-        where: { userId, promptTemplateId: templateId, status: 'pending' },
+        where: { userId: user.userId, promptTemplateId: templateId, status: 'pending' },
       });
-      if (existing) throw new BadRequestException('A pending request already exists for this template');
+      if (existing)
+        throw new BadRequestException('A pending request already exists for this template');
 
       const request = await this.prisma.templateRequest.create({
-        data: { userId, templateKind: 'prompt', promptTemplateId: templateId },
+        data: {
+          userId: user.userId,
+          organizationId: ctx.organizationId,
+          templateKind: 'prompt',
+          promptTemplateId: templateId,
+        },
         include: { promptTemplate: true, user: true },
       });
 
-      const admins = await this.prisma.user.findMany({ where: { role: 'admin', status: 'active' } });
+      const admins = await this.prisma.user.findMany({
+        where: { role: 'admin', status: 'active', organizationId: ctx.organizationId },
+      });
       if (admins.length) {
         await this.notifications.createMany(
           admins.map((a) => a.id),
           NotificationType.template_request_submitted,
           'New Template Promotion Request',
-          `${request.user.name} requested to promote prompt template "${tmpl.name}" to system.`,
+          `${request.user.name} requested to promote prompt template "${tmpl.name}" to organization templates.`,
           request.id,
+          ctx.organizationId,
         );
       }
       return request;
@@ -89,9 +119,10 @@ export class TemplateRequestsService {
 
   // ─── Admin API ───────────────────────────────────────────────────────────────
 
-  async listPending() {
+  async listPending(user: AuthUser) {
+    const ctx = requireOrganizationContext(user);
     return this.prisma.templateRequest.findMany({
-      where: { status: 'pending' },
+      where: { status: 'pending', organizationId: ctx.organizationId },
       include: {
         user: { select: { id: true, name: true, email: true } },
         fieldTemplate: { include: this.includeFieldItems },
@@ -101,7 +132,8 @@ export class TemplateRequestsService {
     });
   }
 
-  async approve(adminId: string, requestId: string) {
+  async approve(admin: AuthUser, requestId: string) {
+    const ctx = requireOrganizationContext(admin);
     const req = await this.prisma.templateRequest.findUnique({
       where: { id: requestId },
       include: {
@@ -112,13 +144,16 @@ export class TemplateRequestsService {
     });
     if (!req) throw new NotFoundException('Request not found');
     if (req.status !== 'pending') throw new BadRequestException('Request is no longer pending');
+    if (req.organizationId !== ctx.organizationId) throw new ForbiddenException();
 
     if (req.templateKind === 'field' && req.fieldTemplate) {
       const src = req.fieldTemplate;
       await this.prisma.fieldTemplate.create({
         data: {
           name: src.name,
-          isSystem: true,
+          organizationId: req.organizationId,
+          isSystem: false,
+          scope: 'organization',
           isDefault: false,
           items: {
             create: src.items.map((item) => ({
@@ -136,7 +171,9 @@ export class TemplateRequestsService {
           name: src.name,
           content: src.content,
           templateType: src.templateType,
-          isSystem: true,
+          organizationId: req.organizationId,
+          isSystem: false,
+          scope: 'organization',
           isDefault: false,
         },
       });
@@ -144,7 +181,7 @@ export class TemplateRequestsService {
 
     const updated = await this.prisma.templateRequest.update({
       where: { id: requestId },
-      data: { status: 'approved', reviewedById: adminId },
+      data: { status: 'approved', reviewedById: admin.userId },
     });
 
     const templateName = req.fieldTemplate?.name ?? req.promptTemplate?.name ?? 'template';
@@ -154,22 +191,25 @@ export class TemplateRequestsService {
       'Your template was approved!',
       `Your template "${templateName}" has been approved and added to the system templates.`,
       requestId,
+      req.organizationId,
     );
 
     return updated;
   }
 
-  async reject(adminId: string, requestId: string, adminNote?: string) {
+  async reject(admin: AuthUser, requestId: string, adminNote?: string) {
+    const ctx = requireOrganizationContext(admin);
     const req = await this.prisma.templateRequest.findUnique({
       where: { id: requestId },
       include: { fieldTemplate: true, promptTemplate: true },
     });
     if (!req) throw new NotFoundException('Request not found');
     if (req.status !== 'pending') throw new BadRequestException('Request is no longer pending');
+    if (req.organizationId !== ctx.organizationId) throw new ForbiddenException();
 
     const updated = await this.prisma.templateRequest.update({
       where: { id: requestId },
-      data: { status: 'rejected', reviewedById: adminId, adminNote: adminNote ?? null },
+      data: { status: 'rejected', reviewedById: admin.userId, adminNote: adminNote ?? null },
     });
 
     const templateName = req.fieldTemplate?.name ?? req.promptTemplate?.name ?? 'template';
@@ -180,6 +220,7 @@ export class TemplateRequestsService {
       'Your template request was declined',
       `Your template "${templateName}" was not approved.${noteText}`,
       requestId,
+      req.organizationId,
     );
 
     return updated;

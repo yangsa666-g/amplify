@@ -1,15 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import type { AuthUser } from '../auth/decorators/current-user.decorator';
+import { businessWhere, ownBusinessWhere } from '../auth/access-context';
 
 @Injectable()
 export class HistoryService {
   constructor(private prisma: PrismaService) {}
 
   /** Current user's own recent history (used by the "My History" page). */
-  async getRecent(userId: string) {
+  async getRecent(user: AuthUser) {
     const [analysisJobs, compareJobs] = await Promise.all([
       this.prisma.analysisJob.findMany({
-        where: { userId },
+        where: ownBusinessWhere(user),
         orderBy: { createdAt: 'desc' },
         take: 10,
         include: {
@@ -17,13 +19,13 @@ export class HistoryService {
           fieldTemplate: { select: { id: true, name: true } },
           promptTemplate: { select: { id: true, name: true } },
           feedbacks: {
-            where: { userId },
+            where: { userId: user.userId },
             select: { userId: true, rating: true, comment: true },
           },
         },
       }),
       this.prisma.compareJob.findMany({
-        where: { userId },
+        where: ownBusinessWhere(user),
         orderBy: { createdAt: 'desc' },
         take: 10,
         include: {
@@ -33,7 +35,7 @@ export class HistoryService {
           },
           promptTemplate: { select: { id: true, name: true } },
           feedbacks: {
-            where: { userId },
+            where: { userId: user.userId },
             select: { userId: true, rating: true, comment: true },
           },
         },
@@ -43,9 +45,10 @@ export class HistoryService {
   }
 
   /** Every user's history (admin-only, used by the "All History" page). */
-  async getAllForAdmin() {
+  async getAllForAdmin(user: AuthUser) {
     const [analysisJobs, compareJobs] = await Promise.all([
       this.prisma.analysisJob.findMany({
+        where: businessWhere(user),
         orderBy: { createdAt: 'desc' },
         include: {
           document: { select: { fileName: true } },
@@ -56,6 +59,7 @@ export class HistoryService {
         },
       }),
       this.prisma.compareJob.findMany({
+        where: businessWhere(user),
         orderBy: { createdAt: 'desc' },
         include: {
           documents: {

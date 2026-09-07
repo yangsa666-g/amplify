@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import type { AuthUser } from '../auth/decorators/current-user.decorator';
+import { requireOrganizationContext } from '../auth/access-context';
 
 type Period = '24h' | '7d' | '30d';
 
@@ -14,8 +16,19 @@ export class AdminDashboardService {
     return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   }
 
-  async getStats(period: Period) {
+  async getStats(user: AuthUser, period: Period) {
     const since = this.getSince(period);
+    const scopeOrganizationId =
+      user.role === 'super_admin' && !user.selectedOrganizationId
+        ? null
+        : requireOrganizationContext(user).organizationId;
+    const scopeWhere = scopeOrganizationId ? { organizationId: scopeOrganizationId } : {};
+    const analysisFeedbackScopeWhere = scopeOrganizationId
+      ? { analysisJob: { organizationId: scopeOrganizationId } }
+      : {};
+    const compareFeedbackScopeWhere = scopeOrganizationId
+      ? { compareJob: { organizationId: scopeOrganizationId } }
+      : {};
 
     const [
       analysisJobs,
@@ -29,41 +42,41 @@ export class AdminDashboardService {
       compareModelGroups,
     ] = await Promise.all([
       this.prisma.analysisJob.findMany({
-        where: { createdAt: { gte: since } },
+        where: { createdAt: { gte: since }, ...scopeWhere },
         select: { id: true, status: true, userId: true, modelName: true, createdAt: true },
       }),
       this.prisma.compareJob.findMany({
-        where: { createdAt: { gte: since } },
+        where: { createdAt: { gte: since }, ...scopeWhere },
         select: { id: true, status: true, userId: true, createdAt: true },
       }),
       this.prisma.analysisJobFeedback.findMany({
-        where: { createdAt: { gte: since } },
+        where: { createdAt: { gte: since }, ...analysisFeedbackScopeWhere },
         select: { rating: true, analysisJobId: true },
       }),
       this.prisma.compareJobFeedback.findMany({
-        where: { createdAt: { gte: since } },
+        where: { createdAt: { gte: since }, ...compareFeedbackScopeWhere },
         select: { rating: true, compareJobId: true },
       }),
-      this.prisma.user.count({ where: { createdAt: { gte: since } } }),
+      this.prisma.user.count({ where: { createdAt: { gte: since }, ...scopeWhere } }),
       this.prisma.analysisJob.findMany({
-        where: { createdAt: { gte: since } },
+        where: { createdAt: { gte: since }, ...scopeWhere },
         select: { userId: true },
         distinct: ['userId'],
       }),
       this.prisma.compareJob.findMany({
-        where: { createdAt: { gte: since } },
+        where: { createdAt: { gte: since }, ...scopeWhere },
         select: { userId: true },
         distinct: ['userId'],
       }),
       this.prisma.analysisJob.groupBy({
         by: ['modelName'],
-        where: { createdAt: { gte: since } },
+        where: { createdAt: { gte: since }, ...scopeWhere },
         _count: { _all: true },
         orderBy: { _count: { modelName: 'desc' } },
       }),
       this.prisma.compareJob.groupBy({
         by: ['modelName'],
-        where: { createdAt: { gte: since } },
+        where: { createdAt: { gte: since }, ...scopeWhere },
         _count: { _all: true },
         orderBy: { _count: { modelName: 'desc' } },
       }),
@@ -122,7 +135,7 @@ export class AdminDashboardService {
     const dailyVolume = this.buildDailyVolume(analysisJobs, compareJobs, since, period);
 
     // Top 5 most active users
-    const topUsers = await this.getTopUsers(since);
+    const topUsers = await this.getTopUsers(since, scopeWhere);
 
     return {
       period,
@@ -182,18 +195,18 @@ export class AdminDashboardService {
     return result;
   }
 
-  private async getTopUsers(since: Date) {
+  private async getTopUsers(since: Date, scopeWhere: { organizationId?: string }) {
     const [analysisGroups, compareGroups] = await Promise.all([
       this.prisma.analysisJob.groupBy({
         by: ['userId'],
-        where: { createdAt: { gte: since } },
+        where: { createdAt: { gte: since }, ...scopeWhere },
         _count: { _all: true },
         orderBy: { _count: { userId: 'desc' } },
         take: 10,
       }),
       this.prisma.compareJob.groupBy({
         by: ['userId'],
-        where: { createdAt: { gte: since } },
+        where: { createdAt: { gte: since }, ...scopeWhere },
         _count: { _all: true },
       }),
     ]);

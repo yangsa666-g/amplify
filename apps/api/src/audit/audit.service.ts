@@ -6,6 +6,7 @@ import { AuditQueryDto } from './dto/audit-query.dto';
 
 interface AuditRecordInput {
   userId?: string;
+  organizationId?: string;
   action: string;
   method: string;
   path: string;
@@ -49,6 +50,7 @@ export class AuditService implements OnModuleInit, OnModuleDestroy {
       await this.prisma.auditLog.create({
         data: {
           userId: input.userId,
+          organizationId: input.organizationId,
           action: input.action,
           method: input.method,
           path: input.path,
@@ -68,10 +70,10 @@ export class AuditService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async find(query: AuditQueryDto) {
+  async find(query: AuditQueryDto, organizationId?: string | null) {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
-    const where = this.buildWhere(query);
+    const where = this.buildWhere(query, organizationId);
 
     const [items, total] = await Promise.all([
       this.prisma.auditLog.findMany({
@@ -96,9 +98,10 @@ export class AuditService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async getActions() {
+  async getActions(organizationId?: string | null) {
     const groups = await this.prisma.auditLog.groupBy({
       by: ['action'],
+      where: organizationId ? { organizationId } : undefined,
       _count: { _all: true },
       orderBy: { _count: { action: 'desc' } },
       take: 100,
@@ -134,9 +137,10 @@ export class AuditService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  private buildWhere(query: AuditQueryDto) {
+  private buildWhere(query: AuditQueryDto, organizationId?: string | null) {
     const and: Prisma.AuditLogWhereInput[] = [];
 
+    if (organizationId) and.push({ organizationId });
     if (query.userId) and.push({ userId: query.userId });
     if (query.action) and.push({ action: query.action });
     if (query.method) and.push({ method: query.method });

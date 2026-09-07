@@ -15,7 +15,7 @@ export class CompareController {
   @Post('run')
   run(@CurrentUser() user: AuthUser, @Body() body: RunCompareDto) {
     return this.compareService.run(
-      user.userId,
+      user,
       body.documentIds,
       body.model,
       body.promptTemplateId,
@@ -25,12 +25,12 @@ export class CompareController {
 
   @Get('recent')
   findRecent(@CurrentUser() user: AuthUser) {
-    return this.compareService.findRecent(user.userId);
+    return this.compareService.findRecent(user);
   }
 
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.compareService.findOne(id, user.userId, user.role);
+    return this.compareService.findOne(id, user);
   }
 
   @Post(':id/feedback')
@@ -39,11 +39,11 @@ export class CompareController {
     @CurrentUser() user: AuthUser,
     @Body() body: SubmitFeedbackDto,
   ) {
-    return this.compareService.submitFeedback(id, user.userId, body.rating, body.comment);
+    return this.compareService.submitFeedback(id, user, body.rating, body.comment);
   }
 
   @Get(':id/feedback')
   getFeedback(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.compareService.getFeedback(id, user.userId, user.role);
+    return this.compareService.getFeedback(id, user);
   }
 }
