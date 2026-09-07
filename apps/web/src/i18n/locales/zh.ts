@@ -550,6 +550,10 @@ const zh: typeof en = {
           '启用后，管理员可以创建使用邮箱和密码登录的本地用户。关闭后，密码登录和本地用户创建将被禁用，管理员只能创建 Entra ID SSO 用户。',
         enabled: '已启用',
         disabled: '已禁用',
+        platformSetting: 'Platform 设置',
+        inherited: '继承自 Platform',
+        inheritedDescription:
+          '组织级认证设置继承 Platform 配置且不可覆盖。超级管理员可切换到 Platform 上下文修改此设置。',
         disabledWarning:
           '本地用户将无法再次使用密码登录，其现有刷新会话也会失效。请确认至少有一个可用的 Entra ID SSO 超级管理员账号。',
         saved: '认证设置已保存',

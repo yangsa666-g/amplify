@@ -86,7 +86,7 @@ import {
 
 // ─── Authentication Tab ─────────────────────────────────────────────────────
 
-function AuthenticationSettingsTab() {
+function AuthenticationSettingsTab({ canEdit }: { canEdit: boolean }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
@@ -109,7 +109,18 @@ function AuthenticationSettingsTab() {
   const localAuthEnabled = data?.localAuthEnabled ?? true;
   return (
     <Space direction="vertical" size={16} style={{ width: '100%', maxWidth: 760 }}>
-      <Card title={t('admin.system.authentication.localTitle')}>
+      <Card
+        title={
+          <Space>
+            {t('admin.system.authentication.localTitle')}
+            <Tag color={canEdit ? 'blue' : 'default'}>
+              {canEdit
+                ? t('admin.system.authentication.platformSetting')
+                : t('admin.system.authentication.inherited')}
+            </Tag>
+          </Space>
+        }
+      >
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
           <Typography.Text type="secondary">
             {t('admin.system.authentication.localDescription')}
@@ -118,6 +129,7 @@ function AuthenticationSettingsTab() {
             <Switch
               checked={localAuthEnabled}
               loading={updateMutation.isPending}
+              disabled={!canEdit}
               onChange={(enabled) => updateMutation.mutate(enabled)}
             />
             <Typography.Text>
@@ -128,6 +140,13 @@ function AuthenticationSettingsTab() {
           </Space>
         </Space>
       </Card>
+      {!canEdit && (
+        <Alert
+          type="info"
+          showIcon
+          message={t('admin.system.authentication.inheritedDescription')}
+        />
+      )}
       {!localAuthEnabled && (
         <Alert type="warning" showIcon message={t('admin.system.authentication.disabledWarning')} />
       )}
@@ -1488,7 +1507,7 @@ export default function AdminSystemSettingsPage() {
   });
   const tabParam = searchParams.get('tab');
   const activeTab =
-    tabParam === 'authentication' && isSuperAdmin
+    tabParam === 'authentication'
       ? 'admin-authentication'
       : tabParam === 'prompts'
         ? 'admin-prompt'
@@ -1509,15 +1528,11 @@ export default function AdminSystemSettingsPage() {
   };
 
   const tabItems = [
-    ...(isSuperAdmin
-      ? [
-          {
-            key: 'admin-authentication',
-            label: t('admin.system.authentication.title'),
-            children: <AuthenticationSettingsTab />,
-          },
-        ]
-      : []),
+    {
+      key: 'admin-authentication',
+      label: t('admin.system.authentication.title'),
+      children: <AuthenticationSettingsTab canEdit={isSuperAdmin && !selectedOrganizationId} />,
+    },
     {
       key: 'admin-fields',
       label: t('admin.system.systemFieldTemplates'),
