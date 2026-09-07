@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/shidafu666/amplify/compare/v0.5.2...v0.6.0) (2026-09-07)
+
+
+### Features
+
+* add organization level user access ([#62](https://github.com/shidafu666/amplify/issues/62)) ([9ac65ef](https://github.com/shidafu666/amplify/commit/9ac65efad74f7cf8d9e5b6658a15706a4ff2147f))
+
 ## 0.6.0 (unreleased)
 
 ### Features
