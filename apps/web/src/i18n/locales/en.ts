@@ -554,6 +554,10 @@ const en = {
           'When enabled, admins can create local users who sign in with email and password. When disabled, password sign-in and local-user creation are blocked, and admins can create only Entra ID SSO users.',
         enabled: 'Enabled',
         disabled: 'Disabled',
+        platformSetting: 'Platform setting',
+        inherited: 'Inherited from Platform',
+        inheritedDescription:
+          'Organization authentication settings inherit the Platform configuration and cannot be overridden. Super Admins can change this setting in the Platform context.',
         disabledWarning:
           'Local users will no longer be able to sign in with passwords, and their existing refresh sessions are revoked. Make sure at least one Entra ID SSO Super Admin account is available.',
         saved: 'Authentication settings saved',
