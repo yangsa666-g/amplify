@@ -32,6 +32,7 @@ const zh: typeof en = {
     copied: '已复制到剪贴板',
     more: '更多',
     resultId: '结果 ID',
+    templateId: 'ID: {{id}}',
     copyLink: '复制链接',
     linkCopied: '链接已复制到剪贴板',
     platformDefaults: '平台默认设置',

@@ -417,18 +417,25 @@ export default function AnalysisPage() {
               components={{ 1: <Link to="/settings" /> }}
             />
           </Typography.Text>
-          <Select
-            style={{ width: '100%', maxWidth: 480 }}
-            placeholder={t('analysis.selectFieldTemplate')}
-            value={selectedFieldTemplateId}
-            onChange={(id) => {
-              setSelectedFieldTemplateId(id);
-              localStorage.setItem(LAST_FIELD_TEMPLATE_KEY, id);
-            }}
-            options={fieldTemplateOptions}
-            loading={fieldTemplatesLoading}
-            disabled={fieldTemplatesLoading || fieldTemplatesError}
-          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            <Select
+              style={{ width: '100%', maxWidth: 480 }}
+              placeholder={t('analysis.selectFieldTemplate')}
+              value={selectedFieldTemplateId}
+              onChange={(id) => {
+                setSelectedFieldTemplateId(id);
+                localStorage.setItem(LAST_FIELD_TEMPLATE_KEY, id);
+              }}
+              options={fieldTemplateOptions}
+              loading={fieldTemplatesLoading}
+              disabled={fieldTemplatesLoading || fieldTemplatesError}
+            />
+            {selectedFieldTemplateId && (
+              <Typography.Text type="secondary">
+                {t('common.templateId', { id: selectedFieldTemplateId })}
+              </Typography.Text>
+            )}
+          </div>
           {fieldTemplatesError && (
             <Alert type="error" showIcon message={t('analysis.fieldTemplatesUnavailable')} />
           )}
@@ -454,18 +461,25 @@ export default function AnalysisPage() {
               components={{ 1: <Link to="/settings" /> }}
             />
           </Typography.Text>
-          <Select
-            style={{ width: '100%', maxWidth: 480 }}
-            placeholder={t('analysis.selectPromptTemplate')}
-            value={selectedPromptTemplateId}
-            onChange={(id) => {
-              setSelectedPromptTemplateId(id);
-              localStorage.setItem(LAST_PROMPT_TEMPLATE_KEY, id);
-            }}
-            options={promptTemplateOptions}
-            loading={promptTemplatesLoading}
-            disabled={promptTemplatesLoading || promptTemplatesError}
-          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            <Select
+              style={{ width: '100%', maxWidth: 480 }}
+              placeholder={t('analysis.selectPromptTemplate')}
+              value={selectedPromptTemplateId}
+              onChange={(id) => {
+                setSelectedPromptTemplateId(id);
+                localStorage.setItem(LAST_PROMPT_TEMPLATE_KEY, id);
+              }}
+              options={promptTemplateOptions}
+              loading={promptTemplatesLoading}
+              disabled={promptTemplatesLoading || promptTemplatesError}
+            />
+            {selectedPromptTemplateId && (
+              <Typography.Text type="secondary">
+                {t('common.templateId', { id: selectedPromptTemplateId })}
+              </Typography.Text>
+            )}
+          </div>
           {promptTemplatesError && (
             <Alert type="error" showIcon message={t('analysis.promptTemplatesUnavailable')} />
           )}

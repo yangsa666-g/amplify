@@ -247,6 +247,9 @@ function SystemFieldTemplatesTab() {
               title={
                 <Space>
                   {templateDisplayName(t, tmpl.name)}
+                  <Typography.Text type="secondary" style={{ fontSize: 14, fontWeight: 400 }}>
+                    {t('common.templateId', { id: tmpl.id })}
+                  </Typography.Text>
                   {platformTemplate && <Tag>{t('admin.system.platformTemplate')}</Tag>}
                   {tmpl.isDefault && <Tag color="blue">{t('common.default')}</Tag>}
                 </Space>
@@ -406,6 +409,9 @@ function SystemPromptTemplatesTab({ type }: { type: PromptTemplateType }) {
               title={
                 <Space>
                   {templateDisplayName(t, tmpl.name)}
+                  <Typography.Text type="secondary" style={{ fontSize: 14, fontWeight: 400 }}>
+                    {t('common.templateId', { id: tmpl.id })}
+                  </Typography.Text>
                   {platformTemplate && <Tag>{t('admin.system.platformTemplate')}</Tag>}
                   {tmpl.isDefault && <Tag color="blue">{t('common.default')}</Tag>}
                 </Space>

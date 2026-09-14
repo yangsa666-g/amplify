@@ -227,6 +227,9 @@ function FieldTemplatesTab() {
               title={
                 <Space>
                   {templateDisplayName(t, tmpl.name)}
+                  <Typography.Text type="secondary" style={{ fontSize: 14, fontWeight: 400 }}>
+                    {t('common.templateId', { id: tmpl.id })}
+                  </Typography.Text>
                   {req && <RequestStatusTag status={req.status} />}
                 </Space>
               }
@@ -423,6 +426,9 @@ function PromptTemplatesTab({ type }: { type: PromptTemplateType }) {
               title={
                 <Space>
                   {templateDisplayName(t, tmpl.name)}
+                  <Typography.Text type="secondary" style={{ fontSize: 14, fontWeight: 400 }}>
+                    {t('common.templateId', { id: tmpl.id })}
+                  </Typography.Text>
                   {req && <RequestStatusTag status={req.status} />}
                 </Space>
               }
