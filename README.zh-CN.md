@@ -1,11 +1,11 @@
-# Amplify（合同 AI 审查平台）
+# Amplify（文档智能平台，DIP）
 
-一个基于 AI 的合同分析平台，支持上传、解析和分析法律文件，使用 Azure OpenAI 和 Anthropic Claude 模型提供智能分析能力。
+一个基于 AI 的文档分析平台，支持上传、解析和分析各类文档，使用 Azure OpenAI 和 Anthropic Claude 模型提供智能分析能力。
 
 ## 功能特性
 
-- **合同分析** — 上传 PDF、DOCX 或 TXT 格式的合同，通过可自定义的字段模板和提示词模板生成结构化 AI 分析报告
-- **合同比较** — 按上传顺序对 2–5 份合同执行 Prompt 驱动的 AI 分析，并生成自由 Markdown 报告
+- **文档分析** — 上传 PDF、DOCX 或 TXT 格式的文档，通过可自定义的字段模板和提示词模板生成结构化 AI 分析报告
+- **文档比较** — 按上传顺序对 2–5 份文档执行 Prompt 驱动的 AI 分析，并生成自由 Markdown 报告
 - **多模型支持** — 可在 Azure OpenAI（GPT-4、GPT-5 系列）和 Anthropic Claude 模型之间自由切换
 - **模板管理** — 创建个人或系统级字段模板和提示词模板，标准化分析流程
 - **分析历史** — 浏览和回顾历史分析记录
@@ -235,12 +235,12 @@ API 运行时，可在 `http://localhost:3001/docs` 访问完整的 OpenAPI 文�
 |---|---|---|
 | `POST` | `/auth/login` | 邮箱密码登录 |
 | `POST` | `/auth/refresh` | 刷新访问令牌 |
-| `POST` | `/documents/upload` | 上传合同文件 |
+| `POST` | `/documents/upload` | 上传文档文件 |
 | `GET` | `/documents/:id/text` | 获取提取的文本内容 |
-| `POST` | `/analysis/run` | 执行合同分析 |
+| `POST` | `/analysis/run` | 执行文档分析 |
 | `GET` | `/analysis/:id` | 获取分析结果 |
-| `POST` | `/compare/run` | 对 2–5 份合同执行 AI 分析 |
-| `GET` | `/compare/:id` | 获取合同比对结果 |
+| `POST` | `/compare/run` | 对 2–5 份文档执行 AI 分析 |
+| `GET` | `/compare/:id` | 获取文档比对结果 |
 | `GET` | `/models` | 列出可用的 AI 模型 |
 | `GET` | `/field-templates` | 列出字段模板 |
 | `GET` | `/prompt-templates` | 列出提示词模板 |
@@ -259,21 +259,21 @@ X-API-Key: <your-api-key>
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| `POST` | `/v1/documents/upload` | 上传合同（`multipart/form-data`，最大 50 MB），返回 `documentId`。文本抽取为异步执行，需轮询直到 `textExtractionStatus` 为 `success`。 |
+| `POST` | `/v1/documents/upload` | 上传文档（`multipart/form-data`，最大 50 MB），返回 `documentId`。文本抽取为异步执行，需轮询直到 `textExtractionStatus` 为 `success`。 |
 | `POST` | `/v1/analysis/run` | 对已上传的文档执行字段抽取与风险分析，同步返回，通常耗时 10–60 秒。 |
 | `GET`  | `/v1/analysis/:id` | 查询历史分析任务结果。 |
 | `POST` | `/v1/compare/run` | 按顺序对 2–5 份已上传文档执行 Prompt 驱动的 AI 分析。 |
 | `GET`  | `/v1/compare/:id` | 查询比对任务的配置、有序文档、Markdown 结果、耗时和 token 用量。 |
 | `GET`  | `/v1/models` | 列出 API Key 所属用户可用的模型。 |
-| `GET`  | `/v1/prompt-templates?type=contract_comparison` | 列出可选择的合同比对 Prompt 模板。 |
+| `GET`  | `/v1/prompt-templates?type=contract_comparison` | 列出可选择的文档比对 Prompt 模板。 |
 
 **示例 — 完整分析流程：**
 
 ```bash
-# 1. 上传合同
+# 1. 上传文档
 DOC_ID=$(curl -s -X POST http://localhost:3001/v1/documents/upload \
   -H "X-API-Key: $API_KEY" \
-  -F "file=@contract.pdf" | jq -r .id)
+  -F "file=@document.pdf" | jq -r .id)
 
 # 2. 待 textExtractionStatus = success 后，执行分析
 curl -X POST http://localhost:3001/v1/analysis/run \
@@ -284,16 +284,16 @@ curl -X POST http://localhost:3001/v1/analysis/run \
 
 模型提供商返回 token 信息时，分析响应会包含聚合 token 用量和各阶段明细。
 
-**示例 — 使用 AI 比对两份合同：**
+**示例 — 使用 AI 比对两份文档：**
 
 ```bash
 OLD_ID=$(curl -s -X POST http://localhost:3001/v1/documents/upload \
   -H "X-API-Key: $API_KEY" \
-  -F "file=@contract-v1.pdf" | jq -r .id)
+  -F "file=@document-v1.pdf" | jq -r .id)
 
 NEW_ID=$(curl -s -X POST http://localhost:3001/v1/documents/upload \
   -H "X-API-Key: $API_KEY" \
-  -F "file=@contract-v2.pdf" | jq -r .id)
+  -F "file=@document-v2.pdf" | jq -r .id)
 
 # 等待两份文档的文本抽取完成后执行比对。
 curl -X POST http://localhost:3001/v1/compare/run \

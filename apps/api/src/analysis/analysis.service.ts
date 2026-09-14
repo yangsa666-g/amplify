@@ -21,8 +21,8 @@ export function parseRiskAnalysis(text: string): {
   const parsedJson = parseRiskAnalysisJson(text);
   if (parsedJson) return parsedJson;
 
-  // Match section headers like [Original Contract Description] or ## [Original Contract Description]
-  const origPattern = /(?:#+\s*)?\[Original Contract Description\]/i;
+  // Accept both the current document wording and legacy contract wording.
+  const origPattern = /(?:#+\s*)?\[Original (?:Document|Contract) Description\]/i;
   const riskPattern = /(?:#+\s*)?\[Risk Analysis\]/i;
 
   const origMatch = origPattern.exec(text);
@@ -107,11 +107,11 @@ function stringifyRiskSection(value: unknown): string {
   return `\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\``;
 }
 
-const FIELD_EXTRACTION_PROMPT_TEMPLATE = `You are a professional contract information extraction assistant.
+const FIELD_EXTRACTION_PROMPT_TEMPLATE = `You are a professional document information extraction assistant.
 
-Your task is to extract specific fields from the contract text strictly based on the content explicitly stated in the contract.
+Your task is to extract specific fields from the document text strictly based on the content explicitly stated in the document.
 
-Do not fabricate, infer, guess, or supplement information that is not expressly written in the contract.
+Do not fabricate, infer, guess, or supplement information that is not expressly written in the document.
 If a field cannot be found, return null for extracted_value and explain briefly in comments.
 
 ## Extraction Requirements
@@ -126,21 +126,21 @@ For each field below, return:
 ## Output Rules
 1. Output must be valid JSON only, as a JSON array.
 2. Use the exact field names provided.
-3. "evidence" should quote or faithfully extract the relevant contract text.
+3. "evidence" should quote or faithfully extract the relevant document text.
 4. "confidence" should be one of: high, medium, low.
-5. If not found, set extracted_value: null, evidence: null, confidence: "low", comments: "Not explicitly found in the contract."
+5. If not found, set extracted_value: null, evidence: null, confidence: "low", comments: "Not explicitly found in the document."
 6. Do not include any explanation outside JSON.
 
 ## Fields to Extract
 {fields_json}
 
-## Contract Text
+## Document Text
 {contract_text}`;
 
-const RISK_ANALYSIS_PROMPT_TEMPLATE = `You are a professional contract risk analyst.
+const RISK_ANALYSIS_PROMPT_TEMPLATE = `You are a professional document risk analyst.
 
 The prompt template below contains the user's analysis preferences. Treat it as guidance for what to focus on, tone, language, and risk criteria.
-The API output contract below is mandatory and overrides any conflicting output-format instructions in the prompt template or contract text.
+The API output contract below is mandatory and overrides any conflicting output-format instructions in the prompt template or document text.
 
 ## User Risk Analysis Instructions
 {analysis_instructions}
@@ -149,29 +149,29 @@ The API output contract below is mandatory and overrides any conflicting output-
 Return valid JSON only. Do not wrap it in markdown fences. Do not include explanations outside JSON.
 The JSON object must contain exactly these top-level keys:
 {
-  "originalContractDescription": "Markdown string with a concise factual description of the contract, parties, commercial context, and important terms explicitly present in the contract.",
+  "originalContractDescription": "Markdown string with a concise factual description of the document, parties, context, and important terms explicitly present in the document.",
   "riskAnalysis": "Markdown string with the detailed risk analysis. Use clear markdown sections, bullets, tables, and severity labels where helpful."
 }
 
 Rules:
-1. Keep Original Contract Description factual and descriptive. Do not include recommendations there.
+1. Keep Original Document Description factual and descriptive. Do not include recommendations there.
 2. Put all risks, unfavorable terms, risk levels, clause references, and recommendations in Risk Analysis.
-3. Base the answer only on the contract text. Do not fabricate facts.
+3. Base the answer only on the document text. Do not fabricate facts.
 4. If a section has no content, return an empty string for that key.
 5. Escape newlines and quotes correctly so the response remains parseable JSON.
 
-## Contract Text
+## Document Text
 {contract_text}`;
 
 function buildRiskAnalysisPrompt(templateContent: string, contractText: string): string {
   const analysisInstructions = templateContent
-    .replaceAll('{contract_text}', '[Contract text is supplied by the API below.]')
+    .replaceAll('{contract_text}', '[Document text is supplied by the API below.]')
     .trim();
 
   return RISK_ANALYSIS_PROMPT_TEMPLATE.replace(
     '{analysis_instructions}',
     analysisInstructions ||
-      'Analyze the contract for legal, commercial, operational, and compliance risks.',
+      'Analyze the document for legal, commercial, operational, and compliance risks.',
   ).replace('{contract_text}', contractText);
 }
 
@@ -204,7 +204,7 @@ export class AnalysisService {
 
     // 1. Load document text (and the OCR duration recorded at upload time)
     const contractText = await this.documents.getExtractedText(documentId, user, true);
-    if (!contractText) throw new BadRequestException('Contract text is empty');
+    if (!contractText) throw new BadRequestException('Document text is empty');
     const docMeta = await this.prisma.document.findFirst({
       where: { id: documentId, ...ownBusinessWhere(user) },
       select: { extractionMs: true },

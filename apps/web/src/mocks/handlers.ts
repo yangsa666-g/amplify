@@ -260,7 +260,7 @@ export const handlers = [
       status: 'success',
       fieldExtractionResult: mockAnalysisJobs[0].fieldExtractionResult?.resultJson ?? [],
       riskAnalysisResult: mockAnalysisJobs[0].riskAnalysisResult?.resultJson ?? {
-        originalContractDescription: 'Mock contract',
+        originalContractDescription: 'Mock document',
         riskAnalysis: 'Mock risk analysis',
       },
       timings: {

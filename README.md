@@ -1,11 +1,11 @@
-# Amplify
+# Amplify — Document Intelligence Platform (DIP)
 
-An AI-powered contract analysis platform that helps you upload, parse, and analyze legal documents using Azure OpenAI and Anthropic Claude models.
+An AI-powered document analysis platform that helps you upload, parse, and analyze documents using Azure OpenAI and Anthropic Claude models.
 
 ## Features
 
-- **Contract Analysis** — Upload PDF, DOCX, or TXT contracts and get structured AI-generated analysis using customizable field and prompt templates
-- **Contract Comparison** — Run prompt-driven AI analysis across 2–5 ordered contracts and receive a free-form Markdown report
+- **Document Analysis** — Upload PDF, DOCX, or TXT documents and get structured AI-generated analysis using customizable field and prompt templates
+- **Document Comparison** — Run prompt-driven AI analysis across 2–5 ordered documents and receive a free-form Markdown report
 - **Multi-model Support** — Switch between Azure OpenAI (GPT-4, GPT-5 series) and Anthropic Claude models
 - **Template Management** — Create personal or system-wide field templates and prompt templates to standardize analysis
 - **Analysis History** — Browse and revisit past analyses
@@ -240,11 +240,11 @@ Full OpenAPI documentation is available at `http://localhost:3001/docs` when the
 |---|---|---|
 | `POST` | `/auth/login` | Login with email/password |
 | `POST` | `/auth/refresh` | Refresh access token |
-| `POST` | `/documents/upload` | Upload a contract file |
+| `POST` | `/documents/upload` | Upload a document file |
 | `GET` | `/documents/:id/text` | Get extracted text |
-| `POST` | `/analysis/run` | Run contract analysis |
+| `POST` | `/analysis/run` | Run document analysis |
 | `GET` | `/analysis/:id` | Get analysis result |
-| `POST` | `/compare/run` | Run AI analysis across 2–5 contracts |
+| `POST` | `/compare/run` | Run AI analysis across 2–5 documents |
 | `GET` | `/compare/:id` | Get a comparison result |
 | `GET` | `/models` | List available AI models |
 | `GET` | `/field-templates` | List field templates |
@@ -264,21 +264,21 @@ X-API-Key: <your-api-key>
 
 | Method | Path | Description |
 |---|---|---|
-| `POST` | `/v1/documents/upload` | Upload a contract (`multipart/form-data`, max 50 MB). Returns `documentId`. Text extraction is asynchronous — poll until `textExtractionStatus` is `success`. |
+| `POST` | `/v1/documents/upload` | Upload a document (`multipart/form-data`, max 50 MB). Returns `documentId`. Text extraction is asynchronous — poll until `textExtractionStatus` is `success`. |
 | `POST` | `/v1/analysis/run` | Run field extraction + risk analysis on an uploaded document. Synchronous; typically 10–60 s. |
 | `GET`  | `/v1/analysis/:id` | Retrieve a previous analysis job result. |
 | `POST` | `/v1/compare/run` | Run prompt-driven AI analysis across 2–5 ordered documents. |
 | `GET`  | `/v1/compare/:id` | Retrieve the configuration, ordered documents, Markdown result, timings, and token usage for a compare job. |
 | `GET`  | `/v1/models` | List models available to the API key owner. |
-| `GET`  | `/v1/prompt-templates?type=contract_comparison` | List selectable contract-comparison prompt templates. |
+| `GET`  | `/v1/prompt-templates?type=contract_comparison` | List selectable document-comparison prompt templates. |
 
 **Example — full analysis flow:**
 
 ```bash
-# 1. Upload a contract
+# 1. Upload a document
 DOC_ID=$(curl -s -X POST http://localhost:3001/v1/documents/upload \
   -H "X-API-Key: $API_KEY" \
-  -F "file=@contract.pdf" | jq -r .id)
+  -F "file=@document.pdf" | jq -r .id)
 
 # 2. Run analysis (after textExtractionStatus = success)
 curl -X POST http://localhost:3001/v1/analysis/run \
@@ -289,16 +289,16 @@ curl -X POST http://localhost:3001/v1/analysis/run \
 
 Analysis responses include aggregate and per-stage token usage when reported by the model provider.
 
-**Example — compare two contracts with AI:**
+**Example — compare two documents with AI:**
 
 ```bash
 OLD_ID=$(curl -s -X POST http://localhost:3001/v1/documents/upload \
   -H "X-API-Key: $API_KEY" \
-  -F "file=@contract-v1.pdf" | jq -r .id)
+  -F "file=@document-v1.pdf" | jq -r .id)
 
 NEW_ID=$(curl -s -X POST http://localhost:3001/v1/documents/upload \
   -H "X-API-Key: $API_KEY" \
-  -F "file=@contract-v2.pdf" | jq -r .id)
+  -F "file=@document-v2.pdf" | jq -r .id)
 
 # Wait for both documents to finish text extraction, then run comparison.
 curl -X POST http://localhost:3001/v1/compare/run \

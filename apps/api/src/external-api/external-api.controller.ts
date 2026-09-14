@@ -55,7 +55,7 @@ class UploadDocumentResponse {
   @ApiProperty({ example: 'clxyz123', description: 'Document ID to use in analysis/compare calls' })
   id!: string;
 
-  @ApiProperty({ example: 'contract.pdf' })
+  @ApiProperty({ example: 'document.pdf' })
   fileName!: string;
 
   @ApiProperty({ example: 'application/pdf' })
@@ -114,10 +114,10 @@ class RunAnalysisBody {
 }
 
 class FieldExtractionItem {
-  @ApiProperty({ example: 'Contract Party A' })
+  @ApiProperty({ example: 'Document Party A' })
   field!: string;
 
-  @ApiProperty({ example: 'The first contracting party' })
+  @ApiProperty({ example: 'The first named party' })
   field_description!: string;
 
   @ApiProperty({ example: 'Acme Corp', nullable: true })
@@ -134,7 +134,7 @@ class FieldExtractionItem {
 }
 
 class RiskAnalysisParsed {
-  @ApiProperty({ description: 'Summary description of the contract' })
+  @ApiProperty({ description: 'Summary description of the document' })
   originalContractDescription!: string;
 
   @ApiProperty({ description: 'Detailed risk analysis text' })
@@ -210,7 +210,7 @@ class RunCompareBody {
   @IsString()
   @ApiPropertyOptional({
     example: 'clprompt789',
-    description: 'Contract-comparison prompt template ID; uses the system default if omitted',
+    description: 'Document-comparison prompt template ID; uses the system default if omitted',
   })
   promptTemplateId?: string;
 
@@ -241,7 +241,7 @@ class CompareDocumentResponse {
   @ApiProperty({ example: 'cldoc1' })
   id!: string;
 
-  @ApiProperty({ example: 'contract-v1.pdf' })
+  @ApiProperty({ example: 'document-v1.pdf' })
   fileName!: string;
 }
 
@@ -339,9 +339,9 @@ export class ExternalApiController {
 
   @Post('documents/upload')
   @ApiOperation({
-    summary: 'Upload a contract document',
+    summary: 'Upload a document',
     description:
-      'Upload a PDF, DOCX, or TXT contract file. Returns a `documentId` to use in analysis and compare calls. ' +
+      'Upload a PDF, DOCX, or TXT document. Returns a `documentId` to use in analysis and compare calls. ' +
       'Text extraction happens asynchronously — wait until `textExtractionStatus` is `success` before running analysis.',
   })
   @ApiConsumes('multipart/form-data')
@@ -353,7 +353,7 @@ export class ExternalApiController {
         file: {
           type: 'string',
           format: 'binary',
-          description: 'Contract file (PDF, DOCX, or TXT, max 50 MB)',
+          description: 'Document file (PDF, DOCX, or TXT, max 50 MB)',
         },
       },
     },
@@ -379,7 +379,7 @@ export class ExternalApiController {
 
   @Post('analysis/run')
   @ApiOperation({
-    summary: 'Run contract analysis',
+    summary: 'Run document analysis',
     description:
       'Runs field extraction and risk analysis on an uploaded document using the specified AI model. ' +
       'Both analyses run in parallel and results are returned synchronously. ' +
@@ -413,9 +413,9 @@ export class ExternalApiController {
 
   @Post('compare/run')
   @ApiOperation({
-    summary: 'Run contract comparison',
+    summary: 'Run document comparison',
     description:
-      'Runs prompt-driven AI analysis over 2–5 uploaded contracts in the supplied order. ' +
+      'Runs prompt-driven AI analysis over 2–5 uploaded documents in the supplied order. ' +
       'Returns a Markdown result synchronously.',
   })
   @ApiBody({ type: RunCompareBody })
