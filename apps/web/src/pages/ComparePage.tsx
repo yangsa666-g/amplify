@@ -275,33 +275,18 @@ export default function ComparePage() {
           {t('compare.promptHint')}{' '}
           <Trans i18nKey="analysis.manageInSettings" components={{ 1: <Link to="/settings" /> }} />
         </Typography.Text>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 16,
-            flexWrap: 'wrap',
-            marginTop: 12,
+        <Select
+          style={{ display: 'block', maxWidth: 480, marginTop: 12 }}
+          loading={promptsLoading}
+          value={selectedPromptTemplateId}
+          options={templateOptions(promptTemplates, t)}
+          onChange={(id) => {
+            setSelectedPromptTemplateId(id);
+            setResult(null);
           }}
-        >
-          <Select
-            style={{ width: '100%', maxWidth: 480 }}
-            loading={promptsLoading}
-            value={selectedPromptTemplateId}
-            options={templateOptions(promptTemplates, t)}
-            onChange={(id) => {
-              setSelectedPromptTemplateId(id);
-              setResult(null);
-            }}
-            placeholder={t('analysis.selectPromptTemplate')}
-            disabled={promptsLoading}
-          />
-          {selectedPromptTemplateId && (
-            <Typography.Text type="secondary">
-              {t('common.templateId', { id: selectedPromptTemplateId })}
-            </Typography.Text>
-          )}
-        </div>
+          placeholder={t('analysis.selectPromptTemplate')}
+          disabled={promptsLoading}
+        />
       </Card>
 
       <Card title={t('compare.step3')}>
