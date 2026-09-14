@@ -30,6 +30,7 @@ const en = {
     copied: 'Copied to clipboard',
     more: 'More',
     resultId: 'Result ID',
+    templateId: 'ID: {{id}}',
     copyLink: 'Copy link',
     linkCopied: 'Link copied to clipboard',
     platformDefaults: 'Platform Defaults',
