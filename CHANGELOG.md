@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.7.0](https://github.com/shidafu666/amplify/compare/v0.6.0...v0.7.0) (2026-09-14)
+
+
+### Features
+
+* **auth:** support configurable authentication methods ([9ffb371](https://github.com/shidafu666/amplify/commit/9ffb3718a8e90ffbe32d858de20a2b77ae2014d2))
+* show template IDs ([#73](https://github.com/shidafu666/amplify/issues/73)) ([c0bb6a1](https://github.com/shidafu666/amplify/commit/c0bb6a1176709499e6a46ddcdf85d159288e4c8d))
+* super admin edit role to user ([#71](https://github.com/shidafu666/amplify/issues/71)) ([4a2119f](https://github.com/shidafu666/amplify/commit/4a2119f0db26b24b4e2b7499b8c1fabad8528431))
+* **web:** move organization switcher to profile menu ([#68](https://github.com/shidafu666/amplify/issues/68)) ([c49ed20](https://github.com/shidafu666/amplify/commit/c49ed203924ba9b8d1f5ff2f22edc7d8cb226dc3))
+
+
+### Bug Fixes
+
+* allow editing and filtering user organizations ([#64](https://github.com/shidafu666/amplify/issues/64)) ([2bf48f6](https://github.com/shidafu666/amplify/commit/2bf48f602508cffdb0b172aa47135cae43623d2e))
+* **auth:** enforce platform authentication inheritance ([#67](https://github.com/shidafu666/amplify/issues/67)) ([9f02863](https://github.com/shidafu666/amplify/commit/9f02863dfde3e74295ce555b8f6da1b497dbeae4))
+* **web:** restore model provider icons ([#69](https://github.com/shidafu666/amplify/issues/69)) ([d80fd28](https://github.com/shidafu666/amplify/commit/d80fd287dc3bb7a5c7716fb58f1816791fe70bde))
+* **web:** upgrade React runtime for provider icons ([#70](https://github.com/shidafu666/amplify/issues/70)) ([cc1fc35](https://github.com/shidafu666/amplify/commit/cc1fc3517cd46febe4f599b9749b65bff01d69cd))
+
 ## [0.6.0](https://github.com/shidafu666/amplify/compare/v0.5.2...v0.6.0) (2026-09-07)
 
 
