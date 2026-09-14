@@ -45,7 +45,7 @@ export class DocumentsService {
     const originalName = decodeOriginalName(file.originalname);
 
     if (!this.parser.isSupported(file.mimetype, originalName)) {
-      throw new BadRequestException('Unsupported file type. Supported: PDF, DOCX, TXT');
+      throw new BadRequestException('Unsupported file type. Supported: PDF, DOCX, XLSX, TXT');
     }
 
     // Resolve file buffer (memoryStorage provides buffer; diskStorage provides path)

@@ -156,7 +156,7 @@ const zh: typeof en = {
   analysis: {
     title: '文档分析',
     step1: '1. 上传文档',
-    dragHint: '点击或拖拽文件到此处上传（PDF、DOCX、TXT）',
+    dragHint: '点击或拖拽文件到此处上传（PDF、DOCX、XLSX、TXT）',
     uploadedExtraction: '已上传：{{file}} | 文本提取：{{status}}',
     extractionFailed: '文本提取失败：{{file}}',
     extractionUnknownError: '未知错误 — 请查看服务器日志了解详情。',

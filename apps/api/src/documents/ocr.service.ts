@@ -61,9 +61,9 @@ export class OcrService {
       let cellMatch: RegExpExecArray | null;
       while ((cellMatch = cellRegex.exec(rowHtml)) !== null) {
         const cellText = cellMatch[1]
-          .replace(/<br\s*\/?>/gi, ' ')   // <br> → space
-          .replace(/<[^>]+>/g, '')         // strip remaining HTML tags
-          .replace(/&amp;/g, '&')          // decode & first (handles &amp;nbsp; etc.)
+          .replace(/<br\s*\/?>/gi, ' ') // <br> → space
+          .replace(/<[^>]+>/g, '') // strip remaining HTML tags
+          .replace(/&amp;/g, '&') // decode & first (handles &amp;nbsp; etc.)
           .replace(/&nbsp;/g, ' ')
           .replace(/&lt;/g, '<')
           .replace(/&gt;/g, '>')
@@ -157,9 +157,7 @@ export class OcrService {
       if (status === 'succeeded') {
         const rawContent = analyzeResult?.content ?? '';
         const content = this.convertHtmlTablesToMarkdown(rawContent);
-        this.logger.log(
-          `OCR succeeded — extracted ${content.length} characters of markdown`,
-        );
+        this.logger.log(`OCR succeeded — extracted ${content.length} characters of markdown`);
         return content;
       }
 

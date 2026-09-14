@@ -2,17 +2,22 @@ import { Injectable, BadRequestException, InternalServerErrorException } from '@
 import * as path from 'path';
 import * as mammoth from 'mammoth';
 import { OcrService } from './ocr.service';
+import { SpreadsheetParserService } from './spreadsheet-parser.service';
 
 const SUPPORTED_TYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'text/plain',
 ];
-const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.txt'];
+const SUPPORTED_EXTENSIONS = ['.pdf', '.docx', '.xlsx', '.txt'];
 
 @Injectable()
 export class ParserService {
-  constructor(private ocr: OcrService) {}
+  constructor(
+    private ocr: OcrService,
+    private spreadsheetParser: SpreadsheetParserService,
+  ) {}
 
   async extractText(buffer: Buffer, mimeType: string, originalName: string): Promise<string> {
     const ext = path.extname(originalName).toLowerCase();
@@ -37,6 +42,13 @@ export class ParserService {
 
     if (ext === '.txt' || mimeType === 'text/plain') {
       return buffer.toString('utf-8').trim();
+    }
+
+    if (
+      ext === '.xlsx' ||
+      mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ) {
+      return this.spreadsheetParser.extractTextFromXlsx(buffer);
     }
 
     throw new BadRequestException(`Unsupported file type: ${ext}`);

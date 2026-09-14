@@ -154,7 +154,7 @@ const en = {
   analysis: {
     title: 'Document Analysis',
     step1: '1. Upload Document',
-    dragHint: 'Click or drag file here to upload (PDF, DOCX, TXT)',
+    dragHint: 'Click or drag file here to upload (PDF, DOCX, XLSX, TXT)',
     uploadedExtraction: 'Uploaded: {{file}} | Extraction: {{status}}',
     extractionFailed: 'Extraction failed for: {{file}}',
     extractionUnknownError: 'Unknown error — check server logs for details.',

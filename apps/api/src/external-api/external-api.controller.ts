@@ -341,7 +341,7 @@ export class ExternalApiController {
   @ApiOperation({
     summary: 'Upload a document',
     description:
-      'Upload a PDF, DOCX, or TXT document. Returns a `documentId` to use in analysis and compare calls. ' +
+      'Upload a PDF, DOCX, XLSX, or TXT document. Returns a `documentId` to use in analysis and compare calls. ' +
       'Text extraction happens asynchronously — wait until `textExtractionStatus` is `success` before running analysis.',
   })
   @ApiConsumes('multipart/form-data')
@@ -353,7 +353,7 @@ export class ExternalApiController {
         file: {
           type: 'string',
           format: 'binary',
-          description: 'Document file (PDF, DOCX, or TXT, max 50 MB)',
+          description: 'Document file (PDF, DOCX, XLSX, or TXT, max 50 MB)',
         },
       },
     },

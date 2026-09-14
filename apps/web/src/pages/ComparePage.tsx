@@ -236,7 +236,7 @@ export default function ComparePage() {
                   uploadMutation.mutate({ index, file });
                   return false;
                 }}
-                accept=".pdf,.docx,.txt"
+                accept=".pdf,.docx,.xlsx,.txt"
               >
                 <p className="ant-upload-drag-icon">
                   <InboxOutlined />
