@@ -51,7 +51,7 @@ import { usePwaInstallPrompt } from '../pwa/usePwaInstallPrompt';
 import Logo from '../components/Logo';
 import type { Notification } from '../types';
 
-const { Sider, Content, Header } = Layout;
+const { Sider, Content, Header, Footer } = Layout;
 
 const SIDER_BG = '#001529';
 const PLATFORM_CONTEXT_VALUE = '__platform__';
@@ -484,6 +484,7 @@ export default function AppLayout() {
         </Header>
         <Content
           style={{
+            flex: 1,
             margin: isMobile ? 8 : 24,
             background: isAdminDashboard ? 'transparent' : token.colorBgContainer,
             padding: isAdminDashboard ? 0 : isMobile ? 12 : 24,
@@ -493,6 +494,23 @@ export default function AppLayout() {
         >
           <Outlet />
         </Content>
+        <Footer
+          style={{
+            padding: isMobile ? '16px 12px' : '20px 24px',
+            color: token.colorTextSecondary,
+            background: 'transparent',
+            textAlign: 'center',
+          }}
+        >
+          Powered by CT-IS with ❤️.{' '}
+          <Typography.Link
+            href="https://teams.microsoft.com/l/channel/19%3Add102682595143bcb4243db78090fe63%40thread.tacv2/Feedback%20and%20Support?groupId=3231a9f2-7ea0-430e-9169-e78af066eaac&tenantId=556e6b1f-b49d-4278-8baf-db06eeefc8e9"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Feedback and Support
+          </Typography.Link>
+        </Footer>
       </Layout>
     </Layout>
   );
