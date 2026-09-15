@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.1](https://github.com/yangsa666-g/amplify/compare/v0.9.0...v0.9.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* **deps:** resolve Dependabot vulnerability alerts ([#82](https://github.com/yangsa666-g/amplify/issues/82)) ([9a2ea06](https://github.com/yangsa666-g/amplify/commit/9a2ea069bbdde5fb2f1c7708fe4307c0e697eeda))
+* **security:** address code scanning findings ([#84](https://github.com/yangsa666-g/amplify/issues/84)) ([a0822b9](https://github.com/yangsa666-g/amplify/commit/a0822b91c1919a006c86183274a7d16d6373e601))
+
 ## [0.9.0](https://github.com/shidafu666/amplify/compare/v0.8.0...v0.9.0) (2026-09-15)
 
 
