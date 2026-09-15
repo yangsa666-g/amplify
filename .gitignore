@@ -4,7 +4,7 @@ dist
 *.local
 uploads/
 .turbo
-.env.azure
+.env.azure*
 
 # Claude Code local scratch (worktrees + machine-local settings); shared
 # .claude config (settings.json, commands, skills) can still be committed.
