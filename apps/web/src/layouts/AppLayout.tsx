@@ -230,6 +230,11 @@ export default function AppLayout() {
     queryFn: () => getOrganizations().then((res) => res.data),
     enabled: isSuperAdmin,
   });
+  const currentOrganizationName = isSuperAdmin
+    ? selectedOrganizationId
+      ? organizations.find((organization) => organization.id === selectedOrganizationId)?.name
+      : t('common.platformDefaults')
+    : user?.organizationName;
 
   const installApp = async () => {
     const outcome = await promptInstall();
@@ -476,7 +481,23 @@ export default function AppLayout() {
                 }}
               >
                 <Avatar icon={<UserOutlined />} />
-                {!isMobile && <Typography.Text>{user?.name || user?.email}</Typography.Text>}
+                {!isMobile && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      minWidth: 0,
+                      flexDirection: 'column',
+                      lineHeight: 1.25,
+                    }}
+                  >
+                    <Typography.Text ellipsis>{user?.email}</Typography.Text>
+                    {currentOrganizationName && (
+                      <Typography.Text type="secondary" ellipsis style={{ fontSize: 12 }}>
+                        {currentOrganizationName}
+                      </Typography.Text>
+                    )}
+                  </div>
+                )}
                 <DownOutlined style={{ fontSize: 10, color: token.colorTextTertiary }} />
               </Button>
             </Dropdown>
