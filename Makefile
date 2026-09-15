@@ -267,7 +267,7 @@ azure-cloud:
 .PHONY: azure-config
 azure-config: azure-cloud ## Sync selected Azure environment app settings to the existing Azure Web App
 	@echo "$(BOLD)Syncing app settings to $(AZURE_APP_NAME)...$(RESET)"
-	az webapp config appsettings set \
+	@az webapp config appsettings set \
 	  --subscription $(AZURE_SUBSCRIPTION) \
 	  --resource-group $(AZURE_RESOURCE_GROUP) \
 	  --name $(AZURE_APP_NAME) \
@@ -275,38 +275,38 @@ azure-config: azure-cloud ## Sync selected Azure environment app settings to the
 	    NODE_ENV=production \
 	    WEBSITES_PORT=$(WEBSITES_PORT) \
 	    PORT=3001 \
-	    DATABASE_URL='$(DATABASE_URL)' \
-	    JWT_SECRET='$(JWT_SECRET)' \
+	    DATABASE_URL="$${DATABASE_URL}" \
+	    JWT_SECRET="$${JWT_SECRET}" \
 	    JWT_EXPIRES_IN='$(JWT_EXPIRES_IN)' \
 	    REFRESH_TOKEN_EXPIRES_IN='$(REFRESH_TOKEN_EXPIRES_IN)' \
 	    AZURE_OPENAI_ENDPOINT='$(AZURE_OPENAI_ENDPOINT)' \
-	    AZURE_OPENAI_API_KEY='$(AZURE_OPENAI_API_KEY)' \
+	    AZURE_OPENAI_API_KEY="$${AZURE_OPENAI_API_KEY}" \
 	    AZURE_OPENAI_MODELS='$(AZURE_OPENAI_MODELS)' \
 	    AZURE_OPENAI_TIMEOUT_MS='$(AZURE_OPENAI_TIMEOUT_MS)' \
-	    MODEL_CREDENTIALS_ENCRYPTION_KEY='$(MODEL_CREDENTIALS_ENCRYPTION_KEY)' \
+	    MODEL_CREDENTIALS_ENCRYPTION_KEY="$${MODEL_CREDENTIALS_ENCRYPTION_KEY}" \
 	    AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT='$(AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT)' \
-	    AZURE_DOCUMENT_INTELLIGENCE_KEY='$(AZURE_DOCUMENT_INTELLIGENCE_KEY)' \
+	    AZURE_DOCUMENT_INTELLIGENCE_KEY="$${AZURE_DOCUMENT_INTELLIGENCE_KEY}" \
 	    ANTHROPIC_ENDPOINT='$(ANTHROPIC_ENDPOINT)' \
-	    ANTHROPIC_API_KEY='$(ANTHROPIC_API_KEY)' \
+	    ANTHROPIC_API_KEY="$${ANTHROPIC_API_KEY}" \
 	    ANTHROPIC_MODELS='$(ANTHROPIC_MODELS)' \
 	    ENTRA_CLIENT_ID='$(ENTRA_CLIENT_ID)' \
-	    ENTRA_CLIENT_SECRET='$(ENTRA_CLIENT_SECRET)' \
+	    ENTRA_CLIENT_SECRET="$${ENTRA_CLIENT_SECRET}" \
 	    ENTRA_TENANT_ID='$(ENTRA_TENANT_ID)' \
 	    ENTRA_REDIRECT_URI='$(ENTRA_REDIRECT_URI)' \
 	    ENTRA_POST_LOGIN_REDIRECT='$(ENTRA_POST_LOGIN_REDIRECT)' \
 	    FILE_UPLOAD_DIR='/home/uploads' \
 	    MAX_UPLOAD_SIZE_MB='$(MAX_UPLOAD_SIZE_MB)' \
 	    SEED_ADMIN_EMAIL='$(SEED_ADMIN_EMAIL)' \
-	    SEED_ADMIN_PASSWORD='$(SEED_ADMIN_PASSWORD)' \
+	    SEED_ADMIN_PASSWORD="$${SEED_ADMIN_PASSWORD}" \
 	    SEED_ADMIN_NAME='$(SEED_ADMIN_NAME)' \
 	  --output none
 	@echo "$(GREEN)✔ App settings synced$(RESET)"
 
 .PHONY: azure-acr-login
 azure-acr-login: azure-cloud ## Log in to Azure Container Registry
-	docker login $(AZURE_ACR_LOGIN_SERVER) \
+	@printf '%s' "$${AZURE_ACR_PASSWORD}" | docker login $(AZURE_ACR_LOGIN_SERVER) \
 	  --username $(AZURE_ACR_USERNAME) \
-	  --password '$(AZURE_ACR_PASSWORD)'
+	  --password-stdin
 	@echo "$(GREEN)✔ Logged in to ACR $(AZURE_ACR_LOGIN_SERVER)$(RESET)"
 
 .PHONY: azure-build
@@ -330,14 +330,14 @@ azure-build: azure-cloud ## Build Docker image in ACR for the selected Azure env
 .PHONY: azure-deploy-app
 azure-deploy-app: azure-cloud ## Update selected Azure Web App to use the latest image
 	@echo "$(BOLD)Updating Web App container...$(RESET)"
-	az webapp config container set \
+	@az webapp config container set \
 	  --subscription $(AZURE_SUBSCRIPTION) \
 	  --resource-group $(AZURE_RESOURCE_GROUP) \
 	  --name $(AZURE_APP_NAME) \
 	  --container-image-name $(AZURE_ACR_LOGIN_SERVER)/$(AZURE_IMAGE_NAME):$(AZURE_IMAGE_TAG) \
 	  --container-registry-url https://$(AZURE_ACR_LOGIN_SERVER) \
 	  --container-registry-user $(AZURE_ACR_USERNAME) \
-	  --container-registry-password '$(AZURE_ACR_PASSWORD)' \
+	  --container-registry-password "$${AZURE_ACR_PASSWORD}" \
 	  --output none
 	az webapp restart \
 	  --subscription $(AZURE_SUBSCRIPTION) \
