@@ -335,6 +335,12 @@ curl -X POST http://localhost:3001/v1/compare/run \
 
 完整的请求 / 响应结构请参阅 `/docs`。
 
+## 路线图
+
+1. 支持使用 Consumer Identity 或本地账户注册试用
+2. 企业功能需要 Enterprise 许可证
+3. 内置 LLM 模型将按请求收费
+
 ## 许可证
 
 基于 [Apache License 2.0](LICENSE) 授权。

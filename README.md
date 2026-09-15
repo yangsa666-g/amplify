@@ -341,6 +341,12 @@ curl -X POST http://localhost:3001/v1/compare/run \
 
 See `/docs` for the full request/response schemas.
 
+## Roadmap
+
+1. Support Consumer Identity or Local Account sign up for a trial
+2. Enterprise feature requires Enterprise licenses
+3. Built-in LLM model will be charged by request
+
 ## License
 
 Licensed under the [Apache License 2.0](LICENSE).
