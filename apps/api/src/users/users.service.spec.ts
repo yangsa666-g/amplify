@@ -44,6 +44,7 @@ function makeService(targetUser: TargetUser, remainingPrivilegedUsers = 1) {
           ...data,
         }),
       ),
+      delete: vi.fn().mockResolvedValue(targetUser),
       count: vi.fn().mockResolvedValue(remainingPrivilegedUsers),
     },
     organization: {
@@ -67,6 +68,24 @@ function makeService(targetUser: TargetUser, remainingPrivilegedUsers = 1) {
 }
 
 describe('UsersService role and access scope transitions', () => {
+  it('hard deletes a user instead of disabling the account', async () => {
+    const targetUser: TargetUser = {
+      id: 'user-target',
+      email: 'target@example.com',
+      name: 'Target',
+      role: 'user',
+      status: 'active',
+      organizationId: 'org-1',
+    };
+    const { service, prisma } = makeService(targetUser);
+
+    await service.deleteUser(targetUser.id, superAdminActor);
+
+    expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: targetUser.id } });
+    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(prisma.refreshToken.deleteMany).not.toHaveBeenCalled();
+  });
+
   it('demotes a Super Admin only when a target Organization is supplied', async () => {
     const targetUser: TargetUser = {
       id: 'super-admin-target',

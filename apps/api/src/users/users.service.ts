@@ -220,7 +220,13 @@ export class UsersService {
   }
 
   async deleteUser(id: string, actor?: AuthUser) {
-    return this.updateStatus(id, 'disabled', actor);
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('User not found');
+    this.assertCanManageUser(actor, user);
+    if (user.status === 'active') {
+      await this.assertCanDisableUser(user);
+    }
+    return this.prisma.user.delete({ where: { id } });
   }
 
   private resolveTargetOrganization(
