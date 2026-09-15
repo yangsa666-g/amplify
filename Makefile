@@ -19,12 +19,15 @@ ifeq ($(AZURE_ENV),global)
   AZURE_CLI_CLOUD      := AzureCloud
   AZURE_DOCKERFILE     := Dockerfile.azure
   AZURE_WEBAPP_DOMAIN  := azurewebsites.net
-  AZURE_ENV_FILE       ?= .env.azure
+  # Use := so a recursive make does not inherit the previously selected file.
+  # A command-line AZURE_ENV_FILE still takes precedence if explicitly supplied.
+  AZURE_ENV_FILE       := .env.azure
 else ifeq ($(AZURE_ENV),china)
   AZURE_CLI_CLOUD      := AzureChinaCloud
   AZURE_DOCKERFILE     := Dockerfile.Azure.China
   AZURE_WEBAPP_DOMAIN  := chinacloudsites.cn
-  AZURE_ENV_FILE       ?= .env.azure.china
+  # See the Global branch: this must replace an inherited parent value.
+  AZURE_ENV_FILE       := .env.azure.china
 else
   $(error Unsupported AZURE_ENV "$(AZURE_ENV)". Use "global" or "china")
 endif
