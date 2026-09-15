@@ -225,14 +225,19 @@ China targets set the Azure CLI cloud to `AzureChinaCloud` and load
 `.env.azure.china`. `make azure-global-deploy` is available as an explicit
 Global alias.
 
+Keep comments in Azure environment files on their own lines. Because Make reads
+these files directly, the space before an inline `#` comment becomes part of the
+variable value and can break resource names, image URLs, and credentials.
+
 > **App settings (not `.env.azure`).** The container does **not** bundle `.env.azure`; the API reads its configuration from the App Service application settings (environment variables). Make sure `DATABASE_URL`, `JWT_SECRET`, and the Azure OpenAI / Document Intelligence keys are all set there.
 
 When Azure Database for PostgreSQL uses a Private Endpoint, set `DATABASE_URL` to
-`<server>.postgres.database.azure.com` — not
-`<server>.privatelink.postgres.database.azure.com`. The Private DNS zone resolves
-the standard hostname to the private IP, and the standard hostname matches the
-server's TLS certificate. The application also normalizes an existing private-link
-hostname for the API, migrations, and seed process during the transition.
+its canonical hostname: `<server>.postgres.database.azure.com` for Azure Global
+or `<server>.postgres.database.chinacloudapi.cn` for Azure China. Do not put the
+`privatelink` hostname in the connection string. The Private DNS zone resolves
+the canonical hostname to the private IP, and that hostname matches the server's
+TLS certificate. The application normalizes existing Global and China private-link
+hostnames for the API, migrations, and seed process during the transition.
 
 ### Troubleshooting
 

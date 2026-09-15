@@ -221,11 +221,17 @@ make azure-deploy AZURE_ENV=china
 将 Azure CLI 切换到 `AzureChinaCloud`，并读取 `.env.azure.china`；也可使用
 `make azure-global-deploy` 显式部署到 Global。
 
+Azure 环境文件中的注释必须独占一行。Make 会直接读取这些文件，因此行内 `#`
+注释前的空格会成为变量值的一部分，导致资源名称、镜像地址或凭据失效。
+
 > **配置来自 App Settings（而非 `.env.azure`）。** 容器并**不会**打包 `.env.azure`；API 从 App Service 的应用设置（环境变量）中读取配置。请确保 `DATABASE_URL`、`JWT_SECRET` 以及 Azure OpenAI / Document Intelligence 的密钥都已在那里设置。
 
 使用 Azure Database for PostgreSQL 私有终结点时，`DATABASE_URL` 必须使用
-`<server>.postgres.database.azure.com`，而不是
-`<server>.privatelink.postgres.database.azure.com`。私有 DNS 区域会把标准主机名解析到私有 IP，且标准主机名能够匹配服务器 TLS 证书。为方便迁移，应用会在 API、迁移和种子流程中自动规范化已有的私有链接主机名。
+规范主机名：Azure Global 使用 `<server>.postgres.database.azure.com`，Azure China
+使用 `<server>.postgres.database.chinacloudapi.cn`。连接字符串中不要直接使用
+`privatelink` 主机名；私有 DNS 区域会把规范主机名解析到私网 IP，且该主机名能够匹配
+服务器 TLS 证书。为方便迁移，应用会在 API、迁移和种子流程中自动规范化 Global 和
+China 的私有链接主机名。
 
 ### 故障排查
 

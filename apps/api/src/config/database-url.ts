@@ -1,5 +1,13 @@
-const AZURE_POSTGRES_PRIVATE_LINK_SUFFIX = '.privatelink.postgres.database.azure.com';
-const AZURE_POSTGRES_SUFFIX = '.postgres.database.azure.com';
+const AZURE_POSTGRES_HOST_SUFFIXES = [
+  {
+    privateLink: '.privatelink.postgres.database.azure.com',
+    canonical: '.postgres.database.azure.com',
+  },
+  {
+    privateLink: '.privatelink.postgres.database.chinacloudapi.cn',
+    canonical: '.postgres.database.chinacloudapi.cn',
+  },
+] as const;
 
 /**
  * Azure PostgreSQL certificates are issued for the public server FQDN, even
@@ -15,16 +23,19 @@ export function normalizeDatabaseUrl(databaseUrl: string): string {
     }
 
     const hostname = url.hostname.replace(/\.$/, '').toLowerCase();
-    if (!hostname.endsWith(AZURE_POSTGRES_PRIVATE_LINK_SUFFIX)) {
+    const suffixes = AZURE_POSTGRES_HOST_SUFFIXES.find(({ privateLink }) =>
+      hostname.endsWith(privateLink),
+    );
+    if (!suffixes) {
       return databaseUrl;
     }
 
-    const serverName = hostname.slice(0, -AZURE_POSTGRES_PRIVATE_LINK_SUFFIX.length);
+    const serverName = hostname.slice(0, -suffixes.privateLink.length);
     if (!serverName) {
       return databaseUrl;
     }
 
-    url.hostname = `${serverName}${AZURE_POSTGRES_SUFFIX}`;
+    url.hostname = `${serverName}${suffixes.canonical}`;
     return url.toString();
   } catch {
     // Keep existing validation behaviour for malformed URLs. The database
