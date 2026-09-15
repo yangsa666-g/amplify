@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.8.0](https://github.com/shidafu666/amplify/compare/v0.7.0...v0.8.0) (2026-09-15)
+
+
+### Features
+
+* **azure:** support China MCR deployments ([#74](https://github.com/shidafu666/amplify/issues/74)) ([5386933](https://github.com/shidafu666/amplify/commit/5386933a28663dad5cd8fe63ffad7c1fd05e1bf5))
+* **web:** add application footer ([#76](https://github.com/shidafu666/amplify/issues/76)) ([9bb3d4c](https://github.com/shidafu666/amplify/commit/9bb3d4ce7c5fced5516bd7919ef144135b1a4a67))
+
+
+### Bug Fixes
+
+* **azure:** harden China deployment ([#78](https://github.com/shidafu666/amplify/issues/78)) ([f5fdedb](https://github.com/shidafu666/amplify/commit/f5fdedb00ec4057b0460d6ffb5d4c858d8cf58c2))
+* **users:** hard delete users ([#77](https://github.com/shidafu666/amplify/issues/77)) ([eb74245](https://github.com/shidafu666/amplify/commit/eb74245ea6469b4f85e9551050adc02cc8d6f26d))
+
 ## [0.7.0](https://github.com/shidafu666/amplify/compare/v0.6.0...v0.7.0) (2026-09-14)
 
 
