@@ -34,7 +34,8 @@ amplify/
 │   └── web/          # React + Vite 前端（端口 3000）
 ├── packages/         # 共享包
 ├── deploy/           # nginx、supervisord、entrypoint 配置
-├── Dockerfile.azure  # 统一单容器镜像（nginx + NestJS）
+├── Dockerfile.azure        # Azure Global 统一单容器镜像
+├── Dockerfile.Azure.China  # Azure China 镜像（使用中国区 MCR 基础镜像）
 ├── docker-compose.yml
 ├── Makefile
 ├── .env.example
@@ -197,6 +198,28 @@ cp .env.azure.example .env.azure
 make azure-build
 make azure-deploy-app
 ```
+
+### Azure China
+
+Azure China 使用独立的 `Dockerfile.Azure.China`。其中的全部基础镜像均从
+Microsoft Container Registry 中国区端点（`mcr.azure.cn`）拉取，因此构建过程
+不依赖 `docker.io`。请创建专用的 `.env.azure.china`，填写中国区订阅、ACR
+（通常是 `<name>.azurecr.cn`）和 Web App 配置后，使用以下任一种方式部署：
+
+```bash
+cp .env.azure.example .env.azure.china
+# 编辑 .env.azure.china，填入中国区资源配置
+make azure-china-build
+make azure-china-deploy
+
+# 等价的通用目标
+make azure-build AZURE_ENV=china
+make azure-deploy AZURE_ENV=china
+```
+
+原有的 `azure-*` 目标默认部署到 Azure Global，并读取 `.env.azure`。中国区目标会
+将 Azure CLI 切换到 `AzureChinaCloud`，并读取 `.env.azure.china`；也可使用
+`make azure-global-deploy` 显式部署到 Global。
 
 > **配置来自 App Settings（而非 `.env.azure`）。** 容器并**不会**打包 `.env.azure`；API 从 App Service 的应用设置（环境变量）中读取配置。请确保 `DATABASE_URL`、`JWT_SECRET` 以及 Azure OpenAI / Document Intelligence 的密钥都已在那里设置。
 

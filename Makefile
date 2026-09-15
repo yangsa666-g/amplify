@@ -9,9 +9,29 @@ COMPOSE        := docker compose
 API_SVC        := api
 DB_SVC         := postgres
 
-# ─── Load .env.azure for Azure deployment targets ────────────────────────────
-ifneq (,$(wildcard .env.azure))
-  include .env.azure
+# ─── Azure deployment target ─────────────────────────────────────────────────
+# Select the sovereign cloud and its matching image/configuration with:
+#   make azure-deploy AZURE_ENV=global
+#   make azure-deploy AZURE_ENV=china
+AZURE_ENV ?= global
+
+ifeq ($(AZURE_ENV),global)
+  AZURE_CLI_CLOUD      := AzureCloud
+  AZURE_DOCKERFILE     := Dockerfile.azure
+  AZURE_WEBAPP_DOMAIN  := azurewebsites.net
+  AZURE_ENV_FILE       ?= .env.azure
+else ifeq ($(AZURE_ENV),china)
+  AZURE_CLI_CLOUD      := AzureChinaCloud
+  AZURE_DOCKERFILE     := Dockerfile.Azure.China
+  AZURE_WEBAPP_DOMAIN  := chinacloudsites.cn
+  AZURE_ENV_FILE       ?= .env.azure.china
+else
+  $(error Unsupported AZURE_ENV "$(AZURE_ENV)". Use "global" or "china")
+endif
+
+# ─── Load the selected Azure environment file ────────────────────────────────
+ifneq (,$(wildcard $(AZURE_ENV_FILE)))
+  include $(AZURE_ENV_FILE)
   export
 endif
 
@@ -235,11 +255,17 @@ nuke: ## ⚠ Remove EVERYTHING: containers, volumes, node_modules
 
 .PHONY: azure-login
 azure-login: ## Log in to Azure CLI (interactive)
+	az cloud set --name $(AZURE_CLI_CLOUD)
 	az login
-	@echo "$(GREEN)✔ Logged in to Azure$(RESET)"
+	@echo "$(GREEN)✔ Logged in to $(AZURE_ENV) Azure$(RESET)"
+
+.PHONY: azure-cloud
+azure-cloud:
+	@az cloud set --name $(AZURE_CLI_CLOUD)
+	@echo "$(GRAY)  Azure target: $(AZURE_ENV) ($(AZURE_CLI_CLOUD))$(RESET)"
 
 .PHONY: azure-config
-azure-config: ## Sync .env.azure app settings to the existing Azure Web App
+azure-config: azure-cloud ## Sync selected Azure environment app settings to the existing Azure Web App
 	@echo "$(BOLD)Syncing app settings to $(AZURE_APP_NAME)...$(RESET)"
 	az webapp config appsettings set \
 	  --subscription $(AZURE_SUBSCRIPTION) \
@@ -277,14 +303,14 @@ azure-config: ## Sync .env.azure app settings to the existing Azure Web App
 	@echo "$(GREEN)✔ App settings synced$(RESET)"
 
 .PHONY: azure-acr-login
-azure-acr-login: ## Log in to Azure Container Registry
+azure-acr-login: azure-cloud ## Log in to Azure Container Registry
 	docker login $(AZURE_ACR_LOGIN_SERVER) \
 	  --username $(AZURE_ACR_USERNAME) \
 	  --password '$(AZURE_ACR_PASSWORD)'
 	@echo "$(GREEN)✔ Logged in to ACR $(AZURE_ACR_LOGIN_SERVER)$(RESET)"
 
 .PHONY: azure-build
-azure-build: ## Build Docker image in ACR (remote build, no local Docker needed)
+azure-build: azure-cloud ## Build Docker image in ACR for the selected Azure environment
 	@echo "$(BOLD)Building image in ACR...$(RESET)"
 	@# Git's fsmonitor daemon leaves a UNIX socket at .git/fsmonitor--daemon.ipc.
 	@# `az acr build`'s tar packer descends into .git despite the .dockerignore
@@ -297,12 +323,12 @@ azure-build: ## Build Docker image in ACR (remote build, no local Docker needed)
 	  --registry $(AZURE_ACR_LOGIN_SERVER) \
 	  --image $(AZURE_IMAGE_NAME):$(AZURE_IMAGE_TAG) \
 	  --image $(AZURE_IMAGE_NAME):latest \
-	  --file Dockerfile.azure \
+	  --file $(AZURE_DOCKERFILE) \
 	  .
 	@echo "$(GREEN)✔ Image built: $(AZURE_IMAGE_NAME):$(AZURE_IMAGE_TAG)$(RESET)"
 
 .PHONY: azure-deploy-app
-azure-deploy-app: ## Update Web App to use the latest image
+azure-deploy-app: azure-cloud ## Update selected Azure Web App to use the latest image
 	@echo "$(BOLD)Updating Web App container...$(RESET)"
 	az webapp config container set \
 	  --subscription $(AZURE_SUBSCRIPTION) \
@@ -319,13 +345,13 @@ azure-deploy-app: ## Update Web App to use the latest image
 	  --name $(AZURE_APP_NAME) \
 	  --output none
 	@echo "$(GREEN)✔ Web App updated and restarted$(RESET)"
-	@echo "  URL → https://$(AZURE_APP_NAME).azurewebsites.net"
+	@echo "  URL → https://$(AZURE_APP_NAME).$(AZURE_WEBAPP_DOMAIN)"
 
 .PHONY: azure-deploy
 azure-deploy: azure-build azure-config azure-deploy-app ## 🚀 Full Azure deploy: build image + sync config + update app
 	@echo ""
 	@echo "$(GREEN)$(BOLD)✔ Deployment complete!$(RESET)"
-	@echo "  URL → https://$(AZURE_APP_NAME).azurewebsites.net"
+	@echo "  URL → https://$(AZURE_APP_NAME).$(AZURE_WEBAPP_DOMAIN)"
 
 .PHONY: azure-migrate
 azure-migrate: ## Run database migrations on Azure (auto-runs on every container start via entrypoint)
@@ -333,7 +359,7 @@ azure-migrate: ## Run database migrations on Azure (auto-runs on every container
 	@echo "To force re-run: make azure-deploy-app (restarts the container)"
 
 .PHONY: azure-seed
-azure-seed: ## Seed database on Azure (restart app; entrypoint runs idempotent seed automatically)
+azure-seed: azure-cloud ## Seed database on Azure (restart app; entrypoint runs idempotent seed automatically)
 	@echo "$(BOLD)Restarting Azure Web App to trigger seed via entrypoint.sh...$(RESET)"
 	az webapp restart \
 	  --subscription $(AZURE_SUBSCRIPTION) \
@@ -345,14 +371,29 @@ azure-seed: ## Seed database on Azure (restart app; entrypoint runs idempotent s
 	@echo "$(GREEN)✔ Seed triggered via restart$(RESET)"
 
 .PHONY: azure-logs
-azure-logs: ## Tail Azure Web App logs
+azure-logs: azure-cloud ## Tail Azure Web App logs
 	az webapp log tail --subscription $(AZURE_SUBSCRIPTION) --resource-group $(AZURE_RESOURCE_GROUP) --name $(AZURE_APP_NAME)
 
 .PHONY: azure-status
-azure-status: ## Show Azure Web App status
+azure-status: azure-cloud ## Show Azure Web App status
 	@az webapp show --subscription $(AZURE_SUBSCRIPTION) --resource-group $(AZURE_RESOURCE_GROUP) --name $(AZURE_APP_NAME) \
 	  --query "{name:name, state:state, url:defaultHostName, resourceGroup:resourceGroup}" \
 	  --output table
+
+# Convenience aliases. The generic azure-* targets remain Global by default;
+# pass AZURE_ENV=china to any generic target for the China sovereign cloud.
+.PHONY: azure-global-build azure-global-deploy azure-china-build azure-china-deploy
+azure-global-build: ## Build the Global Azure image in ACR
+	$(MAKE) azure-build AZURE_ENV=global
+
+azure-global-deploy: ## Deploy to Azure Global
+	$(MAKE) azure-deploy AZURE_ENV=global
+
+azure-china-build: ## Build the Azure China image in ACR
+	$(MAKE) azure-build AZURE_ENV=china
+
+azure-china-deploy: ## Deploy to Azure China
+	$(MAKE) azure-deploy AZURE_ENV=china
 
 # .PHONY: azure-destroy
 # azure-destroy: ## ⚠ Delete ALL Azure resources in the resource group

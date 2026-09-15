@@ -34,7 +34,8 @@ amplify/
 │   └── web/          # React + Vite frontend (port 3000)
 ├── packages/         # Shared packages
 ├── deploy/           # nginx, supervisord, entrypoint configs
-├── Dockerfile.azure  # Unified single-container image (nginx + NestJS)
+├── Dockerfile.azure        # Azure Global unified single-container image
+├── Dockerfile.Azure.China  # Azure China image (MCR China base images)
 ├── docker-compose.yml
 ├── Makefile
 ├── .env.example
@@ -199,6 +200,30 @@ cp .env.azure.example .env.azure
 make azure-build
 make azure-deploy-app
 ```
+
+### Azure China
+
+Azure China uses the separate `Dockerfile.Azure.China`; all of its base images
+are pulled from the China Microsoft Container Registry endpoint (`mcr.azure.cn`),
+so the build does not need `docker.io`. Create a dedicated `.env.azure.china`
+file with the China subscription, ACR (normally `<name>.azurecr.cn`), and Web
+App values, then deploy with either form:
+
+```bash
+cp .env.azure.example .env.azure.china
+# Edit .env.azure.china with China-specific resource values
+make azure-china-build
+make azure-china-deploy
+
+# Equivalent generic targets
+make azure-build AZURE_ENV=china
+make azure-deploy AZURE_ENV=china
+```
+
+The existing `azure-*` targets default to Azure Global and load `.env.azure`.
+China targets set the Azure CLI cloud to `AzureChinaCloud` and load
+`.env.azure.china`. `make azure-global-deploy` is available as an explicit
+Global alias.
 
 > **App settings (not `.env.azure`).** The container does **not** bundle `.env.azure`; the API reads its configuration from the App Service application settings (environment variables). Make sure `DATABASE_URL`, `JWT_SECRET`, and the Azure OpenAI / Document Intelligence keys are all set there.
 
