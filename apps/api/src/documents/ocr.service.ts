@@ -61,13 +61,32 @@ export class OcrService {
       let cellMatch: RegExpExecArray | null;
       while ((cellMatch = cellRegex.exec(rowHtml)) !== null) {
         const cellText = cellMatch[1]
-          .replace(/<br\s*\/?>/gi, ' ')   // <br> → space
-          .replace(/<[^>]+>/g, '')         // strip remaining HTML tags
-          .replace(/&amp;/g, '&')          // decode & first (handles &amp;nbsp; etc.)
-          .replace(/&nbsp;/g, ' ')
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&quot;/g, '"')
+          .replace(/<br\s*\/?>/gi, ' ') // <br> → space
+          // Decode entities in a single pass (not chained replaces) so an
+          // already-encoded entity like `&amp;lt;` can only ever be decoded
+          // one level, never fully unescaped into a live `<script>` tag.
+          .replace(/&(amp|nbsp|lt|gt|quot|#39|apos);/g, (_match, entity: string) => {
+            switch (entity) {
+              case 'amp':
+                return '&';
+              case 'nbsp':
+                return ' ';
+              case 'lt':
+                return '<';
+              case 'gt':
+                return '>';
+              case 'quot':
+                return '"';
+              case '#39':
+              case 'apos':
+                return "'";
+              default:
+                return _match;
+            }
+          })
+          // Strip HTML tags *after* decoding entities so nothing smuggled in
+          // via entity-encoding (e.g. `&lt;script&gt;`) survives sanitization.
+          .replace(/<[^>]+>/g, '')
           .replace(/\s+/g, ' ')
           .trim();
         cells.push(cellText);
@@ -157,9 +176,7 @@ export class OcrService {
       if (status === 'succeeded') {
         const rawContent = analyzeResult?.content ?? '';
         const content = this.convertHtmlTablesToMarkdown(rawContent);
-        this.logger.log(
-          `OCR succeeded — extracted ${content.length} characters of markdown`,
-        );
+        this.logger.log(`OCR succeeded — extracted ${content.length} characters of markdown`);
         return content;
       }
 
