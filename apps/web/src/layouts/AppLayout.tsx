@@ -523,13 +523,13 @@ export default function AppLayout() {
             textAlign: 'center',
           }}
         >
-          Powered by CT-IS with ❤️.{' '}
+          Built by Sa Yang with ❤️.{' '}
           <Typography.Link
-            href="https://teams.microsoft.com/l/channel/19%3Add102682595143bcb4243db78090fe63%40thread.tacv2/Feedback%20and%20Support?groupId=3231a9f2-7ea0-430e-9169-e78af066eaac&tenantId=556e6b1f-b49d-4278-8baf-db06eeefc8e9"
+            href="https://github.com/yangsa666-g/amplify"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Feedback and Support
+            Star it on Github
           </Typography.Link>
         </Footer>
       </Layout>
