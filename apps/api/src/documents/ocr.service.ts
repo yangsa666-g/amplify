@@ -60,21 +60,15 @@ export class OcrService {
       const cellRegex = /<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi;
       let cellMatch: RegExpExecArray | null;
       while ((cellMatch = cellRegex.exec(rowHtml)) !== null) {
-        const cellText = cellMatch[1]
-          .replace(/<br\s*\/?>/gi, ' ') // <br> → space
-          // Decode entities in a single pass (not chained replaces) so an
-          // already-encoded entity like `&amp;lt;` can only ever be decoded
-          // one level, never fully unescaped into a live `<script>` tag.
-          .replace(/&(amp|nbsp|lt|gt|quot|#39|apos);/g, (_match, entity: string) => {
+        const cellText = this.stripHtmlTags(cellMatch[1].replace(/<br\s*\/?>/gi, ' '))
+          // Decode non-structural entities in a single pass. Keep angle
+          // brackets encoded so cell text can never become an HTML element.
+          .replace(/&(amp|nbsp|quot|#39|apos);/g, (_match, entity: string) => {
             switch (entity) {
               case 'amp':
                 return '&';
               case 'nbsp':
                 return ' ';
-              case 'lt':
-                return '<';
-              case 'gt':
-                return '>';
               case 'quot':
                 return '"';
               case '#39':
@@ -84,9 +78,6 @@ export class OcrService {
                 return _match;
             }
           })
-          // Strip HTML tags *after* decoding entities so nothing smuggled in
-          // via entity-encoding (e.g. `&lt;script&gt;`) survives sanitization.
-          .replace(/<[^>]+>/g, '')
           .replace(/\s+/g, ' ')
           .trim();
         cells.push(cellText);
@@ -111,6 +102,21 @@ export class OcrService {
     });
 
     return lines.join('\n');
+  }
+
+  private stripHtmlTags(value: string): string {
+    let result = '';
+    let insideTag = false;
+    for (const character of value) {
+      if (character === '<') {
+        insideTag = true;
+      } else if (character === '>') {
+        insideTag = false;
+      } else if (!insideTag) {
+        result += character;
+      }
+    }
+    return result;
   }
 
   async extractMarkdownFromPdf(buffer: Buffer): Promise<string> {
