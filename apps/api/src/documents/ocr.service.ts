@@ -60,14 +60,24 @@ export class OcrService {
       const cellRegex = /<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi;
       let cellMatch: RegExpExecArray | null;
       while ((cellMatch = cellRegex.exec(rowHtml)) !== null) {
-        const cellText = cellMatch[1]
-          .replace(/<br\s*\/?>/gi, ' ')   // <br> → space
-          .replace(/<[^>]+>/g, '')         // strip remaining HTML tags
-          .replace(/&amp;/g, '&')          // decode & first (handles &amp;nbsp; etc.)
-          .replace(/&nbsp;/g, ' ')
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&quot;/g, '"')
+        const cellText = this.stripHtmlTags(cellMatch[1].replace(/<br\s*\/?>/gi, ' '))
+          // Decode non-structural entities in a single pass. Keep angle
+          // brackets encoded so cell text can never become an HTML element.
+          .replace(/&(amp|nbsp|quot|#39|apos);/g, (_match, entity: string) => {
+            switch (entity) {
+              case 'amp':
+                return '&';
+              case 'nbsp':
+                return ' ';
+              case 'quot':
+                return '"';
+              case '#39':
+              case 'apos':
+                return "'";
+              default:
+                return _match;
+            }
+          })
           .replace(/\s+/g, ' ')
           .trim();
         cells.push(cellText);
@@ -92,6 +102,21 @@ export class OcrService {
     });
 
     return lines.join('\n');
+  }
+
+  private stripHtmlTags(value: string): string {
+    let result = '';
+    let insideTag = false;
+    for (const character of value) {
+      if (character === '<') {
+        insideTag = true;
+      } else if (character === '>') {
+        insideTag = false;
+      } else if (!insideTag) {
+        result += character;
+      }
+    }
+    return result;
   }
 
   async extractMarkdownFromPdf(buffer: Buffer): Promise<string> {
@@ -157,9 +182,7 @@ export class OcrService {
       if (status === 'succeeded') {
         const rawContent = analyzeResult?.content ?? '';
         const content = this.convertHtmlTablesToMarkdown(rawContent);
-        this.logger.log(
-          `OCR succeeded — extracted ${content.length} characters of markdown`,
-        );
+        this.logger.log(`OCR succeeded — extracted ${content.length} characters of markdown`);
         return content;
       }
 

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import OpenAI, { APIConnectionTimeoutError, APIError } from 'openai';
 import type { OpenAICompatibleConnection, ReasoningEffort } from './model-registry';
 import { fromOpenAIUsage, type AiChatResult } from '../analysis/token-usage';
+import { stripTrailingSlashes } from './url-utils';
 
 @Injectable()
 export class OpenAICompatibleService {
@@ -14,7 +15,7 @@ export class OpenAICompatibleService {
     reasoningEffort: ReasoningEffort,
   ): Promise<AiChatResult> {
     const client = new OpenAI({
-      baseURL: connection.endpoint.replace(/\/+$/, ''),
+      baseURL: stripTrailingSlashes(connection.endpoint),
       apiKey: connection.apiKey,
       timeout: parseInt(this.config.get<string>('AZURE_OPENAI_TIMEOUT_MS', '300000'), 10),
     });

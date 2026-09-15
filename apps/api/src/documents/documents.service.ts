@@ -48,14 +48,15 @@ export class DocumentsService {
       throw new BadRequestException('Unsupported file type. Supported: PDF, DOCX, TXT');
     }
 
-    // Resolve file buffer (memoryStorage provides buffer; diskStorage provides path)
-    let buffer: Buffer;
-    if (file.buffer) {
-      buffer = file.buffer;
-    } else {
-      buffer = fs.readFileSync(file.path);
-      fs.unlinkSync(file.path);
+    // The upload route is configured with Multer's memoryStorage (see
+    // DocumentsController), so the file is always delivered as an in-memory
+    // buffer. We intentionally don't support a disk-based fallback here:
+    // reading/deleting an attacker-influenced `file.path` would be a path
+    // injection risk, so we fail closed instead.
+    if (!file.buffer) {
+      throw new BadRequestException('Uploaded file could not be read');
     }
+    const buffer = file.buffer;
 
     // Persist the file
     let storagePath: string;

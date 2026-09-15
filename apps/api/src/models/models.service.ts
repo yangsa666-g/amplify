@@ -27,6 +27,7 @@ import {
 import { ModelCredentialsService } from './model-credentials.service';
 import { OpenAICompatibleService } from './openai-compatible.service';
 import { PLATFORM_DEFAULTS_ORGANIZATION_ID } from '../auth/access-context';
+import { stripTrailingSlashes } from './url-utils';
 
 @Injectable()
 export class ModelsService {
@@ -566,6 +567,6 @@ export class ModelsService {
     if (url.protocol !== 'http:' && url.protocol !== 'https:') {
       throw new BadRequestException('Endpoint must use HTTP or HTTPS');
     }
-    return trimmed.replace(/\/+$/, '');
+    return stripTrailingSlashes(trimmed);
   }
 }
