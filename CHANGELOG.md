@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.0](https://github.com/shidafu666/amplify/compare/v0.8.0...v0.9.0) (2026-09-15)
+
+
+### Features
+
+* **web:** show organization in profile menu ([#79](https://github.com/shidafu666/amplify/issues/79)) ([0a6b12f](https://github.com/shidafu666/amplify/commit/0a6b12fdfbe0691c5218a6a89f55cab74ba7c104))
+
+
+### Bug Fixes
+
+* **azure:** select China environment file in aliases ([#81](https://github.com/shidafu666/amplify/issues/81)) ([8a80459](https://github.com/shidafu666/amplify/commit/8a80459fca7fc015f7f9c217db5eed7846fb08c3))
+
 ## [0.8.0](https://github.com/shidafu666/amplify/compare/v0.7.0...v0.8.0) (2026-09-15)
 
 
